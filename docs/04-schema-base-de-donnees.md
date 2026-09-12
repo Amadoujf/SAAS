@@ -893,9 +893,13 @@ model ErrorLog {
 - **Index de performance** ajoutés dès la migration initiale sur toutes les paires `(tenantId, champ de filtre fréquent)` : `Order(tenantId, status)`, `Order(tenantId, createdAt)`, `Product(tenantId, status)`.
 - Les tables `Role`, `Plan`, `SiteTemplate`, `NotificationTemplate` (variante globale) sont les seules à autoriser `tenantId` nul, pour les gabarits fournis par la plateforme.
 
-## 4.5 Extension multi-secteurs (planifiée — pas encore migrée)
+## 4.5 Extension multi-secteurs
 
-> Modèles supplémentaires requis par l'architecture multi-business (voir [11](11-secteurs-et-modules.md) et [12](12-systeme-templates-et-direction-artistique.md)). Ils viendront s'ajouter au schéma existant dans une migration dédiée, une fois les secteurs/templates/directions artistiques validés — **aucune migration n'est encore générée pour cette section**.
+> Modèles supplémentaires requis par l'architecture multi-business (voir [11](11-secteurs-et-modules.md) et [12](12-systeme-templates-et-direction-artistique.md)).
+>
+> **§4.5.1 (registre secteurs/modules) est migré** — voir `prisma/migrations/20260913000000_sector_module_registry_and_domain_extension` — et seedé (10 secteurs + option « Autre activité », catalogue de modules complet), avec activation testée (`packages/database/tests/module-registry.test.ts`, exécuté en CI). Le modèle `Domain` a également été étendu dans cette même migration (assistant de configuration, facturation, renouvellement — voir §4.2).
+>
+> **§4.5.2 et suivants (primitives Listing/Reservation, tables sectorielles dédiées) restent planifiés, pas encore migrés** — prévus en Phase 3 (voir [09](09-plan-developpement.md)).
 
 ### 4.5.1 Registre secteurs / modules
 

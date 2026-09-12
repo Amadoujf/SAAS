@@ -40,3 +40,16 @@ export async function isDomainAllowedForTls(host: string): Promise<boolean> {
   const tenant = await resolveTenantByHost(host);
   return tenant !== null && tenant.status === "ACTIVE";
 }
+
+/**
+ * Vérifie qu'un domaine n'est pas déjà revendiqué par une autre entreprise — étape 1 de
+ * l'assistant de configuration de domaine. La contrainte d'unicité `Domain.domain` en
+ * base est la garantie définitive (une course entre deux créations simultanées est
+ * tranchée par la contrainte SQL, pas par cette fonction) ; cette vérification n'est
+ * qu'un retour rapide et lisible pour l'interface, jamais la seule protection.
+ */
+export async function isDomainAvailable(domain: string): Promise<boolean> {
+  const normalized = domain.trim().toLowerCase();
+  const existing = await prisma.domain.findUnique({ where: { domain: normalized } });
+  return existing === null;
+}

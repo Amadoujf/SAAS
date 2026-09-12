@@ -11,10 +11,10 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider  = "postgresql"
   // `url` : connexion utilisée par Prisma Client à l'exécution — rôle applicatif
   // restreint (yamacommerce_app), soumis à Row-Level Security.
-  url = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
   // `directUrl` : connexion utilisée uniquement par `prisma migrate` / `prisma studio`,
   // propriétaire des tables (yamacommerce_owner) — nécessaire pour créer les tables et
   // les policies RLS. Voir docs/03-architecture-technique.md §3.2 et .env.example.
@@ -49,7 +49,11 @@ model Tenant {
   id               String       @id @default(uuid())
   name             String
   slug             String       @unique
-  businessType     BusinessType
+  businessType     BusinessType // legacy Phase 0 — conservé pour compatibilité d'affichage,
+  // remplacé fonctionnellement par `sectorKey` (registre secteurs, voir docs/11).
+  sectorKey        String? // clé vers Sector.key — null tant que le tenant n'a pas terminé
+  // l'assistant de création (choix du secteur, voir docs/09 Phase 1).
+  sector           Sector?      @relation(fields: [sectorKey], references: [key])
   status           TenantStatus @default(PENDING)
   branding         Json         @default("{}") // { logoUrl, primaryColor, secondaryColor, defaultMode }
   currency         String       @default("XOF")
@@ -87,36 +91,67 @@ model Tenant {
   promoCodes     PromoCode[]
   giftCards      GiftCard[]
   impersonated   ImpersonationSession[]
+  tenantModules  TenantModule[]
 
   @@index([status])
 }
 
 model Domain {
-  id                    String   @id @default(uuid())
-  tenantId              String
-  tenant                Tenant   @relation(fields: [tenantId], references: [id])
-  domain                String   @unique
-  type                  String // "subdomain" | "custom"
-  isPrimary             Boolean  @default(false)
-  verified              Boolean  @default(false)
-  verificationToken     String?
-  sslStatus             String   @default("pending") // pending | issued | failed
+  id        String  @id @default(uuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id])
+  domain    String  @unique // contrainte d'unicité globale : un domaine ne peut jamais
+  // appartenir à deux tenants à la fois — voir docs/09, Phase 1 (« domaine personnalisé »).
+  type      String // "subdomain" | "custom"
+  isPrimary Boolean @default(false)
+
+  // --- Vérification DNS ---------------------------------------------------
+  verified                 Boolean   @default(false)
+  verificationToken        String?
+  verificationStatus       String    @default("pending") // pending | verified | failed
+  /// Enregistrements DNS attendus, affichés au commerçant dans l'assistant de
+  /// configuration : [{ type: "CNAME"|"A"|"TXT", host, value }].
+  expectedDnsRecords       Json?     @default("[]")
+  /// Dernier relevé DNS constaté par la détection automatique périodique.
+  detectedDnsRecords       Json?
+  lastCheckedAt            DateTime?
+  /// Horodatage du dernier rappel envoyé si la configuration reste incomplète.
+  incompleteReminderSentAt DateTime?
+
+  // --- TLS ------------------------------------------------------------------
+  sslStatus String @default("pending") // pending | issued | failed
+
   // Abstraction du fournisseur de domaine (adjustement #5) : permet de migrer de Caddy
   // (on-demand TLS, dev/premiers déploiements) vers Cloudflare Custom Hostnames sans
   // changer le modèle de données ni le code appelant — voir packages/domains.
-  dnsProvider           String   @default("caddy") // caddy | cloudflare_custom_hostname
-  cloudflareHostnameId  String?
-  createdAt             DateTime @default(now())
+  dnsProvider          String  @default("caddy") // caddy | cloudflare_custom_hostname
+  cloudflareHostnameId String?
+
+  // --- Redirection & cycle de vie -------------------------------------------
+  /// Si vrai, le sous-domaine gratuit redirige (301) vers ce domaine personnalisé une
+  /// fois celui-ci vérifié et actif — jamais l'inverse, le sous-domaine reste toujours
+  /// fonctionnel en secours.
+  redirectSubdomainToCustom Boolean @default(false)
+  status                    String  @default("active") // active | suspended
+
+  // --- Facturation (le Super Admin peut acheter le domaine pour le client) --
+  purchasedByPlatform Boolean   @default(false)
+  priceBilledXOF      Int?
+  renewalDate         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([tenantId])
+  @@index([status, verificationStatus])
 }
 
 model Plan {
-  id           String   @id @default(uuid())
-  name         String   @unique // Essentiel, Business, Premium, Entreprise
+  id           String @id @default(uuid())
+  name         String @unique // Essentiel, Business, Premium, Entreprise
   priceMonthly Int
   priceYearly  Int
-  trialDays    Int      @default(14)
+  trialDays    Int    @default(14)
 
   maxProducts         Int
   maxEmployees        Int
@@ -128,13 +163,17 @@ model Plan {
   commissionRate      Decimal @default(0) @db.Decimal(5, 2) // % prélevé sur les ventes
 
   // Limites IA par formule (adjustement #8)
-  maxAIGenerationsPerMonth       Int
-  maxAIImagesAnalyzedPerMonth    Int
-  maxAIProductsImportedPerMonth  Int
-  aiEstimatedCostCapXOF          Int? // seuil d'alerte de coût, null = pas de plafond
+  maxAIGenerationsPerMonth      Int
+  maxAIImagesAnalyzedPerMonth   Int
+  maxAIProductsImportedPerMonth Int
+  aiEstimatedCostCapXOF         Int? // seuil d'alerte de coût, null = pas de plafond
 
-  features  Json    @default("[]")
-  isActive  Boolean @default(true)
+  /// Modules sectoriels inclus par cette formule, en plus des modules par défaut du
+  /// secteur choisi — voir docs/11-secteurs-et-modules.md §11.1 et modèle TenantModule.
+  includedModuleKeys String[] @default([])
+
+  features Json    @default("[]")
+  isActive Boolean @default(true)
 
   subscriptions Subscription[]
 }
@@ -158,6 +197,63 @@ model Subscription {
   currentPeriodEnd   DateTime
   cancelAtPeriodEnd  Boolean            @default(false)
   createdAt          DateTime           @default(now())
+}
+
+// ============================================================================
+// REGISTRE SECTEURS / MODULES (Phase 1 — voir docs/11-secteurs-et-modules.md)
+// ============================================================================
+
+/// Un secteur d'activité (e-commerce, immobilier, voyage, ... ou "custom" pour
+/// « Autre activité »). Les secteurs "système" (isSystem = true) sont fournis par la
+/// plateforme ; un Super Admin peut en créer d'autres sans déploiement (isSystem =
+/// false) — voir docs/11 §11.7.2. Composer un nouveau secteur ne peut se faire qu'à
+/// partir de modules et de pages déjà existants : aucun code n'est requis.
+model Sector {
+  id                     String   @id @default(uuid())
+  key                    String   @unique // ecommerce | fashion | restaurant | ... | custom
+  name                   String
+  iconKey                String?
+  vocabulary             Json     @default("{}") // { "catalog": "Biens", "item": "Bien", ... }
+  description            String?
+  defaultModuleKeys      String[]
+  optionalModuleKeys     String[] @default([])
+  compatibleTemplateTags String[] @default([])
+  proposedPageManifest   Json     @default("[]")
+  customFieldSchema      Json?
+  isSystem               Boolean  @default(true)
+  isActive               Boolean  @default(true)
+  createdBy              String?
+  createdAt              DateTime @default(now())
+
+  tenants Tenant[]
+}
+
+/// Un module fonctionnel activable — soit "core" (fourni à tous, non désactivable),
+/// soit "sector" (rattaché à un ou plusieurs secteurs, activable/désactivable).
+model Module {
+  id          String   @id @default(uuid())
+  key         String   @unique // ex. "catalog", "listings", "appointments"
+  name        String
+  category    String // "core" | "sector"
+  sectorKeys  String[] // secteurs auxquels ce module sectoriel s'applique ([] si core)
+  description String?
+  createdAt   DateTime @default(now())
+}
+
+/// Activation d'un module pour un tenant donné — voir docs/11 §11.6 (règle de
+/// gouvernance). Un module absent de cette table pour un tenant est considéré désactivé.
+model TenantModule {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  moduleKey String
+  isEnabled Boolean  @default(true)
+  source    String // "sector_default" | "manual" | "plan_included"
+  config    Json?
+  enabledAt DateTime @default(now())
+
+  @@unique([tenantId, moduleKey])
+  @@index([tenantId, isEnabled])
 }
 
 // ============================================================================
@@ -450,7 +546,7 @@ model CustomerAddress {
 }
 
 model Wishlist {
-  id         String  @id @default(uuid())
+  id         String   @id @default(uuid())
   customerId String
   customer   Customer @relation(fields: [customerId], references: [id])
   productId  String
@@ -824,22 +920,22 @@ model DelivererRemittance {
 // ============================================================================
 
 model AIGenerationJob {
-  id                String    @id @default(uuid())
-  tenantId          String
-  tenant            Tenant    @relation(fields: [tenantId], references: [id])
-  type              String // product_from_photo | product_from_text | bulk_import | translation | marketing_copy | chat_query
-  status            String    @default("pending") // pending | processing | completed | failed
-  inputPayload      Json
-  outputPayload     Json?
-  model             String?
-  imagesCount        Int      @default(0)
-  costEstimateXOF    Int      @default(0)
-  createdBy         String?
-  createdAt         DateTime  @default(now())
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  type            String // product_from_photo | product_from_text | bulk_import | translation | marketing_copy | chat_query
+  status          String    @default("pending") // pending | processing | completed | failed
+  inputPayload    Json
+  outputPayload   Json?
+  model           String?
+  imagesCount     Int       @default(0)
+  costEstimateXOF Int       @default(0)
+  createdBy       String?
+  createdAt       DateTime  @default(now())
   // Aucun contenu IA n'est publiable sans validation humaine explicite.
-  reviewedAt        DateTime?
-  reviewedBy        String?
-  approved          Boolean   @default(false)
+  reviewedAt      DateTime?
+  reviewedBy      String?
+  approved        Boolean   @default(false)
 
   @@index([tenantId, createdAt])
 }
@@ -847,37 +943,37 @@ model AIGenerationJob {
 /// Compteur d'utilisation IA par tenant et par période mensuelle (YYYY-MM),
 /// vérifié avant chaque nouvelle génération pour appliquer les limites du Plan.
 model AIUsageRecord {
-  id                    String @id @default(uuid())
-  tenantId              String
-  tenant                Tenant @relation(fields: [tenantId], references: [id])
-  periodMonth           String // "2026-09"
-  generationsUsed       Int    @default(0)
-  imagesAnalyzedUsed    Int    @default(0)
-  productsImportedUsed  Int    @default(0)
-  estimatedCostXOF      Int    @default(0)
-  updatedAt             DateTime @updatedAt
+  id                   String   @id @default(uuid())
+  tenantId             String
+  tenant               Tenant   @relation(fields: [tenantId], references: [id])
+  periodMonth          String // "2026-09"
+  generationsUsed      Int      @default(0)
+  imagesAnalyzedUsed   Int      @default(0)
+  productsImportedUsed Int      @default(0)
+  estimatedCostXOF     Int      @default(0)
+  updatedAt            DateTime @updatedAt
 
   @@unique([tenantId, periodMonth])
 }
 
 model ImportJob {
-  id            String   @id @default(uuid())
-  tenantId      String
-  tenant        Tenant   @relation(fields: [tenantId], references: [id])
-  sourceType    String // csv | excel | pdf | url | photos
-  sourceUrl     String?
-  fileUrl       String?
-  mimeType      String?
-  sizeBytes     Int?
+  id              String   @id @default(uuid())
+  tenantId        String
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  sourceType      String // csv | excel | pdf | url | photos
+  sourceUrl       String?
+  fileUrl         String?
+  mimeType        String?
+  sizeBytes       Int?
   // Sécurisation des imports URL/PDF (adjustement #9)
-  urlHostAllowed Boolean? // résultat de la vérification anti-SSRF (liste blanche / résolution IP)
-  virusScanStatus String  @default("not_applicable") // not_applicable | pending | clean | infected | error
-  status        String   @default("pending") // pending | processing | completed | failed
-  totalRows     Int?
-  processedRows Int      @default(0)
-  errorLog      Json?
-  createdBy     String?
-  createdAt     DateTime @default(now())
+  urlHostAllowed  Boolean? // résultat de la vérification anti-SSRF (liste blanche / résolution IP)
+  virusScanStatus String   @default("not_applicable") // not_applicable | pending | clean | infected | error
+  status          String   @default("pending") // pending | processing | completed | failed
+  totalRows       Int?
+  processedRows   Int      @default(0)
+  errorLog        Json?
+  createdBy       String?
+  createdAt       DateTime @default(now())
 
   @@index([tenantId, status])
 }
@@ -927,17 +1023,17 @@ model Page {
 /// par défaut ne pointe vers un numéro plateforme partagé : tant que ce modèle
 /// n'existe pas pour un tenant, les notifications WhatsApp sont simplement désactivées.
 model WhatsAppConfig {
-  id                  String    @id @default(uuid())
-  tenantId            String    @unique
-  tenant              Tenant    @relation(fields: [tenantId], references: [id])
-  wabaId              String? // WhatsApp Business Account ID du tenant
-  phoneNumberId       String?
-  displayPhoneNumber  String?
+  id                    String    @id @default(uuid())
+  tenantId              String    @unique
+  tenant                Tenant    @relation(fields: [tenantId], references: [id])
+  wabaId                String? // WhatsApp Business Account ID du tenant
+  phoneNumberId         String?
+  displayPhoneNumber    String?
   accessTokenCiphertext String?
   accessTokenIv         String?
   accessTokenAuthTag    String?
-  verified            Boolean   @default(false)
-  connectedAt         DateTime?
+  verified              Boolean   @default(false)
+  connectedAt           DateTime?
 }
 
 model NotificationTemplate {

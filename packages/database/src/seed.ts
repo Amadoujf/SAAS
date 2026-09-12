@@ -2,6 +2,7 @@ import { hashPassword, SYSTEM_ROLE_PERMISSIONS, SYSTEM_ROLES } from "@yamacommer
 import { prisma } from "./client";
 import { withSuperAdminAccess, withTenant } from "./tenant-context";
 import { formatInvoiceNumber, formatOrderNumber, nextCounterValue } from "./counters";
+import { activateSectorDefaults } from "./modules-registry";
 
 /**
  * Données de démonstration.
@@ -182,12 +183,21 @@ async function main() {
   console.info(`  ✓ Super Admin (${superAdminEmail})`);
 
   // ---------------------------------------------------------------------
+  // 3bis. Registre secteurs / modules (voir docs/11-secteurs-et-modules.md)
+  // ---------------------------------------------------------------------
+  await seedSectorAndModuleRegistry();
+  console.info(
+    `  ✓ Registre secteurs/modules (${SECTORS.length} secteurs, ${MODULES.length} modules)`,
+  );
+
+  // ---------------------------------------------------------------------
   // 4. Deux entreprises de démonstration (pour les tests d'isolation)
   // ---------------------------------------------------------------------
   await seedDemoTenant({
     slug: "boutique-aida",
     name: "Boutique Aïda",
     businessType: "ECOMMERCE",
+    sectorKey: "ecommerce",
     ownerEmail: "aida@boutique-aida.sn",
     ownerName: "Aïda Diop",
     planId: essentiel.id,
@@ -200,6 +210,7 @@ async function main() {
     slug: "teranga-auto",
     name: "Teranga Auto",
     businessType: "AUTOMOBILE",
+    sectorKey: "automobile",
     ownerEmail: "contact@teranga-auto.sn",
     ownerName: "Moussa Fall",
     planId: essentiel.id,
@@ -211,10 +222,299 @@ async function main() {
   console.info("Seed terminé avec succès.");
 }
 
+/**
+ * Registre des secteurs — reflète exactement docs/11-secteurs-et-modules.md §11.3
+ * (10 secteurs système) + l'option « Autre activité » (§11.7.1, aucun module par défaut).
+ */
+const SECTORS: Array<{ key: string; name: string; defaultModuleKeys: string[] }> = [
+  {
+    key: "ecommerce",
+    name: "Boutiques, commerçants et grossistes",
+    defaultModuleKeys: ["catalog", "inventory", "delivery_zones", "wholesale_pricing"],
+  },
+  {
+    key: "fashion",
+    name: "Mode et vêtements",
+    defaultModuleKeys: ["catalog", "inventory", "variants_advanced", "lookbook", "delivery_zones"],
+  },
+  {
+    key: "restaurant",
+    name: "Restauration",
+    defaultModuleKeys: ["catalog", "table_reservations", "qr_ordering", "delivery_zones"],
+  },
+  {
+    key: "real_estate",
+    name: "Immobilier",
+    defaultModuleKeys: [
+      "listings",
+      "leases",
+      "rent_collection",
+      "property_maintenance",
+      "visit_requests",
+    ],
+  },
+  {
+    key: "travel_agency",
+    name: "Agences de voyage",
+    defaultModuleKeys: ["listings", "departures", "visa_requests", "traveler_documents"],
+  },
+  {
+    key: "automobile",
+    name: "Automobile",
+    defaultModuleKeys: ["listings", "import_tracking", "test_drive_appointments", "leads"],
+  },
+  {
+    key: "hospitality",
+    name: "Hôtels et locations",
+    defaultModuleKeys: ["listings", "availability_calendar", "housekeeping"],
+  },
+  {
+    key: "services",
+    name: "Salons et prestataires de services",
+    defaultModuleKeys: ["service_catalog", "appointments", "staff_availability"],
+  },
+  {
+    key: "education",
+    name: "Écoles et centres de formation",
+    defaultModuleKeys: [
+      "courses",
+      "enrollments",
+      "academic_tracking",
+      "student_portal",
+      "parent_portal",
+    ],
+  },
+  {
+    key: "delivery",
+    name: "Services de livraison",
+    defaultModuleKeys: ["dispatch", "delivery_zones", "deliverer_tracking", "cod_reconciliation"],
+  },
+  {
+    key: "custom",
+    name: "Autre activité",
+    defaultModuleKeys: [], // composition manuelle — voir docs/11 §11.7.1
+  },
+];
+
+/** Catalogue des modules — noyau (core) + sectoriels, voir docs/11 §11.2 et §11.4. */
+const MODULES: Array<{
+  key: string;
+  name: string;
+  category: "core" | "sector";
+  sectorKeys: string[];
+}> = [
+  // Noyau commun
+  { key: "auth", name: "Authentification", category: "core", sectorKeys: [] },
+  { key: "businesses", name: "Gestion de l'entreprise", category: "core", sectorKeys: [] },
+  { key: "customers", name: "Clients", category: "core", sectorKeys: [] },
+  { key: "employees", name: "Employés, rôles et permissions", category: "core", sectorKeys: [] },
+  { key: "payments", name: "Paiements", category: "core", sectorKeys: [] },
+  { key: "invoicing", name: "Facturation", category: "core", sectorKeys: [] },
+  { key: "emails", name: "E-mails", category: "core", sectorKeys: [] },
+  { key: "whatsapp", name: "WhatsApp", category: "core", sectorKeys: [] },
+  { key: "ai", name: "Intelligence artificielle", category: "core", sectorKeys: [] },
+  { key: "subscriptions", name: "Abonnements", category: "core", sectorKeys: [] },
+  { key: "domains", name: "Domaines et sous-domaines", category: "core", sectorKeys: [] },
+  { key: "visual_editor", name: "Éditeur visuel", category: "core", sectorKeys: [] },
+  { key: "files", name: "Gestion des fichiers", category: "core", sectorKeys: [] },
+  { key: "analytics", name: "Analyses et rapports", category: "core", sectorKeys: [] },
+  { key: "settings", name: "Paramètres généraux", category: "core", sectorKeys: [] },
+  // E-commerce / mode / restauration
+  {
+    key: "catalog",
+    name: "Catalogue",
+    category: "sector",
+    sectorKeys: ["ecommerce", "fashion", "restaurant"],
+  },
+  { key: "inventory", name: "Stock", category: "sector", sectorKeys: ["ecommerce", "fashion"] },
+  {
+    key: "delivery_zones",
+    name: "Zones de livraison",
+    category: "sector",
+    sectorKeys: ["ecommerce", "fashion", "restaurant", "delivery"],
+  },
+  { key: "wholesale_pricing", name: "Prix de gros", category: "sector", sectorKeys: ["ecommerce"] },
+  {
+    key: "variants_advanced",
+    name: "Variantes avancées",
+    category: "sector",
+    sectorKeys: ["fashion"],
+  },
+  { key: "lookbook", name: "Lookbook", category: "sector", sectorKeys: ["fashion"] },
+  {
+    key: "table_reservations",
+    name: "Réservation de table",
+    category: "sector",
+    sectorKeys: ["restaurant"],
+  },
+  {
+    key: "qr_ordering",
+    name: "Commande par QR code",
+    category: "sector",
+    sectorKeys: ["restaurant"],
+  },
+  // Immobilier
+  {
+    key: "listings",
+    name: "Annonces (biens/circuits/véhicules/chambres)",
+    category: "sector",
+    sectorKeys: ["real_estate", "travel_agency", "automobile", "hospitality"],
+  },
+  { key: "leases", name: "Baux", category: "sector", sectorKeys: ["real_estate"] },
+  {
+    key: "rent_collection",
+    name: "Encaissement des loyers",
+    category: "sector",
+    sectorKeys: ["real_estate"],
+  },
+  {
+    key: "property_maintenance",
+    name: "Maintenance des biens",
+    category: "sector",
+    sectorKeys: ["real_estate"],
+  },
+  {
+    key: "visit_requests",
+    name: "Demandes de visite",
+    category: "sector",
+    sectorKeys: ["real_estate"],
+  },
+  // Voyage
+  {
+    key: "departures",
+    name: "Calendrier des départs",
+    category: "sector",
+    sectorKeys: ["travel_agency"],
+  },
+  {
+    key: "visa_requests",
+    name: "Demandes de visa",
+    category: "sector",
+    sectorKeys: ["travel_agency"],
+  },
+  {
+    key: "traveler_documents",
+    name: "Documents voyageurs",
+    category: "sector",
+    sectorKeys: ["travel_agency"],
+  },
+  // Automobile
+  {
+    key: "import_tracking",
+    name: "Suivi d'importation",
+    category: "sector",
+    sectorKeys: ["automobile"],
+  },
+  {
+    key: "test_drive_appointments",
+    name: "Essais véhicule",
+    category: "sector",
+    sectorKeys: ["automobile"],
+  },
+  { key: "leads", name: "Prospects", category: "sector", sectorKeys: ["automobile"] },
+  // Hôtellerie
+  {
+    key: "availability_calendar",
+    name: "Calendrier de disponibilité",
+    category: "sector",
+    sectorKeys: ["hospitality"],
+  },
+  { key: "housekeeping", name: "Ménage", category: "sector", sectorKeys: ["hospitality"] },
+  // Services
+  {
+    key: "service_catalog",
+    name: "Catalogue de prestations",
+    category: "sector",
+    sectorKeys: ["services"],
+  },
+  {
+    key: "appointments",
+    name: "Rendez-vous",
+    category: "sector",
+    sectorKeys: ["services", "restaurant", "automobile", "hospitality"],
+  },
+  {
+    key: "staff_availability",
+    name: "Disponibilité des employés",
+    category: "sector",
+    sectorKeys: ["services"],
+  },
+  // Éducation
+  { key: "courses", name: "Formations", category: "sector", sectorKeys: ["education"] },
+  { key: "enrollments", name: "Inscriptions", category: "sector", sectorKeys: ["education"] },
+  {
+    key: "academic_tracking",
+    name: "Suivi académique",
+    category: "sector",
+    sectorKeys: ["education"],
+  },
+  {
+    key: "student_portal",
+    name: "Portail étudiant",
+    category: "sector",
+    sectorKeys: ["education"],
+  },
+  { key: "parent_portal", name: "Portail parent", category: "sector", sectorKeys: ["education"] },
+  // Livraison
+  {
+    key: "dispatch",
+    name: "Répartition des courses",
+    category: "sector",
+    sectorKeys: ["delivery"],
+  },
+  {
+    key: "deliverer_tracking",
+    name: "Suivi livreur",
+    category: "sector",
+    sectorKeys: ["delivery"],
+  },
+  {
+    key: "cod_reconciliation",
+    name: "Réconciliation COD",
+    category: "sector",
+    sectorKeys: ["delivery"],
+  },
+  // Transverse
+  {
+    key: "regulated_documents",
+    name: "Documents réglementés",
+    category: "sector",
+    sectorKeys: ["services", "ecommerce", "travel_agency"],
+  },
+];
+
+async function seedSectorAndModuleRegistry() {
+  for (const moduleDef of MODULES) {
+    await prisma.module.upsert({
+      where: { key: moduleDef.key },
+      update: {
+        name: moduleDef.name,
+        category: moduleDef.category,
+        sectorKeys: moduleDef.sectorKeys,
+      },
+      create: moduleDef,
+    });
+  }
+
+  for (const sectorDef of SECTORS) {
+    await prisma.sector.upsert({
+      where: { key: sectorDef.key },
+      update: { name: sectorDef.name, defaultModuleKeys: sectorDef.defaultModuleKeys },
+      create: {
+        key: sectorDef.key,
+        name: sectorDef.name,
+        defaultModuleKeys: sectorDef.defaultModuleKeys,
+        isSystem: true,
+      },
+    });
+  }
+}
+
 async function seedDemoTenant(input: {
   slug: string;
   name: string;
   businessType: "ECOMMERCE" | "AUTOMOBILE";
+  sectorKey: string;
   ownerEmail: string;
   ownerName: string;
   planId: string;
@@ -245,11 +545,15 @@ async function seedDemoTenant(input: {
         slug: input.slug,
         name: input.name,
         businessType: input.businessType,
+        sectorKey: input.sectorKey,
         status: "ACTIVE",
         branding: { primaryColor: "#0F766E", secondaryColor: "#F59E0B", defaultMode: "light" },
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // Active les modules par défaut du secteur choisi — voir docs/11 §11.6.
+    await activateSectorDefaults(tx, createdTenant.id, input.sectorKey);
 
     await tx.domain.upsert({
       where: { domain: `${input.slug}.yamacommerce.ai` },

@@ -2,7 +2,7 @@
 
 Plateforme SaaS multi-entreprises et **multi-secteurs** (e-commerce, mode, restauration, immobilier, voyage, automobile, hôtellerie, services, éducation, livraison — et au-delà, voir [doc 11](docs/11-secteurs-et-modules.md)) permettant à chaque entrepreneur de choisir son secteur, ses modules, son template et de publier son site professionnel au Sénégal.
 
-> **Statut actuel : Phase 0 (fondations) codée et vérifiée ; architecture multi-business validée en conception (docs 11 et 12), en attente de validation finale des secteurs/templates/directions artistiques avant le développement de la Phase 1.** Voir [État de la Phase 0](#état-de-la-phase-0-fondations) pour le détail de ce qui a été vérifié en code, et [09-plan-developpement.md](docs/09-plan-developpement.md) pour l'impact de l'extension multi-secteurs sur le calendrier.
+> **Statut actuel : Phase 0 (fondations) livrée ; Phase 1 en cours** — architecture multi-business validée (docs 11 et 12), registre secteurs/modules et extension du domaine personnalisé codés et testés (schéma + logique), CI GitHub Actions en place pour vérifier tout cela contre un vrai PostgreSQL. Voir [État de la Phase 0](#état-de-la-phase-0-fondations) et [Phase 1 — avancement](#phase-1--avancement) plus bas, et [09-plan-developpement.md](docs/09-plan-developpement.md) pour le détail complet.
 
 ## Documentation de conception
 
@@ -62,7 +62,7 @@ pnpm db:generate
 pnpm db:migrate:deploy
 ```
 
-(`db:migrate:deploy` applique les deux migrations existantes : création du schéma, puis activation de Row-Level Security + création du rôle `yamacommerce_app`. Utilise `pnpm db:migrate` — `prisma migrate dev` — uniquement en développement si tu ajoutes de nouveaux modèles au schéma.)
+(`db:migrate:deploy` applique les trois migrations existantes, dans l'ordre : création du schéma, activation de Row-Level Security + création du rôle `yamacommerce_app`, puis registre secteurs/modules + extension du domaine personnalisé. Utilise `pnpm db:migrate` — `prisma migrate dev` — uniquement en développement si tu ajoutes de nouveaux modèles au schéma.)
 
 ### 5. Charger les données de démonstration
 
@@ -97,21 +97,20 @@ pnpm db:studio      # Prisma Studio (explorateur de données)
 pnpm --filter @yamacommerce/database run validate   # valide prisma/schema.prisma
 ```
 
-### Résultats vérifiés dans cet environnement (2026-09-12)
+### Résultats vérifiés dans cet environnement (2026-09-13)
 
-| Vérification                                                    | Résultat                                                                                                                                                                                            |
-| --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm install` (9 workspaces)                                   | ✅ Réussi                                                                                                                                                                                           |
-| `prisma validate` / `prisma generate`                           | ✅ Réussi                                                                                                                                                                                           |
-| Migration initiale (`prisma migrate diff --from-empty`)         | ✅ Générée (1134 lignes SQL), non encore appliquée à une base réelle                                                                                                                                |
-| Migration RLS (rôle applicatif, policies, index partiels)       | ✅ Écrite à la main, non encore appliquée à une base réelle                                                                                                                                         |
-| `pnpm typecheck` (8 packages)                                   | ✅ 0 erreur                                                                                                                                                                                         |
-| `pnpm lint` (8 packages, ESLint + `next lint`)                  | ✅ 0 avertissement, 0 erreur                                                                                                                                                                        |
-| `pnpm test` — `@yamacommerce/auth`                              | ✅ 7/7 tests passés (permissions, guard)                                                                                                                                                            |
-| `pnpm test` — `@yamacommerce/payments`                          | ✅ 4/4 tests passés (adaptateur PayDunya, mocké)                                                                                                                                                    |
-| `pnpm test` — `@yamacommerce/domains`                           | ✅ 3/3 tests passés (vérification DNS, mockée)                                                                                                                                                      |
-| `pnpm test` — `@yamacommerce/queue`                             | ✅ 2/2 tests passés                                                                                                                                                                                 |
-| `pnpm test` — `@yamacommerce/database` (isolation multi-tenant) | ⏭️ **Ignoré** — aucun PostgreSQL disponible dans cet environnement (pas de Docker, pas de droits admin). Le test détecte l'absence de base et l'affiche clairement plutôt que de prétendre réussir. |
+| Vérification                                                                       | Résultat                                                                                                                                                                                                                                                                                             |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm install` (9 workspaces)                                                      | ✅ Réussi                                                                                                                                                                                                                                                                                            |
+| `prisma validate` / `prisma generate`                                              | ✅ Réussi (schéma incluant le registre secteurs/modules et l'extension Domain)                                                                                                                                                                                                                       |
+| 3 migrations (init, RLS, registre secteurs/modules + Domain)                       | ✅ Écrites/générées, non encore appliquées à une base réelle dans cet environnement                                                                                                                                                                                                                  |
+| `pnpm typecheck` (8 packages)                                                      | ✅ 0 erreur                                                                                                                                                                                                                                                                                          |
+| `pnpm lint` (8 packages, ESLint + `next lint`)                                     | ✅ 0 avertissement, 0 erreur                                                                                                                                                                                                                                                                         |
+| `pnpm test` — `@yamacommerce/auth`                                                 | ✅ 7/7 tests passés                                                                                                                                                                                                                                                                                  |
+| `pnpm test` — `@yamacommerce/payments`                                             | ✅ 4/4 tests passés                                                                                                                                                                                                                                                                                  |
+| `pnpm test` — `@yamacommerce/domains`                                              | ✅ 6/6 tests passés (dont le calcul des enregistrements DNS attendus)                                                                                                                                                                                                                                |
+| `pnpm test` — `@yamacommerce/queue`                                                | ✅ 2/2 tests passés                                                                                                                                                                                                                                                                                  |
+| `pnpm test` — `@yamacommerce/database` (isolation multi-tenant + registre modules) | ⏭️ **Ignorés** en local — aucun PostgreSQL disponible dans cet environnement. Vérifié séparément que `REQUIRE_DB_TESTS=true` sans base fait échouer ces tests (garde-fou anti-simulation) plutôt que de les laisser passer. **Ces deux suites s'exécutent réellement dans la CI** (voir ci-dessous). |
 
 **Pourquoi la base n'a pas été montée ici :** cet environnement d'exécution ne dispose ni de Docker ni de droits administrateur pour installer PostgreSQL/Redis (une instance PostgreSQL 17 tourne déjà sur ce poste pour un autre usage, sans identifiants connus, et il n'a pas semblé raisonnable d'y toucher sans confirmation). C'est exactement pour ce cas de figure — pas de Docker en local — que la CI ci-dessous exécute le test réel contre un vrai PostgreSQL à chaque push.
 
@@ -127,6 +126,18 @@ Le workflow échoue automatiquement si : une migration Prisma échoue, le lint o
 
 Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url>` puis `git push -u origin main`) — aucune configuration de secret n'est nécessaire, toutes les valeurs utilisées par la CI sont des identifiants de test jetables générés dans le workflow lui-même.
 
+## Phase 1 — avancement
+
+**Étape livrée (13 septembre 2026) : registre secteurs/modules + extension du domaine personnalisé (schéma et logique backend).**
+
+- Migration `packages/database/prisma/migrations/20260913000000_sector_module_registry_and_domain_extension` : modèles `Sector`, `Module`, `TenantModule`, `Tenant.sectorKey`, et extension de `Domain` (statut de vérification, enregistrements DNS attendus/détectés, rappel, redirection sous-domaine, achat plateforme, renouvellement).
+- `packages/database/src/modules-registry.ts` : `activateSectorDefaults`, `setModuleEnabled`, `isModuleEnabled` (refuse de désactiver un module core), avec RLS appliquée à `TenantModule`.
+- `packages/database/src/seed.ts` : seed des 10 secteurs + « Autre activité » et du catalogue complet de modules (docs/11).
+- `packages/domains/src/dns-instructions.ts` : calcul des enregistrements DNS attendus (A pour un apex, CNAME pour un sous-domaine, TXT de vérification) ; `isDomainAvailable()` pour la vérification de disponibilité côté interface.
+- Nouveaux tests : `packages/database/tests/module-registry.test.ts` (activation, idempotence, protection des modules core, isolation RLS — exécuté réellement en CI) et `packages/domains/src/dns-instructions.test.ts` (3/3 passés localement).
+
+**Reste à construire pour compléter la Phase 1** (voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md) pour le détail) : l'assistant de configuration de domaine dans le dashboard et les pages de gestion des domaines côté Super Admin, le système de design tokens, le registre de templates, l'éditeur visuel par sections, la prévisualisation responsive, et les 3 templates e-commerce complets.
+
 ## Prochaine étape
 
-**Phase 1** en cours — voir les sections suivantes de ce document au fil de son avancement, et [docs/09-plan-developpement.md](docs/09-plan-developpement.md) pour le détail complet.
+Valider ce socle (registre + domaine) une fois la CI verte sur GitHub, puis enchaîner sur le prochain élément de la Phase 1 — voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md).
