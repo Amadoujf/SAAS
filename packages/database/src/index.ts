@@ -3,3 +3,4 @@ export * from "./tenant-context";
 export * from "./counters";
 export * from "./encryption";
 export * from "./modules-registry";
+export * from "./templates-registry";

@@ -92,6 +92,7 @@ model Tenant {
   giftCards      GiftCard[]
   impersonated   ImpersonationSession[]
   tenantModules  TenantModule[]
+  tenantSite     TenantSite?
 
   @@index([status])
 }
@@ -225,7 +226,8 @@ model Sector {
   createdBy              String?
   createdAt              DateTime @default(now())
 
-  tenants Tenant[]
+  tenants       Tenant[]
+  siteTemplates SiteTemplate[]
 }
 
 /// Un module fonctionnel activable — soit "core" (fourni à tous, non désactivable),
@@ -254,6 +256,66 @@ model TenantModule {
 
   @@unique([tenantId, moduleKey])
   @@index([tenantId, isEnabled])
+}
+
+// ============================================================================
+// REGISTRE DES TEMPLATES (Phase 1 — voir docs/12-systeme-templates-et-direction-artistique.md)
+// ============================================================================
+
+/// Un template de site — appartient à un secteur, jamais de données métier à
+/// l'intérieur (voir docs/12 §12.1). `pageManifest` et `defaultDesignTokens` sont
+/// validés côté application via @yamacommerce/templates et @yamacommerce/design-tokens
+/// avant toute écriture — voir packages/database/src/templates-registry.ts.
+model SiteTemplate {
+  id                    String   @id @default(uuid())
+  key                   String   @unique // identifiant stable, ex. "ecommerce-luxury-minimal"
+  name                  String
+  sectorKey             String
+  sector                Sector   @relation(fields: [sectorKey], references: [key])
+  description           String?
+  artDirectionKey       String
+  previewImageUrl       String?
+  /// TemplateManifest complet (pages + sections avec leurs instances) — voir
+  /// @yamacommerce/templates.
+  pageManifest          Json
+  /// Sections que ce template sait utiliser (peut être plus large que celles déjà
+  /// posées dans pageManifest — utile à l'éditeur pour proposer un ajout).
+  availableSectionKeys  String[] @default([])
+  requiredModuleKeys    String[] @default([])
+  optionalModuleKeys    String[] @default([])
+  /// DesignTokens complet par défaut — voir @yamacommerce/design-tokens.
+  defaultDesignTokens   Json
+  defaultAnimationLevel String   @default("dynamic") // discreet | dynamic | immersive
+  status                String   @default("draft") // draft | published | archived
+  version               Int      @default(1)
+  mobileCompatible      Boolean  @default(true)
+  demoData              Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenantSites TenantSite[]
+
+  @@index([sectorKey, status])
+}
+
+/// Le site d'une entreprise : quel template, avec quelle surcharge de tokens. Ne porte
+/// JAMAIS de données métier (produits, commandes, clients) — voir docs/12 §12.1,
+/// garantie que changer de template ne supprime rien.
+model TenantSite {
+  id                     String       @id @default(uuid())
+  tenantId               String       @unique
+  tenant                 Tenant       @relation(fields: [tenantId], references: [id])
+  templateId             String
+  template               SiteTemplate @relation(fields: [templateId], references: [id])
+  /// Surcharge partielle — voir @yamacommerce/design-tokens `DesignTokensOverrides`.
+  /// Ne modifie jamais `SiteTemplate.defaultDesignTokens` : la fusion est calculée à la
+  /// volée par `resolveEffectiveDesignTokens()`.
+  designTokenOverrides   Json         @default("{}")
+  animationLevelOverride String? // null = hérite de SiteTemplate.defaultAnimationLevel
+  isPublished            Boolean      @default(false)
+  publishedAt            DateTime?
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 }
 
 // ============================================================================
@@ -976,43 +1038,6 @@ model ImportJob {
   createdAt       DateTime @default(now())
 
   @@index([tenantId, status])
-}
-
-// ============================================================================
-// SITE & THÈME
-// ============================================================================
-
-model SiteTemplate {
-  id               String       @id @default(uuid())
-  name             String
-  businessType     BusinessType
-  previewImageUrl  String?
-  componentsConfig Json         @default("{}")
-  isActive         Boolean      @default(true)
-}
-
-model TenantSite {
-  id          String    @id @default(uuid())
-  tenantId    String    @unique
-  templateId  String
-  themeConfig Json      @default("{}") // { colors, fonts, defaultMode: "light" | "dark" }
-  seoConfig   Json?
-  published   Boolean   @default(false)
-  publishedAt DateTime?
-
-  pages Page[]
-}
-
-model Page {
-  id           String     @id @default(uuid())
-  tenantSiteId String
-  tenantSite   TenantSite @relation(fields: [tenantSiteId], references: [id])
-  slug         String
-  title        String
-  blocks       Json       @default("[]")
-  isHome       Boolean    @default(false)
-
-  @@unique([tenantSiteId, slug])
 }
 
 // ============================================================================
