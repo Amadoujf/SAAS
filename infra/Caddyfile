@@ -1,0 +1,29 @@
+{
+	# TLS à la demande : Caddy interroge apps/web avant d'émettre un certificat pour
+	# N'IMPORTE QUEL domaine reçu — sous-domaine de tenant OU domaine personnalisé
+	# connecté par un commerçant. Voir packages/domains (CaddyDomainProvider) et
+	# apps/web/app/api/domains/ask/route.ts.
+	on_demand_tls {
+		ask http://web:3000/api/domains/ask
+		interval 2m
+		burst 10
+	}
+}
+
+# Sous-domaines de tenant (boutique.yamacommerce.ai) ET domaines personnalisés.
+:443, *.yamacommerce.ai {
+	tls {
+		on_demand
+	}
+	reverse_proxy web:3000
+}
+
+# Espace Super Admin — domaine fixe, jamais soumis à on-demand TLS.
+admin.yamacommerce.ai {
+	reverse_proxy web:3000
+}
+
+# Développement local sans TLS (accès direct via http://localhost).
+:80 {
+	reverse_proxy web:3000
+}

@@ -1,0 +1,41 @@
+# Dépendances
+node_modules/
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+
+# Turbo
+.turbo/
+
+# Build
+dist/
+build/
+*.tsbuildinfo
+
+# Environnement — ne jamais versionner de secrets réels
+.env
+.env.local
+.env.*.local
+
+# Prisma
+packages/database/prisma/dev.db
+packages/database/prisma/*.db
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Tests / couverture
+coverage/
+
+# Éditeurs / OS
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+
+# Docker
+infra/**/data/

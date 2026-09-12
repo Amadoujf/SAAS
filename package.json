@@ -1,0 +1,34 @@
+{
+  "name": "yamacommerce-ai",
+  "private": true,
+  "version": "0.1.0",
+  "description": "YamaCommerce AI — plateforme SaaS multi-entreprises pour le Sénégal",
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @yamacommerce/web dev",
+    "dev:worker": "pnpm --filter @yamacommerce/worker dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:generate": "pnpm --filter @yamacommerce/database run generate",
+    "db:migrate": "pnpm --filter @yamacommerce/database run migrate:dev",
+    "db:migrate:deploy": "pnpm --filter @yamacommerce/database run migrate:deploy",
+    "db:migrate:diff": "pnpm --filter @yamacommerce/database run migrate:diff",
+    "db:seed": "pnpm --filter @yamacommerce/database run seed",
+    "db:studio": "pnpm --filter @yamacommerce/database run studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.3.3",
+    "typescript": "^5.7.2",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.9",
+    "eslint": "^8.57.1"
+  }
+}

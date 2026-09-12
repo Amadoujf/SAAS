@@ -1,0 +1,894 @@
+# 4. Schéma de base de données
+
+## 4.1 Vue d'ensemble (ERD simplifié)
+
+```mermaid
+erDiagram
+    TENANT ||--o{ TENANT_USER : emploie
+    TENANT ||--o{ DOMAIN : possède
+    TENANT ||--|| SUBSCRIPTION : souscrit
+    PLAN ||--o{ SUBSCRIPTION : définit
+    TENANT ||--o{ PRODUCT : catalogue
+    PRODUCT ||--o{ PRODUCT_VARIANT : décline
+    PRODUCT_VARIANT ||--o{ INVENTORY_ITEM : stock
+    TENANT ||--o{ CUSTOMER : gère
+    CUSTOMER ||--o{ ORDER : passe
+    TENANT ||--o{ ORDER : reçoit
+    ORDER ||--o{ ORDER_ITEM : contient
+    ORDER ||--o{ PAYMENT : encaissé_par
+    ORDER ||--o| INVOICE : facturé_par
+    ORDER ||--o| DELIVERY : livré_par
+    USER ||--o{ TENANT_USER : appartient
+    ROLE ||--o{ TENANT_USER : attribue
+    TENANT ||--o{ AI_GENERATION_JOB : demande
+```
+
+## 4.2 Principes structurants
+
+1. **Isolation** : toute table métier possède `tenantId`. Les contraintes d'unicité sont composées `[tenantId, champ]`.
+2. **Numérotation séquentielle sans collision** : une table `Counter` (`tenantId`, `scope` ex. `invoice-2026`, `value`) est incrémentée en transaction (`SELECT ... FOR UPDATE`) pour générer les numéros de facture/commande/devis — jamais un simple `COUNT(*)` (source de doublons en concurrence).
+3. **Traçabilité** : les tables sensibles (`Order`, `Payment`, `Invoice`) ne sont jamais mises à jour « en silence » sur les champs critiques — un historique dédié (`OrderStatusHistory`) ou l'immutabilité (`Invoice.finalizedAt`) l'empêche.
+4. **Montants** : type `Int` en FCFA (unité entière, pas de sous-unité), jamais `Float`.
+5. **Suppressions** : soft delete (`deletedAt`) sur les entités qui doivent rester consultables dans l'historique (Tenant, Product, Customer) ; suppression dure uniquement sur les brouillons.
+
+## 4.3 Schéma Prisma (draft — deviendra `packages/database/schema.prisma` en Phase 0)
+
+```prisma
+// ================== PLATEFORME ==================
+
+enum BusinessType {
+  ECOMMERCE
+  RESTAURANT
+  REAL_ESTATE
+  AUTOMOBILE
+  SALON
+  HOTEL
+  SCHOOL
+  SERVICES
+  DELIVERY
+  WHOLESALE
+}
+
+enum TenantStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+model Tenant {
+  id            String       @id @default(uuid())
+  name          String
+  slug          String       @unique
+  businessType  BusinessType
+  status        TenantStatus @default(PENDING)
+  themeId       String?
+  branding      Json         // { logoUrl, primaryColor, secondaryColor, defaultMode }
+  currency      String       @default("XOF")
+  locale        String       @default("fr")
+  timezone      String       @default("Africa/Dakar")
+  trialEndsAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  domains       Domain[]
+  users         TenantUser[]
+  shops         Shop[]
+  products      Product[]
+  categories    Category[]
+  customers     Customer[]
+  orders        Order[]
+  invoices      Invoice[]
+  quotes        Quote[]
+  subscription  Subscription?
+  auditLogs     AuditLog[]
+  paymentConfigs PaymentProviderConfig[]
+  deliveryZones DeliveryZone[]
+  counters      Counter[]
+  aiJobs        AIGenerationJob[]
+  expenses      Expense[]
+  suppliers     Supplier[]
+  promoCodes    PromoCode[]
+  giftCards     GiftCard[]
+  site          TenantSite?
+}
+
+model Domain {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  domain         String   @unique
+  type           String   // "subdomain" | "custom"
+  isPrimary      Boolean  @default(false)
+  verified       Boolean  @default(false)
+  verificationToken String?
+  sslStatus      String   @default("pending") // pending|issued|failed
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId])
+}
+
+model Plan {
+  id                    String   @id @default(uuid())
+  name                  String   @unique // Essentiel, Business, Premium, Entreprise
+  priceMonthly          Int
+  priceYearly           Int
+  trialDays             Int      @default(14)
+  maxProducts           Int
+  maxEmployees          Int
+  maxShops              Int
+  storageMB             Int
+  aiGenerationsPerMonth Int
+  customDomainAllowed   Boolean  @default(false)
+  advancedReports       Boolean  @default(false)
+  whatsappAutomation    Boolean  @default(false)
+  commissionRate        Decimal  @default(0) // % prélevé sur les ventes
+  features             Json     // liste extensible de clés de fonctionnalités
+  isActive              Boolean  @default(true)
+  subscriptions         Subscription[]
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  tenantId           String             @unique
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  planId             String
+  plan               Plan               @relation(fields: [planId], references: [id])
+  status             SubscriptionStatus @default(TRIALING)
+  billingCycle       String             // monthly|yearly
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean            @default(false)
+  createdAt          DateTime           @default(now())
+}
+
+// ================== IDENTITÉ & ACCÈS ==================
+
+model User {
+  id                 String   @id @default(uuid())
+  email              String?  @unique
+  phone              String?  @unique
+  passwordHash       String
+  fullName           String
+  isSuperAdmin       Boolean  @default(false)
+  twoFactorEnabled   Boolean  @default(false)
+  twoFactorSecret    String?
+  lastLoginAt        DateTime?
+  createdAt          DateTime @default(now())
+
+  memberships        TenantUser[]
+  impersonations     ImpersonationSession[] @relation("SuperAdminActor")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  tenantId    String?  // null = rôle système global (ex. gabarit "Gérant")
+  name        String
+  isSystem    Boolean  @default(false)
+  permissions String[] // clés de permission, ex. "orders.update_status"
+  createdAt   DateTime @default(now())
+
+  memberships TenantUser[]
+
+  @@unique([tenantId, name])
+}
+
+enum TenantUserStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+}
+
+model TenantUser {
+  id         String           @id @default(uuid())
+  tenantId   String
+  tenant     Tenant           @relation(fields: [tenantId], references: [id])
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  roleId     String
+  role       Role             @relation(fields: [roleId], references: [id])
+  status     TenantUserStatus @default(INVITED)
+  invitedBy  String?
+  joinedAt   DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@unique([tenantId, userId])
+  @@index([tenantId])
+}
+
+model ImpersonationSession {
+  id              String    @id @default(uuid())
+  superAdminId    String
+  superAdmin      User      @relation("SuperAdminActor", fields: [superAdminId], references: [id])
+  tenantId        String
+  targetUserId    String?
+  reason          String
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  tenantId    String?  // null pour une action strictement plateforme
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id])
+  actorUserId String?
+  actorType   String   // super_admin | owner | employee | system
+  action      String   // ex. "order.status_changed"
+  entityType  String
+  entityId    String
+  metadata    Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+}
+
+// ================== CATALOGUE ==================
+
+model Shop {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  region    String?
+  department String?
+  commune   String?
+  isMain    Boolean  @default(true)
+  isWarehouse Boolean @default(false)
+
+  @@index([tenantId])
+}
+
+model Category {
+  id       String     @id @default(uuid())
+  tenantId String
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  name     String
+  slug     String
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+  imageUrl String?
+
+  products Product[]
+
+  @@unique([tenantId, slug])
+}
+
+enum ProductStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Product {
+  id               String        @id @default(uuid())
+  tenantId         String
+  tenant           Tenant        @relation(fields: [tenantId], references: [id])
+  categoryId       String?
+  category         Category?     @relation(fields: [categoryId], references: [id])
+  name             String
+  slug             String
+  description      String?
+  shortDescription String?
+  sku              String?
+  brand            String?
+  status           ProductStatus @default(DRAFT)
+  basePrice        Int
+  compareAtPrice   Int?
+  costPrice        Int?
+  taxRate          Decimal       @default(0)
+  seoKeywords      String[]
+  tags             String[]
+  aiGenerated      Boolean       @default(false)
+  aiGenerationJobId String?
+  createdBy        String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  images   ProductImage[]
+  variants ProductVariant[]
+  reviews  Review[]
+  wishlists Wishlist[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, status])
+}
+
+model ProductImage {
+  id        String   @id @default(uuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  variantId String?
+  url       String
+  altText   String?
+  position  Int      @default(0)
+}
+
+model ProductVariant {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  name       String   // ex. "Rouge / M"
+  sku        String?
+  price      Int
+  costPrice  Int?
+  barcode    String?
+  weightGrams Int?
+  volumeCm3  Int?
+  attributes Json     // { color, size, ... }
+
+  inventoryItems InventoryItem[]
+  orderItems     OrderItem[]
+
+  @@index([productId])
+}
+
+model InventoryItem {
+  id               String         @id @default(uuid())
+  productVariantId String
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  shopId           String
+  shop             Shop           @relation(fields: [shopId], references: [id])
+  quantity         Int            @default(0)
+  reservedQuantity Int            @default(0)
+  lowStockThreshold Int           @default(5)
+
+  movements StockMovement[]
+
+  @@unique([productVariantId, shopId])
+}
+
+model StockMovement {
+  id              String        @id @default(uuid())
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  type            String        // in|out|adjustment|transfer|return
+  quantity        Int
+  reason          String?
+  referenceType   String?       // order|purchase|manual
+  referenceId     String?
+  performedBy     String?
+  createdAt       DateTime      @default(now())
+}
+
+model Supplier {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  name     String
+  phone    String?
+  address  String?
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  category    String
+  amount      Int
+  description String?
+  date        DateTime
+  attachmentUrl String?
+  createdBy   String?
+}
+
+// ================== CLIENTS ==================
+
+model Customer {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  userId        String?
+  firstName     String
+  lastName      String?
+  email         String?
+  phone         String?
+  customerGroup String   @default("retail") // retail|wholesale|reseller
+  loyaltyPoints Int      @default(0)
+  referralCode  String?  @unique
+  referredById  String?
+  totalSpent    Int      @default(0)
+  ordersCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  addresses CustomerAddress[]
+  orders    Order[]
+  wishlists Wishlist[]
+  reviews   Review[]
+
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+}
+
+model CustomerAddress {
+  id          String   @id @default(uuid())
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id])
+  label       String?
+  region      String
+  department  String?
+  commune     String?
+  neighborhood String? // quartier
+  street      String?
+  geoLat      Float?
+  geoLng      Float?
+  isDefault   Boolean  @default(false)
+}
+
+model Wishlist {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@unique([customerId, productId])
+}
+
+model Review {
+  id         String   @id @default(uuid())
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id])
+  rating     Int
+  comment    String?
+  status     String   @default("pending") // pending|approved|rejected
+  response   String?
+  createdAt  DateTime @default(now())
+}
+
+model PromoCode {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  code          String
+  type          String   // percentage|fixed|free_shipping
+  value         Int
+  minOrderAmount Int?
+  usageLimit    Int?
+  usageCount    Int      @default(0)
+  startsAt      DateTime?
+  endsAt        DateTime?
+
+  @@unique([tenantId, code])
+}
+
+model GiftCard {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  code         String    @unique
+  initialValue Int
+  balance      Int
+  expiresAt    DateTime?
+}
+
+// ================== COMMANDES ==================
+
+enum OrderStatus {
+  NEW
+  AWAITING_PAYMENT
+  PAID
+  CONFIRMED
+  PREPARING
+  READY
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  REFUNDED
+  FAILED
+}
+
+model Order {
+  id             String        @id @default(uuid())
+  tenantId       String
+  tenant         Tenant        @relation(fields: [tenantId], references: [id])
+  shopId         String?
+  customerId     String
+  customer       Customer      @relation(fields: [customerId], references: [id])
+  orderNumber    String        // séquentiel par tenant, ex. CMD-2026-000123
+  status         OrderStatus   @default(NEW)
+  channel        String        @default("web") // web|whatsapp|instore|phone
+  paymentStatus  PaymentStatus @default(UNPAID)
+  subtotal       Int
+  discountTotal  Int           @default(0)
+  shippingTotal  Int           @default(0)
+  taxTotal       Int           @default(0)
+  total          Int
+  currency       String        @default("XOF")
+  deliveryZoneId String?
+  deliveryAddressId String?
+  notes          String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  items          OrderItem[]
+  statusHistory  OrderStatusHistory[]
+  payments       Payment[]
+  invoice        Invoice?
+  delivery       Delivery?
+
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, createdAt])
+}
+
+model OrderItem {
+  id               String  @id @default(uuid())
+  orderId          String
+  order            Order   @relation(fields: [orderId], references: [id])
+  productVariantId String
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  productNameSnapshot String
+  unitPrice        Int
+  quantity         Int
+  discount         Int     @default(0)
+  taxRate          Decimal @default(0)
+  total            Int
+}
+
+model OrderStatusHistory {
+  id            String      @id @default(uuid())
+  orderId       String
+  order         Order       @relation(fields: [orderId], references: [id])
+  fromStatus    OrderStatus?
+  toStatus      OrderStatus
+  changedBy     String?
+  changedByType String      // owner|employee|system|customer
+  note          String?
+  createdAt     DateTime    @default(now())
+}
+
+// ================== PAIEMENTS ==================
+
+model PaymentProviderConfig {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  provider    String   // wave|orange_money|free_money|card|paydunya|paytech|cod
+  isEnabled   Boolean  @default(false)
+  mode        String   @default("live") // live|test
+  credentialsRef String? // pointeur vers le secret chiffré, jamais la clé en clair
+
+  @@unique([tenantId, provider])
+}
+
+enum PaymentTxStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id                    String          @id @default(uuid())
+  tenantId              String
+  orderId               String
+  order                 Order           @relation(fields: [orderId], references: [id])
+  provider              String
+  providerTransactionId String?         @unique
+  idempotencyKey        String          @unique
+  amount                Int
+  currency              String          @default("XOF")
+  status                PaymentTxStatus @default(PENDING)
+  type                  String          @default("full") // full|partial|installment
+  rawPayload            Json?
+  verifiedAt            DateTime?
+  createdAt             DateTime        @default(now())
+
+  @@index([tenantId, status])
+}
+
+model PaymentWebhookEvent {
+  id          String   @id @default(uuid())
+  provider    String
+  eventId     String   // identifiant fourni par le prestataire
+  payload     Json
+  status      String   @default("received") // received|processed|ignored|error
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+
+  @@unique([provider, eventId]) // clé d'idempotence webhook
+}
+
+model InstallmentPlan {
+  id            String        @id @default(uuid())
+  orderId       String        @unique
+  totalAmount   Int
+  installments  Installment[]
+}
+
+model Installment {
+  id                String          @id @default(uuid())
+  installmentPlanId String
+  plan              InstallmentPlan @relation(fields: [installmentPlanId], references: [id])
+  dueDate           DateTime
+  amount            Int
+  status            String          @default("pending") // pending|paid|overdue
+  paidPaymentId     String?
+}
+
+// ================== DOCUMENTS ==================
+
+model Counter {
+  id       String @id @default(uuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  scope    String // ex. "invoice-2026", "order-2026"
+  value    Int    @default(0)
+
+  @@unique([tenantId, scope])
+}
+
+model Invoice {
+  id             String    @id @default(uuid())
+  tenantId       String
+  tenant         Tenant    @relation(fields: [tenantId], references: [id])
+  orderId        String?   @unique
+  order          Order?    @relation(fields: [orderId], references: [id])
+  number         String    // séquentiel, ex. FAC-2026-000045
+  type           String    @default("invoice") // invoice|deposit_invoice|final_invoice
+  status         String    @default("draft") // draft|finalized|canceled
+  issueDate      DateTime  @default(now())
+  dueDate        DateTime?
+  customerSnapshot Json
+  itemsSnapshot  Json
+  subtotal       Int
+  discountTotal  Int       @default(0)
+  taxTotal       Int
+  total          Int
+  paymentStatus  PaymentStatus @default(UNPAID)
+  qrCodeToken    String    @unique
+  pdfUrl         String?
+  finalizedAt    DateTime?
+  integrityHash  String?   // empreinte du contenu au moment de la finalisation
+
+  creditNotes CreditNote[]
+
+  @@unique([tenantId, number])
+}
+
+model CreditNote {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id])
+  number    String
+  reason    String
+  amount    Int
+  pdfUrl    String?
+  createdAt DateTime @default(now())
+}
+
+model Quote {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  customerId  String
+  number      String
+  status      String   @default("draft") // draft|sent|accepted|rejected|expired
+  itemsSnapshot Json
+  total       Int
+  validUntil  DateTime?
+  pdfUrl      String?
+
+  @@unique([tenantId, number])
+}
+
+model DeliveryNote {
+  id           String   @id @default(uuid())
+  orderId      String   @unique
+  number       String
+  pdfUrl       String?
+  signedBy     String?
+  signatureUrl String?
+  deliveredAt  DateTime?
+}
+
+model Refund {
+  id        String   @id @default(uuid())
+  tenantId  String
+  orderId   String
+  paymentId String
+  amount    Int
+  reason    String?
+  status    String   @default("pending")
+  processedBy String?
+  createdAt DateTime @default(now())
+}
+
+// ================== LIVRAISON ==================
+
+model DeliveryZone {
+  id             String  @id @default(uuid())
+  tenantId       String
+  tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  region         String
+  department     String?
+  commune        String?
+  neighborhood   String?
+  fee            Int
+  freeThreshold  Int?
+  estimatedDays  Int?
+}
+
+model Deliverer {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?
+  phone     String
+  vehicleType String?
+  isActive  Boolean  @default(true)
+
+  deliveries Delivery[]
+}
+
+model Delivery {
+  id                String    @id @default(uuid())
+  orderId           String    @unique
+  order             Order     @relation(fields: [orderId], references: [id])
+  delivererId       String?
+  deliverer         Deliverer? @relation(fields: [delivererId], references: [id])
+  status            String    @default("assigned") // assigned|picked_up|in_transit|delivered|failed
+  proofType         String?   // photo|signature|code
+  proofUrl          String?
+  codAmountCollected Int?
+  codRemittedAt     DateTime?
+  createdAt         DateTime  @default(now())
+}
+
+model DelivererRemittance {
+  id          String   @id @default(uuid())
+  delivererId String
+  amount      Int
+  remittedAt  DateTime @default(now())
+  confirmedBy String?
+}
+
+// ================== IA ==================
+
+model AIGenerationJob {
+  id             String   @id @default(uuid())
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  type           String   // product_from_photo|product_from_text|bulk_import|translation|marketing_copy|chat_query
+  status         String   @default("pending") // pending|processing|completed|failed
+  inputPayload   Json
+  outputPayload  Json?
+  model          String?
+  createdBy      String?
+  createdAt      DateTime @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  approved       Boolean  @default(false)
+}
+
+model ImportJob {
+  id            String   @id @default(uuid())
+  tenantId      String
+  sourceType    String   // csv|excel|pdf|url|photos
+  fileUrl       String?
+  status        String   @default("pending")
+  totalRows     Int?
+  processedRows Int      @default(0)
+  errorLog      Json?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+}
+
+// ================== SITE & THÈME ==================
+
+model SiteTemplate {
+  id              String       @id @default(uuid())
+  name            String
+  businessType    BusinessType
+  previewImageUrl String?
+  componentsConfig Json
+  isActive        Boolean      @default(true)
+}
+
+model TenantSite {
+  id          String   @id @default(uuid())
+  tenantId    String   @unique
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  templateId  String
+  themeConfig Json     // { colors, fonts, defaultMode: "light"|"dark" }
+  seoConfig   Json?
+  published   Boolean  @default(false)
+  publishedAt DateTime?
+
+  pages Page[]
+}
+
+model Page {
+  id           String     @id @default(uuid())
+  tenantSiteId String
+  tenantSite   TenantSite @relation(fields: [tenantSiteId], references: [id])
+  slug         String
+  title        String
+  blocks       Json       // structure du page builder
+  isHome       Boolean    @default(false)
+
+  @@unique([tenantSiteId, slug])
+}
+
+// ================== NOTIFICATIONS ==================
+
+model NotificationTemplate {
+  id          String   @id @default(uuid())
+  tenantId    String?  // null = modèle par défaut plateforme
+  type        String   // order_confirmed|payment_failed|...
+  channel     String   // email|sms|whatsapp|internal
+  subject     String?
+  bodyTemplate String
+  isCustomized Boolean @default(false)
+
+  @@unique([tenantId, type, channel])
+}
+
+// ================== PLATEFORME / FACTURATION INTERNE ==================
+
+model Commission {
+  id        String   @id @default(uuid())
+  tenantId  String
+  orderId   String
+  rate      Decimal
+  amount    Int
+  invoicedToTenant Boolean @default(false)
+  createdAt DateTime @default(now())
+}
+
+model ErrorLog {
+  id        String   @id @default(uuid())
+  tenantId  String?
+  level     String   // info|warning|error|critical
+  message   String
+  stack     String?
+  context   Json?
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+}
+```
+
+## 4.4 Notes d'implémentation
+
+- **Row-Level Security** : pour chaque table portant `tenantId`, une migration SQL brute (hors Prisma, exécutée après `prisma migrate`) active :
+  ```sql
+  ALTER TABLE "Order" ENABLE ROW LEVEL SECURITY;
+  CREATE POLICY tenant_isolation ON "Order"
+    USING (tenant_id = current_setting('app.current_tenant_id', true)::uuid);
+  ```
+- **Génération de numéro séquentiel** (extrait du service `packages/database/counters.ts`, illustratif — code complet en Phase 1) :
+  ```ts
+  await prisma.$transaction(async (tx) => {
+    const counter = await tx.counter.upsert({
+      where: { tenantId_scope: { tenantId, scope: `invoice-${year}` } },
+      create: { tenantId, scope: `invoice-${year}`, value: 1 },
+      update: { value: { increment: 1 } },
+    });
+    return `FAC-${year}-${String(counter.value).padStart(6, "0")}`;
+  });
+  ```
+- **Index de performance** ajoutés dès la migration initiale sur toutes les paires `(tenantId, champ de filtre fréquent)` : `Order(tenantId, status)`, `Order(tenantId, createdAt)`, `Product(tenantId, status)`.
+- Les tables `Role`, `Plan`, `SiteTemplate`, `NotificationTemplate` (variante globale) sont les seules à autoriser `tenantId` nul, pour les gabarits fournis par la plateforme.
