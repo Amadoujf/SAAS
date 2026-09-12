@@ -22,20 +22,22 @@ graph LR
 
 ## 12.2 Éditeur visuel
 
+> **Décision de portée V1** (validée le 12 septembre 2026) : l'éditeur est **par sections configurables** — l'entrepreneur réordonne, active/désactive et personnalise des sections prédéfinies par le template, en glisser-déposer. Ce n'est **pas** un canvas libre façon Canva (positionnement pixel-perfect arbitraire) : cette liberté totale casserait la cohérence responsive garantie par le système de design tokens (§12.8) et n'est pas prévue avant, au plus tôt, une phase ultérieure si le besoin est confirmé à l'usage.
+
 ### Ce que le propriétaire peut modifier
 
-Logo · couleurs · polices · textes · images · vidéos · arrière-plans · espacements · boutons · cartes · animations (par section) · ordre des sections · visibilité des sections · en-tête · pied de page — avec **prévisualisation séparée ordinateur / tablette / téléphone**.
+Logo · couleurs · polices · textes · images · vidéos · arrière-plans · espacements · boutons · cartes · animations (par section) · ordre des sections · activation/désactivation des sections · en-tête · pied de page — avec **prévisualisation séparée ordinateur / tablette / téléphone**.
 
 ### Mécanique
 
-| Fonction                      | Implémentation                                                                                                                                                                                                                     |
-| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Glisser-déposer               | Réordonnancement du tableau `blocks` d'une `Page`, position recalculée côté client puis persistée                                                                                                                                  |
-| Prévisualisation en direct    | Rendu de la version **brouillon** sur une route dédiée non indexée (`?preview=<versionId>`), jamais visible publiquement                                                                                                           |
-| Brouillons                    | Toute modification écrit dans la `TenantSiteVersion` de statut `draft` — jamais directement dans la version `published`                                                                                                            |
-| Historique / Annuler-rétablir | Chaque sauvegarde de brouillon crée un point d'historique (`TenantSiteVersionSnapshot`, voir [04](04-schema-base-de-donnees.md#45-extension-multi-secteurs)) ; annuler = restaurer un snapshot antérieur dans le brouillon courant |
-| Publication programmée        | `TenantSiteVersion.status = "scheduled"` + `scheduledAt` ; un job planifié (file `invoices`-like, nouvelle file `site-publishing`) promeut la version à l'heure prévue                                                             |
-| Duplication de page           | Copie profonde d'une `Page` (et de ses blocs) dans la même version, avec un nouveau slug                                                                                                                                           |
+| Fonction                      | Implémentation                                                                                                                                                                                       |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Glisser-déposer               | Réordonnancement du tableau `blocks` d'une `Page`, position recalculée côté client puis persistée — limité aux sections prédéfinies du template (pas de placement libre)                             |
+| Prévisualisation en direct    | Rendu de la version **brouillon** sur une route dédiée non indexée (`?preview=<versionId>`), jamais visible publiquement, avec bascule ordinateur/tablette/téléphone                                 |
+| Brouillons                    | Toute modification écrit dans la `TenantSiteVersion` de statut `draft` — jamais directement dans la version `published`                                                                              |
+| Historique / Annuler-rétablir | Chaque publication archive la version précédente (`TenantSiteVersion.status = "archived"`) plutôt que de l'écraser ; « restaurer » copie les `Page` d'une version archivée dans le brouillon courant |
+| Publication programmée        | `TenantSiteVersion.status = "scheduled"` + `scheduledAt` ; un job planifié (nouvelle file `site-publishing`) promeut la version à l'heure prévue                                                     |
+| Duplication de page           | Copie profonde d'une `Page` (et de ses blocs) dans la même version, avec un nouveau slug                                                                                                             |
 
 ### Niveaux d'animation
 
@@ -63,6 +65,7 @@ Réglable globalement (`TenantSite.themeConfig.animationIntensity`) et section p
 - Core Web Vitals ciblés : LCP < 2,5 s, CLS < 0,1, INP < 200 ms sur un mobile milieu de gamme en 3G/4G sénégalaise.
 - SEO : balises sémantiques, méta-données par page, données structurées (Product/LocalBusiness/Event selon secteur), sitemap généré par tenant.
 - Accessibilité : contraste AA, navigation clavier complète de l'éditeur ET du site public, `aria-*` sur les composants interactifs, animations désactivables indépendamment de l'intensité choisie.
+- **Dégradation automatique sur appareil peu puissant** : en plus de `prefers-reduced-motion`, une détection heuristique (`navigator.deviceMemory` bas, `navigator.hardwareConcurrency` faible, ou `navigator.connection.saveData`/type de connexion lent) abaisse automatiquement le niveau d'animation d'un cran (ex. Immersif → Dynamique, Dynamique → Discret) — l'entrepreneur choisit un niveau cible, l'appareil du visiteur ne subit jamais plus que ce qu'il peut afficher à 60 fps.
 
 ## 12.5 Direction artistique par secteur
 
@@ -149,3 +152,45 @@ Tout template respecte ce squelette (adapté au vocabulaire du secteur), en plus
 
 - Le moteur de rendu de page (blocs → HTML) est **unique** pour tous les secteurs : un bloc « grille de cartes » s'alimente soit de `Product`, soit de `Listing`, selon le module actif — le composant ne connaît pas le secteur, seulement la forme de données qu'on lui passe (contrat commun `CardItem { title, image, price?, badge?, href }`).
 - Chaque module sectoriel fournit un **adaptateur d'affichage** (`toCardItem()`) transformant son entité propre (Property, TravelPackage, Vehicle, Room, ServiceOffering, Course…) vers ce contrat commun — c'est ce qui évite de dupliquer les composants de présentation par secteur.
+
+## 12.8 Design tokens et composants réutilisables
+
+> Construit **avant** le premier template (Phase 1, voir [09](09-plan-developpement.md)) — condition posée à la validation du 12 septembre 2026 pour garantir que les templates sont « réellement différents et complets » sans repartir de zéro à chaque fois ni diverger sur les fondamentaux (contraste, rythme, accessibilité).
+
+### Tokens
+
+| Catégorie                                | Exemples de tokens                                                                                                                                                                                                      |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Couleur (par rôle, pas par valeur brute) | `color.brand`, `color.brand-foreground`, `color.surface`, `color.surface-muted`, `color.border`, `color.danger`, `color.success` — chaque direction artistique (§12.5) fournit ses propres valeurs pour ces mêmes rôles |
+| Typographie                              | `font.heading`, `font.body`, échelle `text.xs` → `text.4xl`                                                                                                                                                             |
+| Espacement                               | Échelle `space.1` → `space.16` (base 4px), utilisée pour tous les paddings/gaps                                                                                                                                         |
+| Rayons                                   | `radius.sm`, `radius.md`, `radius.lg`, `radius.full`                                                                                                                                                                    |
+| Ombres                                   | `shadow.sm`, `shadow.md`, `shadow.lg` — cohérentes avec la direction artistique (plus marquées en mode « Immersif »)                                                                                                    |
+| Mouvement                                | `motion.duration.fast/base/slow`, `motion.easing.standard`, dérivés du niveau d'animation choisi (§12.2)                                                                                                                |
+
+Une direction artistique (§12.5) = un jeu de valeurs pour ces tokens, jamais un jeu de composants différents.
+
+### Composants réutilisables (partagés par tous les templates)
+
+`Button` (primaire/secondaire/texte) · `Card` · `Badge` · `Section` (conteneur de bloc avec espacement/animation standard) · `Nav` (en-tête + pied de page) · champs de formulaire (`Input`, `Select`, `DatePicker`, `FileUpload`) · `EmptyState` · `Skeleton` (adapté à la mise en page réelle, voir §12.3) · `ErrorState` · `Carousel` · `Gallery`.
+
+Un template compose ces briques avec sa propre mise en page et ses propres tokens — il n'en réécrit jamais l'implémentation. C'est ce qui rend un template « réellement différent » (structure, direction artistique) sans être « réinventé » (bugs d'accessibilité/performance propres à chaque template).
+
+## 12.9 Checklist de complétude d'un template
+
+Un template n'est considéré **livrable** que lorsque tous les éléments suivants existent :
+
+- [ ] Page d'accueil
+- [ ] Page(s) de liste (catalogue/biens/circuits/véhicules/chambres/prestations/formations selon secteur)
+- [ ] Page de détail
+- [ ] Formulaire(s) sectoriel(s) (commande, demande de visite, réservation, inscription, devis — selon secteur)
+- [ ] Espace client / portail dédié
+- [ ] Navigation mobile complète (menu, retour, fil d'Ariane si pertinent)
+- [ ] États vides (catalogue vide, aucun résultat de recherche, aucune réservation)
+- [ ] États de chargement (skeletons dédiés à chaque mise en page, pas un composant générique)
+- [ ] États d'erreur (formulaire invalide, paiement échoué, page introuvable)
+- [ ] Animations aux 3 niveaux (discret/dynamique/immersif) vérifiées
+- [ ] Données de démonstration réalistes en FCFA couvrant chaque page
+- [ ] Captures d'écran ordinateur ET mobile pour chaque page principale (fournies à la validation avant mise en catalogue)
+
+Aucun template n'est proposé aux tenants tant que cette liste n'est pas cochée en entier.

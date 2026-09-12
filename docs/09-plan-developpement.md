@@ -19,15 +19,16 @@ Monorepo, multi-tenant + RLS, authentification, permissions, files d'attente, in
 
 **Objectif** : ne pas construire « un site e-commerce », mais **le moteur qui servira à tous les secteurs**, prouvé sur le premier secteur (e-commerce, celui déjà en partie couvert par la Phase 0).
 
-1. **Registre secteurs/modules** : modèles `Sector`, `Module`, `TenantModule` (voir [04 §4.5.1](04-schema-base-de-donnees.md#451-registre-secteurs--modules)), logique d'activation par défaut + formule + manuel, navigation/dashboard filtrés par modules actifs.
-2. **Registre de templates** : `SiteTemplate` par secteur, sélection à la création du tenant, structure page/composants déclarative (`pageManifest`/`componentManifest`).
-3. **Éditeur visuel MVP** : logo, couleurs, polices, textes, images, ordre/visibilité des sections, prévisualisation ordinateur/tablette/téléphone, brouillon → publication (sans versioning avancé — voir Phase 3).
-4. Authentification, permissions par rôle, dashboard commerçant (KPIs + export CSV) — hérité et complété depuis la Phase 0.
-5. Gestion des produits (formulaire + import massif + assistant IA fiche produit avec brouillon obligatoire), clients, commandes (cycle complet, voir [06](06-parcours-commande.md)).
-6. Paiements : PayDunya réel (sandbox → live), paiement à la livraison, webhook vérifié + idempotence (déjà architecturé en Phase 0, câblé ici dans le parcours d'achat réel).
-7. Facturation PDF séquentielle + QR code + envoi email.
-8. Livraison de base : zones tarifaires, assignation manuelle, preuve de livraison photo.
-9. **Trois templates e-commerce réellement différents** (voir [12 §12.5](12-systeme-templates-et-direction-artistique.md#125-direction-artistique-par-secteur) pour la direction de secteurs suivants — les 3 déclinaisons e-commerce seront proposées à la validation avant construction), avec les 3 niveaux d'animation (discret/dynamique/immersif).
+1. **Registre secteurs/modules** : modèles `Sector`, `Module`, `TenantModule` (voir [04 §4.5.1](04-schema-base-de-donnees.md#451-registre-secteurs--modules)), logique d'activation par défaut + formule + manuel, navigation/dashboard filtrés par modules actifs. Inclut l'option **« Autre activité »** (`Sector.key = "custom"`, aucun module par défaut, composition manuelle — voir [11 §11.7.1](11-secteurs-et-modules.md#1171--autre-activité--disponible-dès-la-phase-1)).
+2. **Système de design tokens et composants réutilisables** — construit **avant** le premier template (couleurs de rôle, échelle d'espacement/typographie, rayons, ombres, tokens de mouvement ; composants `Button`/`Card`/`Badge`/`Section`/`EmptyState`/`Skeleton`/`ErrorState`, voir [12 §12.8](12-systeme-templates-et-direction-artistique.md#128-design-tokens-et-composants-réutilisables)).
+3. **Registre de templates** : `SiteTemplate` par secteur, sélection à la création du tenant, structure page/composants déclarative (`pageManifest`/`componentManifest`).
+4. **Éditeur visuel MVP — par sections configurables** (glisser-déposer de sections prédéfinies, pas de canvas libre — voir [12 §12.2](12-systeme-templates-et-direction-artistique.md#122-éditeur-visuel)) : logo, couleurs, polices, textes, images, ordre/activation des sections, paramètres d'animation, prévisualisation ordinateur/tablette/téléphone, brouillon → publication.
+5. Authentification, permissions par rôle, dashboard commerçant (KPIs + export CSV) — hérité et complété depuis la Phase 0.
+6. Gestion des produits (formulaire + import massif + assistant IA fiche produit avec brouillon obligatoire), clients, commandes (cycle complet, voir [06](06-parcours-commande.md)).
+7. Paiements : PayDunya réel (sandbox → live), paiement à la livraison, webhook vérifié + idempotence (déjà architecturé en Phase 0, câblé ici dans le parcours d'achat réel), toujours via l'interface `PaymentProviderAdapter`.
+8. Facturation PDF séquentielle + QR code + envoi email.
+9. Livraison de base : zones tarifaires, assignation manuelle, preuve de livraison photo.
+10. **Trois templates e-commerce réellement différents et complets** (accueil, listes, détail, formulaires, espace client, navigation mobile, états vides/chargement/erreur, animations, données de démonstration, captures ordinateur + mobile — voir la checklist de complétude [12 §12.9](12-systeme-templates-et-direction-artistique.md#129-checklist-de-complétude-dun-template)), avec les 3 niveaux d'animation (discret/dynamique/immersif). Les 3 déclinaisons seront proposées à la validation avant construction.
 
 **Critère de sortie** : un même moteur sert 3 templates visuellement très différents sans code spécifique par template (seule la configuration change) ; les 7 critères d'acceptation du [cahier des charges §1.9](01-cahier-des-charges.md#19-critères-dacceptation-du-mvp) sont vérifiés.
 
@@ -48,7 +49,7 @@ Secteurs qui réutilisent le catalogue/commande existant avec des modules additi
 
 ## Phase 3 — Secteurs à modèles de données dédiés
 
-Secteurs nécessitant les primitives génériques `Listing`/`Reservation` (voir [04 §4.5.2](04-schema-base-de-donnees.md#452-primitives-génériques-multi-secteurs)) et, pour l'immobilier et l'éducation, des tables propres :
+Secteurs nécessitant les primitives génériques `Listing`/`Reservation` et leurs tables d'extension typées (voir [04 §4.5.2](04-schema-base-de-donnees.md#452-primitives-génériques--architecture-hybride)) et, pour l'immobilier et l'éducation, des tables propres supplémentaires :
 
 - **Immobilier** : biens, baux, quittances automatiques, cautions, relances impayés, états des lieux, maintenance, portails propriétaire/locataire, carte interactive, IA (annonces + rentabilité).
 - **Agences de voyage** : circuits/forfaits, calendrier des départs, demandes de visa avec upload sécurisé (module transverse `regulated_documents`), liste de voyageurs, paiement en plusieurs tranches (UI complète), IA (itinéraires, recommandations).
@@ -62,6 +63,7 @@ Secteurs nécessitant les primitives génériques `Listing`/`Reservation` (voir 
 - **Automobile** : catalogue véhicules (`Listing`), suivi d'importation, rendez-vous d'essai, gestion des prospects.
 - **Hôtellerie et locations** : chambres/logements (`Listing` + `ListingAvailability`), calendrier de disponibilité, ménage, avis clients.
 - Couverture explicite des « autres activités » ([11 §11.5](11-secteurs-et-modules.md#115--autres-activités--couverture-sans-nouveau-secteur)) : validation concrète sur au moins 2 cas (ex. pharmacie via `ecommerce` + `regulated_documents`, garage via `services` + `automobile`).
+- **Création de secteur sans code par le Super Admin** ([11 §11.7.2](11-secteurs-et-modules.md#1172-création-dun-nouveau-secteur-par-le-super-admin--sans-toucher-au-code)) : formulaire d'administration (nom, icône, vocabulaire, modules par défaut/facultatifs, templates compatibles, pages proposées, champs personnalisés), livré une fois le registre éprouvé sur les 10 secteurs système.
 - Multi-boutique/entrepôt, fournisseurs/achats, marge par produit.
 - Portail livreur dédié, remises d'argent, réconciliation COD avancée.
 - Domaine personnalisé en libre-service, TLS automatique de bout en bout.

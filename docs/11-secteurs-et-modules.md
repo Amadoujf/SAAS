@@ -178,3 +178,28 @@ Le module `regulated_documents` (nouveau, léger) est le seul ajout réel néces
 3. Le propriétaire peut activer d'autres modules disponibles dans sa formule (`source = "manual"`), ou en désactiver certains (jamais un module `core`).
 4. Un module désactivé disparaît entièrement de la navigation, du dashboard et des permissions proposées aux employés — pas seulement caché visuellement.
 5. Changer de secteur après coup est possible (rare) : cela ne supprime aucune donnée, seulement les modules par défaut proposés changent ; les données déjà créées par un module désactivé restent en base et redeviennent visibles si le module est réactivé.
+
+## 11.7 Secteur personnalisé et création de secteur sans code
+
+Deux niveaux, livrés à des moments différents du plan ([09](09-plan-developpement.md)), pour ne jamais limiter la plateforme aux 10 secteurs initiaux :
+
+### 11.7.1 « Autre activité » — disponible dès la Phase 1
+
+Un onzième choix à la création du tenant, `key = "custom"`, qui n'active **aucun module par défaut** : l'entrepreneur compose lui-même son site en activant librement des modules existants (`catalog`, `listings`, `appointments`, `service_catalog`…) parmi ceux déjà catalogués. Aucun développement supplémentaire n'est requis pour ce premier niveau — c'est une conséquence directe du fait que `TenantModule.source` accepte déjà `"manual"` (voir §11.6).
+
+### 11.7.2 Création d'un nouveau secteur par le Super Admin — sans toucher au code
+
+Fonctionnalité d'administration (Phase 4, une fois le registre éprouvé sur les 10 secteurs réels) permettant de déclarer un **nouveau** `Sector` entièrement via formulaire, sans déploiement :
+
+| Champ saisi par le Super Admin                                      | Persisté dans                                                                                                                                                                                                             |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nom du secteur                                                      | `Sector.name`                                                                                                                                                                                                             |
+| Icône                                                               | `Sector.iconKey`                                                                                                                                                                                                          |
+| Vocabulaire (ex. « Catalogue » → « Biens », « Produit » → « Bien ») | `Sector.vocabulary` (clé → libellé, consommé par l'i18n de l'interface)                                                                                                                                                   |
+| Modules par défaut                                                  | `Sector.defaultModuleKeys` (choisis parmi le catalogue `Module` existant)                                                                                                                                                 |
+| Modules facultatifs proposés                                        | `Sector.optionalModuleKeys`                                                                                                                                                                                               |
+| Templates compatibles                                               | `Sector.compatibleTemplateTags` (filtre les `SiteTemplate` proposés à ce secteur)                                                                                                                                         |
+| Pages proposées                                                     | `Sector.proposedPageManifest` (référence des types de page du §12.6 à activer)                                                                                                                                            |
+| Champs personnalisés                                                | `Sector.customFieldSchema` (schéma validant les attributs variables des `Listing` de ce secteur — voir contrainte de typage au [04 §4.5.2](04-schema-base-de-donnees.md#452-primitives-génériques--architecture-hybride)) |
+
+Contrainte structurante : un secteur créé ainsi **ne peut composer qu'à partir de modules et de types de page déjà existants** — il ne génère jamais de nouvelle table ni de nouveau composant de rendu. C'est ce qui garantit qu'aucun code n'est nécessaire : le moteur générique (modules + primitives `Listing`/`Reservation` + adaptateur `toCardItem()`, voir [12 §12.7](12-systeme-templates-et-direction-artistique.md#127-conséquences-pour-le-noyau-de-rendu)) est le même, seule la configuration change. Un métier qui a besoin d'une donnée réellement structurante et récurrente (comme l'immobilier ou l'éducation) reste éligible à devenir un secteur « système » avec ses propres tables dédiées — décision produit, pas une limite technique.

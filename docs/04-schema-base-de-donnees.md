@@ -901,12 +901,20 @@ model ErrorLog {
 
 ```prisma
 model Sector {
-  id                 String   @id @default(uuid())
-  key                String   @unique // ecommerce | fashion | restaurant | real_estate | ...
-  name               String
-  description        String?
-  defaultModuleKeys  String[]
-  isActive           Boolean  @default(true)
+  id                     String   @id @default(uuid())
+  key                    String   @unique // ecommerce | fashion | restaurant | real_estate | custom | ...
+  name                   String
+  iconKey                String?
+  vocabulary             Json     @default("{}") // { "catalog": "Biens", "item": "Bien", ... } — libellés d'interface
+  description            String?
+  defaultModuleKeys      String[]
+  optionalModuleKeys     String[] @default([])
+  compatibleTemplateTags String[] @default([]) // filtre les SiteTemplate proposés à ce secteur
+  proposedPageManifest   Json     @default("[]") // types de page du §12.6 à activer par défaut
+  customFieldSchema      Json?    // JSON Schema validant les attributs variables des Listing de ce secteur
+  isSystem               Boolean  @default(true) // false = créé par un Super Admin via formulaire (§11.7.2)
+  isActive               Boolean  @default(true)
+  createdBy              String?
 }
 
 model Module {
@@ -934,75 +942,202 @@ model TenantModule {
 
 `Plan` gagne un champ `includedModuleKeys String[]` (modules sectoriels inclus par la formule, en plus des modules par défaut du secteur).
 
-### 4.5.2 Primitives génériques multi-secteurs
+### 4.5.2 Primitives génériques — architecture hybride
 
-Plutôt qu'une table dédiée par secteur pour chaque « chose à vendre/louer/réserver », deux primitives génériques couvrent la majorité des besoins (immobilier, voyage, automobile, hôtellerie, services, éducation) :
+> Révisé suite à la validation du 12 septembre 2026 : les primitives génériques restent le socle commun, mais **les données métier significatives de chaque secteur vivent dans des tables typées dédiées**, jamais dans un unique champ JSON fourre-tout. Le JSON est réservé au strict overflow (attributs réellement variables d'un tenant à l'autre au sein d'un même secteur — ex. un champ personnalisé ajouté via §11.7.2).
+
+**Principe** : `Listing`/`Reservation` portent les champs réellement communs à tous les secteurs (identité, statut, prix, média, localisation, cycle de vie) et les relations. Chaque module sectoriel qui a besoin de champs structurés et interrogeables (recherche, filtre, tri) ajoute sa **table d'extension 1-1** (`XxxDetails`), avec des colonnes typées et ses propres index — jamais en `Json`.
 
 ```prisma
 model Listing {
-  id           String   @id @default(uuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  moduleKey    String   // "listings" (immobilier/voyage/auto/hôtel) — distingue le domaine via `type`
-  type         String   // "property" | "travel_package" | "vehicle" | "room" | "course" | ...
-  status       String   @default("draft") // draft | published | archived | unavailable
-  title        String
-  slug         String
-  description  String?
-  price        Int?
-  priceUnit    String?  // "total" | "per_night" | "per_person" | "per_month" | ...
-  currency     String   @default("XOF")
-  location     Json?    // { region, commune, neighborhood, geoLat, geoLng }
-  media        Json     @default("[]") // [{ url, type: image|video, position }]
-  attributes   Json     @default("{}") // champs propres au type (surface, chambres, marque, année, durée…)
-  aiGenerated  Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  deletedAt    DateTime?
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  moduleKey   String    // "listings" — le secteur/domaine se déduit de la table de détail liée
+  type        String    // "property" | "travel_package" | "vehicle" | "room" | "course" | "service_offering"
+  status      String    @default("draft") // draft | published | archived | unavailable
+  title       String
+  slug        String
+  description String?
+  price       Int?
+  priceUnit   String?   // "total" | "per_night" | "per_person" | "per_month" | ...
+  currency    String    @default("XOF")
+  location    Json?     // { region, commune, neighborhood, geoLat, geoLng } — pas de recherche fine dessus, OK en JSON
+  media       Json      @default("[]") // [{ url, type: image|video, position }]
+  aiGenerated Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
 
-  availabilities ListingAvailability[]
-  reservations   Reservation[]
+  propertyDetails       PropertyDetails?
+  vehicleDetails        VehicleDetails?
+  travelPackageDetails  TravelPackageDetails?
+  roomDetails           RoomDetails?
+  courseDetails         CourseDetails?
+  serviceDetails        ServiceOfferingDetails?
+  availabilities        ListingAvailability[]
+  reservations          Reservation[]
+  revisions             ListingRevision[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, moduleKey, status])
 }
 
+/// Extension typée immobilier — champs réellement interrogeables (chambres, surface).
+model PropertyDetails {
+  listingId    String   @id
+  listing      Listing  @relation(fields: [listingId], references: [id])
+  propertyType String   // "apartment" | "house" | "land" | "commercial"
+  dealType     String   // "sale" | "rent"
+  bedrooms     Int?
+  bathrooms    Int?
+  surfaceM2    Int?
+  furnished    Boolean  @default(false)
+  customAttributes Json? // overflow validé par Sector.customFieldSchema, jamais les champs ci-dessus
+
+  @@index([propertyType, dealType, bedrooms, surfaceM2])
+}
+
+/// Extension typée automobile.
+model VehicleDetails {
+  listingId     String  @id
+  listing       Listing @relation(fields: [listingId], references: [id])
+  brand         String
+  model         String
+  year          Int
+  mileageKm     Int?
+  fuelType      String? // "petrol" | "diesel" | "hybrid" | "electric"
+  transmission  String? // "manual" | "automatic"
+  importStatus  String  @default("available") // available | in_transit | customs
+  customAttributes Json?
+
+  @@index([brand, model, year])
+  @@index([importStatus])
+}
+
+/// Extension typée voyage.
+model TravelPackageDetails {
+  listingId     String  @id
+  listing       Listing @relation(fields: [listingId], references: [id])
+  destination   String
+  durationDays  Int
+  packageType   String  // "circuit" | "omra" | "group" | "excursion"
+  customAttributes Json?
+
+  @@index([destination, packageType])
+}
+
+/// Extension typée hôtellerie.
+model RoomDetails {
+  listingId    String  @id
+  listing      Listing @relation(fields: [listingId], references: [id])
+  roomType     String
+  capacity     Int
+  bedConfiguration String?
+  amenities    String[] @default([])
+  customAttributes Json?
+
+  @@index([roomType, capacity])
+}
+
+/// Extension typée éducation.
+model CourseDetails {
+  listingId       String  @id
+  listing         Listing @relation(fields: [listingId], references: [id])
+  durationWeeks   Int
+  level           String? // "beginner" | "intermediate" | "advanced"
+  certificationType String?
+  customAttributes Json?
+
+  @@index([level])
+}
+
+/// Extension typée services (salons, prestataires).
+model ServiceOfferingDetails {
+  listingId        String  @id
+  listing          Listing @relation(fields: [listingId], references: [id])
+  durationMinutes  Int
+  category         String?
+  customAttributes Json?
+
+  @@index([category, durationMinutes])
+}
+
 model ListingAvailability {
-  id          String   @id @default(uuid())
-  listingId   String
-  listing     Listing  @relation(fields: [listingId], references: [id])
-  date        DateTime
-  status      String   @default("available") // available | booked | blocked
+  id            String   @id @default(uuid())
+  listingId     String
+  listing       Listing  @relation(fields: [listingId], references: [id])
+  date          DateTime
+  status        String   @default("available") // available | booked | blocked
   priceOverride Int?
 
   @@unique([listingId, date])
 }
 
-/// Généralise réservation d'hôtel, rendez-vous salon, réservation de circuit, demande de
-/// visite immobilière, essai automobile : un socle commun + `attributes` pour le détail
-/// propre au module (ex. nombre de convives, créneau horaire, employé assigné).
+/// Socle commun de réservation (hôtel, rendez-vous, circuit, visite, essai). Les détails
+/// propres à chaque module vivent dans leur propre extension 1-1, au même principe que
+/// Listing ci-dessus — jamais dans un `attributes` généraliste.
 model Reservation {
-  id           String   @id @default(uuid())
-  tenantId     String
-  tenant       Tenant   @relation(fields: [tenantId], references: [id])
-  listingId    String?
-  listing      Listing? @relation(fields: [listingId], references: [id])
-  customerId   String
-  moduleKey    String   // "appointments" | "departures" | "visit_requests" | ...
-  status       String   @default("requested") // requested|confirmed|completed|canceled|no_show
-  startAt      DateTime
-  endAt        DateTime?
-  partySize    Int?
-  assignedStaffId String?
-  totalAmount  Int?
-  attributes   Json     @default("{}")
-  createdAt    DateTime @default(now())
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  listingId       String?
+  listing         Listing?  @relation(fields: [listingId], references: [id])
+  customerId      String
+  moduleKey       String    // "appointments" | "departures" | "visit_requests" | ...
+  status          String    @default("requested") // requested|confirmed|completed|canceled|no_show
+  startAt         DateTime
+  endAt           DateTime?
+  totalAmount     Int?
+  createdAt       DateTime  @default(now())
+
+  appointmentDetails   AppointmentDetails?
+  travelBookingDetails TravelBookingDetails?
+  propertyVisitDetails PropertyVisitDetails?
 
   @@index([tenantId, moduleKey, startAt])
 }
+
+model AppointmentDetails {
+  reservationId    String @id
+  reservation      Reservation @relation(fields: [reservationId], references: [id])
+  assignedStaffId  String?
+  serviceDurationMinutes Int?
+}
+
+model TravelBookingDetails {
+  reservationId  String @id
+  reservation    Reservation @relation(fields: [reservationId], references: [id])
+  departureId    String?
+  travelerCount  Int
+}
+
+model PropertyVisitDetails {
+  reservationId String @id
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  agentId       String?
+  requestNote   String?
+}
+
+/// Historique des modifications (adjustement de validation du 12 septembre 2026) : un
+/// instantané complet est écrit à chaque mise à jour d'un Listing (et de son extension),
+/// consultable par le propriétaire et opposable en cas de litige (ex. annonce modifiée
+/// après réservation).
+model ListingRevision {
+  id        String   @id @default(uuid())
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  snapshot  Json     // Listing + XxxDetails au moment de la sauvegarde
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  @@index([listingId, changedAt])
+}
 ```
 
-Le rendu public (grille/carte/fiche) consomme `Listing` via l'adaptateur `toCardItem()` (voir [12](12-systeme-templates-et-direction-artistique.md#127-conséquences-pour-le-noyau-de-rendu)) — un seul composant de présentation pour tous les secteurs à primitives génériques.
+**Validation typée** : la création/mise à jour d'un `Listing` passe par un schéma Zod **par type** (`propertySchema`, `vehicleSchema`, …) côté serveur — jamais une validation générique sur un blob JSON. Le `customAttributes` de chaque table d'extension est validé séparément contre `Sector.customFieldSchema` quand le secteur est personnalisé (§11.7.2), et reste volontairement une petite poche, pas le stockage principal.
+
+Le rendu public (grille/carte/fiche) consomme `Listing` + son extension via l'adaptateur `toCardItem()` (voir [12](12-systeme-templates-et-direction-artistique.md#127-conséquences-pour-le-noyau-de-rendu)) — un seul composant de présentation pour tous les secteurs à primitives génériques, alimenté par des données typées plutôt que par un JSON à interpréter au rendu.
 
 ### 4.5.3 Modèles dédiés — Immobilier (`real_estate`)
 
