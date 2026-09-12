@@ -113,8 +113,20 @@ pnpm --filter @yamacommerce/database run validate   # valide prisma/schema.prism
 | `pnpm test` — `@yamacommerce/queue`                             | ✅ 2/2 tests passés                                                                                                                                                                                 |
 | `pnpm test` — `@yamacommerce/database` (isolation multi-tenant) | ⏭️ **Ignoré** — aucun PostgreSQL disponible dans cet environnement (pas de Docker, pas de droits admin). Le test détecte l'absence de base et l'affiche clairement plutôt que de prétendre réussir. |
 
-**Pourquoi la base n'a pas été montée ici :** cet environnement d'exécution ne dispose ni de Docker ni de droits administrateur pour installer PostgreSQL/Redis (une instance PostgreSQL 17 tourne déjà sur ce poste pour un autre usage, sans identifiants connus, et il n'a pas semblé raisonnable d'y toucher sans confirmation). **Sur ta machine**, avec Docker installé, les étapes 3 à 5 ci-dessus mettront tout en route en quelques minutes — exécute ensuite `pnpm test` pour lancer réellement `tests/tenant-isolation.test.ts` (isolation tenant A / tenant B) et confirme-moi le résultat, ou dis-le moi si une erreur apparaît.
+**Pourquoi la base n'a pas été montée ici :** cet environnement d'exécution ne dispose ni de Docker ni de droits administrateur pour installer PostgreSQL/Redis (une instance PostgreSQL 17 tourne déjà sur ce poste pour un autre usage, sans identifiants connus, et il n'a pas semblé raisonnable d'y toucher sans confirmation). C'est exactement pour ce cas de figure — pas de Docker en local — que la CI ci-dessous exécute le test réel contre un vrai PostgreSQL à chaque push.
+
+## Intégration continue (CI)
+
+Le workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) reproduit fidèlement les commandes ci-dessus contre un vrai PostgreSQL et un vrai Redis (services GitHub Actions), à chaque push et pull request :
+
+`pnpm install` → `pnpm db:generate` → `pnpm db:migrate:deploy` (les deux migrations, y compris l'activation de Row-Level Security) → `pnpm db:seed` → `pnpm lint` → `pnpm typecheck` → `pnpm test`.
+
+**Le test d'isolation multi-tenant (`packages/database/tests/tenant-isolation.test.ts`) n'est jamais simulé ni désactivé en CI** : la variable `REQUIRE_DB_TESTS=true` y est positionnée, ce qui transforme une base injoignable en échec du job plutôt qu'en test ignoré silencieusement (vérifié localement : voir historique de commit — avec `REQUIRE_DB_TESTS=true` et sans PostgreSQL, le test échoue bien au lieu de passer). En local, sans cette variable, la suite reste ignorée (skip) si PostgreSQL n'est pas disponible — comportement inchangé, documenté dans le fichier de test lui-même.
+
+Le workflow échoue automatiquement si : une migration Prisma échoue, le lint ou le typecheck échoue, un test échoue — **ou** si le test d'isolation détecte qu'un tenant peut lire/modifier/supprimer les données d'un autre, ou qu'une requête métier sans contexte tenant renvoie des données.
+
+Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url>` puis `git push -u origin main`) — aucune configuration de secret n'est nécessaire, toutes les valeurs utilisées par la CI sont des identifiants de test jetables générés dans le workflow lui-même.
 
 ## Prochaine étape
 
-Une fois la base de données montée et les tests d'isolation confirmés de ton côté (ou si tu préfères que je configure Docker autrement), on démarre la **Phase 1 (MVP)** — produits, commandes, paiements PayDunya réels, factures — fichier par fichier, phase validée avant la suivante.
+**Phase 1** en cours — voir les sections suivantes de ce document au fil de son avancement, et [docs/09-plan-developpement.md](docs/09-plan-developpement.md) pour le détail complet.

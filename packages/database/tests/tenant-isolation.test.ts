@@ -12,10 +12,16 @@ import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
  * docs/03-architecture-technique.md#32-stratégie-multi-tenant.
  *
  * Nécessite une base PostgreSQL migrée et accessible via DATABASE_URL /
- * MIGRATE_DATABASE_URL (voir README.md — section Phase 0). La suite est ignorée (skip)
- * si la base n'est pas joignable, pour ne pas casser `pnpm test` dans un environnement
- * sans PostgreSQL local (ex. poste sans Docker) — le résultat "skipped" doit alors être
- * traité comme "non vérifié", jamais comme "réussi".
+ * MIGRATE_DATABASE_URL (voir README.md — section Phase 0). En local, sans PostgreSQL
+ * disponible, la suite est ignorée (skip) pour ne pas casser `pnpm test` sur un poste
+ * sans Docker — le résultat "skipped" doit alors être traité comme "non vérifié",
+ * jamais comme "réussi".
+ *
+ * En CI (voir .github/workflows/ci.yml), la variable d'environnement
+ * `REQUIRE_DB_TESTS=true` est positionnée : une base injoignable devient alors une
+ * ERREUR qui fait échouer le job, au lieu d'un skip silencieux. C'est ce qui garantit
+ * que ce test tourne réellement à chaque exécution de la CI — jamais désactivé, jamais
+ * simulé (voir la demande de validation du 12 septembre 2026).
  *
  * La vérification de connectivité a lieu en haut de fichier (top-level await, supporté
  * par l'environnement ESM de Vitest) car `describe.skipIf` évalue sa condition au moment
@@ -24,7 +30,14 @@ import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 let databaseAvailable = true;
 try {
   await prisma.$queryRaw`SELECT 1`;
-} catch {
+} catch (error) {
+  if (process.env.REQUIRE_DB_TESTS === "true") {
+    throw new Error(
+      "REQUIRE_DB_TESTS=true mais PostgreSQL est injoignable : la suite d'isolation " +
+        "multi-tenant DOIT s'exécuter dans cet environnement (CI). Elle ne peut pas être " +
+        `ignorée ici. Cause : ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
   databaseAvailable = false;
   // eslint-disable-next-line no-console
   console.warn(

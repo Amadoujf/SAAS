@@ -1,0 +1,125 @@
+name: CI
+
+# Vérification reproductible de la Phase 0 (et au-delà) : PostgreSQL + Redis réels,
+# migrations réelles, seed réel, lint, typecheck, et TOUS les tests — y compris le test
+# réel d'isolation multi-tenant (Row-Level Security). Aucun de ces tests n'est simulé ou
+# désactivé ici ; voir docs/03-architecture-technique.md §3.2 et
+# packages/database/tests/tenant-isolation.test.ts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Installation, migrations, lint, typecheck, tests (incl. isolation RLS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: yamacommerce
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installer pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+
+      - name: Générer le fichier .env de CI
+        # Reproduit exactement les scripts locaux (pnpm db:*, pnpm lint, etc., qui
+        # chargent tous .env via dotenv-cli) — aucune divergence entre le poste d'un
+        # développeur et la CI. Les secrets ci-dessous sont des valeurs de test
+        # jetables, propres à ce job, jamais utilisées en production.
+        run: |
+          cat > .env <<'EOF'
+          DATABASE_URL=postgresql://yamacommerce_app:change-me-in-production@localhost:5432/yamacommerce?schema=public
+          MIGRATE_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/yamacommerce?schema=public
+          REDIS_URL=redis://localhost:6379
+          AUTH_SECRET=ci-only-secret-not-for-production-0123456789abcdef
+          NEXTAUTH_URL=http://localhost:3000
+          ENCRYPTION_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddee
+          PAYDUNYA_MODE=sandbox
+          PAYDUNYA_MASTER_KEY=
+          PAYDUNYA_PRIVATE_KEY=
+          PAYDUNYA_PUBLIC_KEY=
+          PAYDUNYA_TOKEN=
+          PAYTECH_API_KEY=
+          PAYTECH_API_SECRET=
+          RESEND_API_KEY=
+          EMAIL_FROM=no-reply@yamacommerce.ai
+          R2_ACCOUNT_ID=
+          R2_ACCESS_KEY_ID=
+          R2_SECRET_ACCESS_KEY=
+          R2_BUCKET=yamacommerce-uploads-ci
+          WHATSAPP_META_APP_ID=
+          WHATSAPP_META_APP_SECRET=
+          SMS_PROVIDER=twilio
+          TWILIO_ACCOUNT_SID=
+          TWILIO_AUTH_TOKEN=
+          TWILIO_FROM_NUMBER=
+          AI_PROVIDER_API_KEY=
+          DEFAULT_LOCALE=fr
+          SUPPORTED_LOCALES=fr,en,wo
+          DEFAULT_CURRENCY=XOF
+          DEFAULT_TIMEZONE=Africa/Dakar
+          SUPERADMIN_SEED_EMAIL=superadmin@yamacommerce.ai
+          SUPERADMIN_SEED_PASSWORD=CiTest!2026
+          REQUIRE_DB_TESTS=true
+          NODE_ENV=test
+          EOF
+
+      - name: Installer les dépendances (pnpm install --frozen-lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Générer le client Prisma
+        run: pnpm db:generate
+
+      - name: Appliquer les migrations (schéma + Row-Level Security)
+        run: pnpm db:migrate:deploy
+
+      - name: Charger les données de démonstration (seed)
+        run: pnpm db:seed
+
+      - name: Lint (ESLint, tous les packages)
+        run: pnpm lint
+
+      - name: Vérification TypeScript (tous les packages)
+        run: pnpm typecheck
+
+      - name: Tests (tous les packages, incl. isolation RLS réelle)
+        run: pnpm test
