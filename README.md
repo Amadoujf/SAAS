@@ -1,23 +1,25 @@
 # YamaCommerce AI
 
-Plateforme SaaS multi-entreprises permettant de créer, configurer et vendre des sites web professionnels à différents types d'entreprises au Sénégal (e-commerce, restaurants, immobilier, automobile, salons, hôtels, écoles, services, livraison, grossistes).
+Plateforme SaaS multi-entreprises et **multi-secteurs** (e-commerce, mode, restauration, immobilier, voyage, automobile, hôtellerie, services, éducation, livraison — et au-delà, voir [doc 11](docs/11-secteurs-et-modules.md)) permettant à chaque entrepreneur de choisir son secteur, ses modules, son template et de publier son site professionnel au Sénégal.
 
-> **Statut actuel : Phase 0 (fondations) codée et vérifiée.** Le cahier des charges, l'architecture et le schéma de base de données ci-dessous ont été validés, et le socle technique (monorepo, authentification, multi-tenant, permissions, files d'attente, interface de paiement) est en place — voir [État de la Phase 0](#état-de-la-phase-0-fondations) pour le détail exact de ce qui a été vérifié. La Phase 1 (MVP fonctionnel) n'a pas encore démarré.
+> **Statut actuel : Phase 0 (fondations) codée et vérifiée ; architecture multi-business validée en conception (docs 11 et 12), en attente de validation finale des secteurs/templates/directions artistiques avant le développement de la Phase 1.** Voir [État de la Phase 0](#état-de-la-phase-0-fondations) pour le détail de ce qui a été vérifié en code, et [09-plan-developpement.md](docs/09-plan-developpement.md) pour l'impact de l'extension multi-secteurs sur le calendrier.
 
 ## Documentation de conception
 
-| #   | Document                                                                       | Contenu                                                                        |
-| --- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| 1   | [docs/01-cahier-des-charges.md](docs/01-cahier-des-charges.md)                 | Contexte, objectifs, périmètre, exigences fonctionnelles et non fonctionnelles |
-| 2   | [docs/02-architecture-fonctionnelle.md](docs/02-architecture-fonctionnelle.md) | Modules, acteurs, flux entre modules                                           |
-| 3   | [docs/03-architecture-technique.md](docs/03-architecture-technique.md)         | Stack technique, justifications, multi-tenant, sécurité, déploiement           |
-| 4   | [docs/04-schema-base-de-donnees.md](docs/04-schema-base-de-donnees.md)         | ERD, schéma Prisma complet, stratégie d'isolation des données                  |
-| 5   | [docs/05-roles-permissions.md](docs/05-roles-permissions.md)                   | Rôles, catalogue de permissions, matrice, impersonation                        |
-| 6   | [docs/06-parcours-commande.md](docs/06-parcours-commande.md)                   | Cycle de vie complet d'une commande                                            |
-| 7   | [docs/07-parcours-paiement-facture.md](docs/07-parcours-paiement-facture.md)   | Du paiement à la facture, idempotence, tranches                                |
-| 8   | [docs/08-liste-pages.md](docs/08-liste-pages.md)                               | Toutes les pages (site public, dashboard, super admin)                         |
-| 9   | [docs/09-plan-developpement.md](docs/09-plan-developpement.md)                 | Phases 0 à 4, MVP détaillé                                                     |
-| 10  | [docs/10-structure-dossiers.md](docs/10-structure-dossiers.md)                 | Arborescence du monorepo                                                       |
+| #   | Document                                                                                                     | Contenu                                                                              |
+| --- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| 1   | [docs/01-cahier-des-charges.md](docs/01-cahier-des-charges.md)                                               | Contexte, objectifs, périmètre, exigences fonctionnelles et non fonctionnelles       |
+| 2   | [docs/02-architecture-fonctionnelle.md](docs/02-architecture-fonctionnelle.md)                               | Modules, acteurs, flux entre modules, architecture multi-business                    |
+| 3   | [docs/03-architecture-technique.md](docs/03-architecture-technique.md)                                       | Stack technique, justifications, multi-tenant, sécurité, déploiement                 |
+| 4   | [docs/04-schema-base-de-donnees.md](docs/04-schema-base-de-donnees.md)                                       | ERD, schéma Prisma complet (noyau + extension multi-secteurs), isolation des données |
+| 5   | [docs/05-roles-permissions.md](docs/05-roles-permissions.md)                                                 | Rôles, catalogue de permissions, matrice, impersonation                              |
+| 6   | [docs/06-parcours-commande.md](docs/06-parcours-commande.md)                                                 | Cycle de vie complet d'une commande                                                  |
+| 7   | [docs/07-parcours-paiement-facture.md](docs/07-parcours-paiement-facture.md)                                 | Du paiement à la facture, idempotence, tranches                                      |
+| 8   | [docs/08-liste-pages.md](docs/08-liste-pages.md)                                                             | Toutes les pages (site public, dashboard, super admin)                               |
+| 9   | [docs/09-plan-developpement.md](docs/09-plan-developpement.md)                                               | Phases 0 à 5, impact de l'architecture multi-business sur le calendrier              |
+| 10  | [docs/10-structure-dossiers.md](docs/10-structure-dossiers.md)                                               | Arborescence du monorepo                                                             |
+| 11  | [docs/11-secteurs-et-modules.md](docs/11-secteurs-et-modules.md)                                             | Registre des 10 secteurs, modules communs et sectoriels, gouvernance d'activation    |
+| 12  | [docs/12-systeme-templates-et-direction-artistique.md](docs/12-systeme-templates-et-direction-artistique.md) | Système de templates, éditeur visuel, animations, direction artistique par secteur   |
 
 ## État de la Phase 0 (fondations)
 

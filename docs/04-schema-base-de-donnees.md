@@ -892,3 +892,269 @@ model ErrorLog {
   ```
 - **Index de performance** ajoutés dès la migration initiale sur toutes les paires `(tenantId, champ de filtre fréquent)` : `Order(tenantId, status)`, `Order(tenantId, createdAt)`, `Product(tenantId, status)`.
 - Les tables `Role`, `Plan`, `SiteTemplate`, `NotificationTemplate` (variante globale) sont les seules à autoriser `tenantId` nul, pour les gabarits fournis par la plateforme.
+
+## 4.5 Extension multi-secteurs (planifiée — pas encore migrée)
+
+> Modèles supplémentaires requis par l'architecture multi-business (voir [11](11-secteurs-et-modules.md) et [12](12-systeme-templates-et-direction-artistique.md)). Ils viendront s'ajouter au schéma existant dans une migration dédiée, une fois les secteurs/templates/directions artistiques validés — **aucune migration n'est encore générée pour cette section**.
+
+### 4.5.1 Registre secteurs / modules
+
+```prisma
+model Sector {
+  id                 String   @id @default(uuid())
+  key                String   @unique // ecommerce | fashion | restaurant | real_estate | ...
+  name               String
+  description        String?
+  defaultModuleKeys  String[]
+  isActive           Boolean  @default(true)
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  key         String   @unique // ex. "listings", "leases", "appointments"
+  name        String
+  category    String   // "core" | "sector"
+  sectorKeys  String[] // secteurs auxquels ce module sectoriel s'applique ([] si core)
+  description String?
+}
+
+model TenantModule {
+  id         String   @id @default(uuid())
+  tenantId   String
+  tenant     Tenant   @relation(fields: [tenantId], references: [id])
+  moduleKey  String
+  isEnabled  Boolean  @default(true)
+  source     String   // "sector_default" | "manual" | "plan_included"
+  config     Json?    // paramétrage propre au module pour ce tenant
+  enabledAt  DateTime @default(now())
+
+  @@unique([tenantId, moduleKey])
+}
+```
+
+`Plan` gagne un champ `includedModuleKeys String[]` (modules sectoriels inclus par la formule, en plus des modules par défaut du secteur).
+
+### 4.5.2 Primitives génériques multi-secteurs
+
+Plutôt qu'une table dédiée par secteur pour chaque « chose à vendre/louer/réserver », deux primitives génériques couvrent la majorité des besoins (immobilier, voyage, automobile, hôtellerie, services, éducation) :
+
+```prisma
+model Listing {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  moduleKey    String   // "listings" (immobilier/voyage/auto/hôtel) — distingue le domaine via `type`
+  type         String   // "property" | "travel_package" | "vehicle" | "room" | "course" | ...
+  status       String   @default("draft") // draft | published | archived | unavailable
+  title        String
+  slug         String
+  description  String?
+  price        Int?
+  priceUnit    String?  // "total" | "per_night" | "per_person" | "per_month" | ...
+  currency     String   @default("XOF")
+  location     Json?    // { region, commune, neighborhood, geoLat, geoLng }
+  media        Json     @default("[]") // [{ url, type: image|video, position }]
+  attributes   Json     @default("{}") // champs propres au type (surface, chambres, marque, année, durée…)
+  aiGenerated  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  deletedAt    DateTime?
+
+  availabilities ListingAvailability[]
+  reservations   Reservation[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, moduleKey, status])
+}
+
+model ListingAvailability {
+  id          String   @id @default(uuid())
+  listingId   String
+  listing     Listing  @relation(fields: [listingId], references: [id])
+  date        DateTime
+  status      String   @default("available") // available | booked | blocked
+  priceOverride Int?
+
+  @@unique([listingId, date])
+}
+
+/// Généralise réservation d'hôtel, rendez-vous salon, réservation de circuit, demande de
+/// visite immobilière, essai automobile : un socle commun + `attributes` pour le détail
+/// propre au module (ex. nombre de convives, créneau horaire, employé assigné).
+model Reservation {
+  id           String   @id @default(uuid())
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  listingId    String?
+  listing      Listing? @relation(fields: [listingId], references: [id])
+  customerId   String
+  moduleKey    String   // "appointments" | "departures" | "visit_requests" | ...
+  status       String   @default("requested") // requested|confirmed|completed|canceled|no_show
+  startAt      DateTime
+  endAt        DateTime?
+  partySize    Int?
+  assignedStaffId String?
+  totalAmount  Int?
+  attributes   Json     @default("{}")
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, moduleKey, startAt])
+}
+```
+
+Le rendu public (grille/carte/fiche) consomme `Listing` via l'adaptateur `toCardItem()` (voir [12](12-systeme-templates-et-direction-artistique.md#127-conséquences-pour-le-noyau-de-rendu)) — un seul composant de présentation pour tous les secteurs à primitives génériques.
+
+### 4.5.3 Modèles dédiés — Immobilier (`real_estate`)
+
+Trop spécifiques pour la primitive générique (relation propriétaire/locataire dans la durée, échéancier, état des lieux) :
+
+```prisma
+model Lease {
+  id            String   @id @default(uuid())
+  tenantId      String
+  listingId     String   // référence Listing (type = "property")
+  landlordCustomerId String
+  tenantCustomerId   String
+  startDate     DateTime
+  endDate       DateTime?
+  monthlyRent   Int
+  depositAmount Int
+  status        String   @default("active") // active | ended | terminated
+
+  rentPayments  RentPayment[]
+  inspections   PropertyInspection[]
+}
+
+model RentPayment {
+  id        String   @id @default(uuid())
+  leaseId   String
+  lease     Lease    @relation(fields: [leaseId], references: [id])
+  dueDate   DateTime
+  amount    Int
+  status    String   @default("pending") // pending | paid | late
+  receiptInvoiceId String?
+}
+
+model PropertyInspection {
+  id        String   @id @default(uuid())
+  leaseId   String
+  lease     Lease    @relation(fields: [leaseId], references: [id])
+  type      String   // "check_in" | "check_out"
+  reportUrl String?
+  createdAt DateTime @default(now())
+}
+
+model MaintenanceRequest {
+  id         String   @id @default(uuid())
+  tenantId   String
+  listingId  String
+  reportedBy String?
+  description String
+  status     String  @default("open") // open | in_progress | resolved
+  cost       Int?
+  createdAt  DateTime @default(now())
+}
+```
+
+### 4.5.4 Modèles dédiés — Agences de voyage (`travel_agency`)
+
+```prisma
+model Departure {
+  id          String   @id @default(uuid())
+  listingId   String   // référence Listing (type = "travel_package")
+  date        DateTime
+  capacity    Int
+  bookedCount Int      @default(0)
+}
+
+model VisaRequest {
+  id             String   @id @default(uuid())
+  reservationId  String
+  status         String   @default("pending") // pending | submitted | approved | rejected
+  documents      Json     @default("[]") // [{ url, type, uploadedAt }]
+}
+
+model Traveler {
+  id            String   @id @default(uuid())
+  reservationId String
+  fullName      String
+  passportNumber String?
+  birthDate     DateTime?
+}
+```
+
+### 4.5.5 Modèles dédiés — Éducation (`education`)
+
+```prisma
+model Enrollment {
+  id          String   @id @default(uuid())
+  tenantId    String
+  listingId   String   // référence Listing (type = "course")
+  customerId  String   // l'étudiant (ou son tuteur)
+  status      String   @default("active") // active | completed | withdrawn
+  createdAt   DateTime @default(now())
+}
+
+model AcademicClass {
+  id         String @id @default(uuid())
+  listingId  String
+  name       String
+  schedule   Json   @default("{}")
+}
+
+model Attendance {
+  id           String   @id @default(uuid())
+  enrollmentId String
+  classDate    DateTime
+  present      Boolean
+}
+
+model Grade {
+  id           String @id @default(uuid())
+  enrollmentId String
+  label        String
+  value        Decimal @db.Decimal(5, 2)
+}
+
+model Certificate {
+  id           String   @id @default(uuid())
+  enrollmentId String
+  issuedAt     DateTime @default(now())
+  pdfUrl       String?
+}
+```
+
+### 4.5.6 Module transverse — documents réglementés
+
+```prisma
+model RegulatedDocument {
+  id            String   @id @default(uuid())
+  tenantId      String
+  ownerType     String   // "order" | "reservation" | "customer"
+  ownerId       String
+  documentType  String   // "prescription" | "passport" | "medical_record" | ...
+  fileUrl       String
+  visibility    String   @default("restricted") // restricted = staff habilité uniquement
+  uploadedAt    DateTime @default(now())
+}
+```
+
+### 4.5.7 Éditeur visuel — versioning
+
+```prisma
+model TenantSiteVersion {
+  id          String    @id @default(uuid())
+  tenantSiteId String
+  status      String    @default("draft") // draft | scheduled | published | archived
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+
+  pages Page[]
+}
+```
+
+`Page.tenantSiteId` (actuel) devient `Page.tenantSiteVersionId` — chaque version porte son propre jeu de pages complet, ce qui donne l'historique/annulation « gratuitement » (une ancienne version reste consultable telle quelle).
+
+Toutes les tables `tenantId` ci-dessus suivent la même règle RLS que le reste du schéma (Pattern A, voir §4.4) — à couvrir dans la prochaine migration RLS.

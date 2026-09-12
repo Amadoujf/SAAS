@@ -1,5 +1,7 @@
 # 8. Liste des pages
 
+> Pages du **dashboard** et du **Super Admin** ci-dessous : communes à tous les secteurs. Pour la déclinaison des pages du **site public** par secteur (vocabulaire, structure, direction artistique), voir [12-systeme-templates-et-direction-artistique.md §12.6](12-systeme-templates-et-direction-artistique.md#126-pages-incluses-par-template-structure-commune-contenu-adapté).
+
 ## 8.1 Site public du tenant (`<slug>.yamacommerce.ai` ou domaine perso)
 
 | Page                                  | Route                                                                                                  | Notes                                                      |

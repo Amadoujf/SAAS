@@ -62,24 +62,18 @@ Le Super Admin agit **toujours** au travers d'un mécanisme d'impersonation jour
 5. Le tenant peut être suspendu (accès bloqué, données conservées) ou supprimé (soft delete + purge différée) par le Super Admin.
 6. Le tenant peut demander un domaine personnalisé : vérification par enregistrement DNS TXT, puis émission automatique du certificat TLS.
 
-## 2.4 Modèles de site par secteur
+## 2.4 Architecture multi-business : noyau, modules, secteurs, templates
 
-Chaque secteur active un **jeu de champs de catalogue** et un **jeu de blocs de page** au-dessus du même moteur commun (commandes, paiement, facture, client) :
+La plateforme n'est **pas** une application différente par type d'entreprise. Elle repose sur quatre couches :
 
-| Secteur                | Entité catalogue spécifique     | Particularité de commande                                 |
-| ---------------------- | ------------------------------- | --------------------------------------------------------- |
-| E-commerce             | Produit + variantes             | Commande classique avec livraison                         |
-| Restaurant / fast-food | Plat, menu, option              | Commande avec heure de retrait/livraison, table en option |
-| Immobilier             | Bien (vente/location), visite   | Demande de visite plutôt que paiement immédiat            |
-| Automobile             | Véhicule, fiche technique       | Demande de contact/essai, financement en option           |
-| Salon / institut       | Prestation, durée               | Réservation de créneau (agenda)                           |
-| Hôtel / location       | Chambre/logement, disponibilité | Réservation avec dates, calcul par nuitée                 |
-| École / formation      | Cours, session                  | Inscription + paiement échelonné natif                    |
-| Services               | Prestation                      | Devis puis facture d'acompte/finale                       |
-| Livraison              | Course                          | Suivi temps réel, POD (preuve de livraison)               |
-| Grossiste              | Produit + prix par palier       | Compte revendeur, prix de gros                            |
+1. **Le noyau commun** : auth, entreprises, clients, employés/rôles, paiements, facturation, e-mails, WhatsApp, IA, abonnements, domaines, éditeur visuel, fichiers, analyses, paramètres — toujours actif, identique pour tous.
+2. **Les modules** : unités fonctionnelles activables (`catalog`, `listings`, `appointments`, `leases`, `enrollments`…), soit fournies par le noyau, soit rattachées à un ou plusieurs secteurs.
+3. **Les secteurs** : un registre de 10 secteurs (e-commerce, mode, restauration, immobilier, voyage, automobile, hôtellerie, services, éducation, livraison) — chacun active un jeu de modules par défaut, ajustable ensuite par formule d'abonnement ou manuellement par le propriétaire.
+4. **Les templates** : plusieurs habillages réellement différents par secteur (structure, direction artistique, composants), jamais de simple recoloration — voir [12](12-systeme-templates-et-direction-artistique.md).
 
-Le MVP livre le moteur commun + le template **e-commerce** uniquement (voir [09](09-plan-developpement.md)). Les autres secteurs réutilisent le même moteur de commande en configurant des champs différents — aucune réécriture du cœur n'est nécessaire.
+Détail complet des secteurs et modules : [11-secteurs-et-modules.md](11-secteurs-et-modules.md). Détail du système de templates, de l'éditeur visuel et de la direction artistique : [12-systeme-templates-et-direction-artistique.md](12-systeme-templates-et-direction-artistique.md).
+
+Le moteur de commande/réservation du noyau reste unique : les modules sectoriels alimentent les mêmes primitives génériques (`Listing`, `Reservation`, voir [04](04-schema-base-de-donnees.md#45-extension-multi-secteurs)) plutôt que de dupliquer la logique métier par secteur — aucune réécriture du cœur n'est nécessaire pour ajouter un nouveau métier.
 
 ## 2.5 Agent IA commerçant
 

@@ -15,12 +15,16 @@ Chaque client (« tenant ») obtient : un site indépendant, un sous-domaine (`b
 5. Donner à chaque commerçant une vision claire de son activité (dashboard + agent IA conversationnel).
 6. Permettre à l'opérateur de la plateforme de gérer commercialement l'ensemble (abonnements, commissions, domaines, support) depuis un espace Super Admin unique.
 7. Garantir une isolation stricte des données entre entreprises dès la conception (pas en rattrapage).
+8. Couvrir, avec un seul noyau technique, des secteurs aussi différents que l'e-commerce, l'immobilier, le voyage, l'automobile, l'hôtellerie, les services et l'éducation — sans jamais développer une application séparée par métier (voir [11-secteurs-et-modules.md](11-secteurs-et-modules.md)).
+9. Offrir à chaque entrepreneur un parcours complet et autonome : choix du secteur → choix des modules → choix d'un template → personnalisation visuelle → connexion des paiements → configuration des règles métier → prévisualisation multi-écrans → domaine → publication.
 
-## 1.3 Types d'entreprises ciblés (V1)
+## 1.3 Secteurs ciblés
 
-Boutiques e-commerce · Restaurants et fast-foods · Agences immobilières · Vendeurs automobiles · Salons de coiffure et instituts · Hôtels et locations · Écoles et centres de formation · Entreprises de services · Services de livraison · Commerçants et grossistes.
+La plateforme n'est pas limitée à l'e-commerce : chaque entrepreneur choisit son secteur, ses modules et son template. Registre final de **10 secteurs** — détail complet des modules et de la couverture des activités connexes (pharmacies, cabinets médicaux, garages, consultants, artisans, associations, etc., qui se composent à partir des secteurs ci-dessous sans code dédié) dans [11-secteurs-et-modules.md](11-secteurs-et-modules.md) :
 
-Chaque type d'entreprise correspond à un **modèle de site** (template) avec des blocs et des champs de catalogue adaptés (ex. « chambre » pour un hôtel, « véhicule » pour l'automobile, « cours » pour une école — voir [02-architecture-fonctionnelle.md](02-architecture-fonctionnelle.md#modèles-de-site-par-secteur)), mais tous partagent le même moteur (commandes/réservations, paiements, factures, clients, employés).
+Boutiques, commerçants et grossistes (e-commerce) · Mode et vêtements · Restauration · Immobilier · Agences de voyage · Automobile · Hôtels et locations · Salons et prestataires de services · Écoles et centres de formation · Services de livraison.
+
+Chaque secteur active un **jeu de modules par défaut** (catalogue, réservations, baux, inscriptions…) au-dessus du même noyau commun (paiements, factures, clients, employés) et propose plusieurs **templates** réellement différents, avec leur propre direction artistique — voir [02-architecture-fonctionnelle.md](02-architecture-fonctionnelle.md#24-architecture-multi-business--noyau-modules-secteurs-templates) pour l'architecture et [12-systeme-templates-et-direction-artistique.md](12-systeme-templates-et-direction-artistique.md) pour le système de templates et l'éditeur visuel.
 
 ## 1.4 Acteurs
 
@@ -107,7 +111,7 @@ Auth sécurisée + 2FA, RBAC, isolation stricte des données, chiffrement des do
 
 Explicitement reportés aux phases suivantes (voir [09-plan-developpement.md](09-plan-developpement.md)) :
 
-- Tous les modèles de site autres que e-commerce (restaurant, immobilier, auto, salon, hôtel, école, services, livraison, grossiste) — le MVP livre le moteur générique + 1 template premium e-commerce.
+- La majorité des secteurs et de leurs modules dédiés (immobilier, voyage, automobile, hôtellerie, éducation en particulier) — le MVP livre le noyau + le registre secteurs/modules/templates + le secteur e-commerce complet (3 templates), preuve de la généricité de l'architecture ; le calendrier détaillé d'introduction des autres secteurs est posé en [09-plan-developpement.md](09-plan-developpement.md).
 - Fidélité, parrainage, cartes-cadeaux, comptes revendeurs, campagnes marketing, relance panier abandonné automatisée.
 - Multi-boutique/entrepôt, fournisseurs/achats.
 - Paiement en tranches (l'architecture le prévoit, l'implémentation UI vient en phase 3).
