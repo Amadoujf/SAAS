@@ -93,6 +93,8 @@ model Tenant {
   impersonated   ImpersonationSession[]
   tenantModules  TenantModule[]
   tenantSite     TenantSite?
+  siteVersions   TenantSiteVersion[]
+  pages          Page[]
 
   @@index([status])
 }
@@ -316,6 +318,58 @@ model TenantSite {
   publishedAt            DateTime?
   createdAt              DateTime     @default(now())
   updatedAt              DateTime     @updatedAt
+
+  versions TenantSiteVersion[]
+}
+
+/// Historique de versions de l'éditeur visuel — voir docs/12 §12.2 (« brouillons »,
+/// « historique / annuler-rétablir », « publication programmée ») et
+/// docs/04 §4.5.7. Chaque version porte son propre jeu complet de `Page` : publier ne
+/// modifie jamais une version existante, elle en fige une nouvelle et archive
+/// l'ancienne — c'est ce qui donne l'historique/restauration "gratuitement".
+///
+/// `tenantId` est dénormalisé depuis `TenantSite.tenantId` (au lieu d'une policy RLS
+/// qui remonterait par jointure) pour suivre exactement le même Pattern A que le reste
+/// du schéma (voir docs/04 §4.4) — une politique RLS directe sur une colonne locale,
+/// jamais une jointure implicite dans la clause USING.
+model TenantSiteVersion {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  tenantSiteId String
+  tenantSite   TenantSite @relation(fields: [tenantSiteId], references: [id])
+  status       String     @default("draft") // draft | scheduled | published | archived
+  scheduledAt  DateTime?
+  publishedAt  DateTime?
+  createdBy    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  pages Page[]
+
+  @@index([tenantSiteId, status])
+  @@index([tenantId])
+}
+
+/// Une page au sein d'une version — voir docs/04 §4.5.7 : remplace le placeholder
+/// `Page.tenantSiteId` de la Phase 0 par `Page.tenantSiteVersionId`. `blocks` porte un
+/// tableau de `SectionInstance` (voir @yamacommerce/templates) — jamais écrit sans
+/// validation préalable (même garantie que `SiteTemplate.pageManifest`).
+model Page {
+  id                  String            @id @default(uuid())
+  tenantId            String
+  tenant              Tenant            @relation(fields: [tenantId], references: [id])
+  tenantSiteVersionId String
+  tenantSiteVersion   TenantSiteVersion @relation(fields: [tenantSiteVersionId], references: [id], onDelete: Cascade)
+  slug                String
+  title               String
+  isHome              Boolean           @default(false)
+  blocks              Json              @default("[]")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@unique([tenantSiteVersionId, slug])
+  @@index([tenantId])
 }
 
 // ============================================================================

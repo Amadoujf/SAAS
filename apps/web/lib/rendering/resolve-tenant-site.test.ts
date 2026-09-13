@@ -2,9 +2,13 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   prisma,
   withSuperAdminAccess,
+  withTenant,
   upsertTemplate,
   assignTemplateToTenant,
   publishTemplate,
+  getOrCreateDraftVersion,
+  publishVersion,
+  updatePageBlocks,
 } from "@yamacommerce/database";
 import { DEFAULT_DESIGN_TOKENS } from "@yamacommerce/design-tokens";
 import { resolveTenantSiteForRendering } from "./resolve-tenant-site";
@@ -60,6 +64,7 @@ describe.skipIf(!databaseAvailable)("resolveTenantSiteForRendering", () => {
   let tenantAId: string;
   let tenantBId: string;
   let templateId: string;
+  let tenantSiteAId: string;
 
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
@@ -98,13 +103,18 @@ describe.skipIf(!databaseAvailable)("resolveTenantSiteForRendering", () => {
       templateId = template.id;
 
       // Seul le tenant A reçoit un site — le tenant B n'en a aucun.
-      await assignTemplateToTenant(tx, tenantAId, templateId);
+      const tenantSiteA = await assignTemplateToTenant(tx, tenantAId, templateId);
+      tenantSiteAId = tenantSiteA.id;
     });
   });
 
   afterAll(async () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
+      await tx.page.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
+      await tx.tenantSiteVersion.deleteMany({
+        where: { tenantId: { in: [tenantAId, tenantBId] } },
+      });
       await tx.tenantSite.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantAId, tenantBId] } } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });
@@ -137,5 +147,53 @@ describe.skipIf(!databaseAvailable)("resolveTenantSiteForRendering", () => {
     const resultPreview = await resolveTenantSiteForRendering(tenantBId, "preview");
     expect(resultLive).toBeNull();
     expect(resultPreview).toBeNull();
+  });
+
+  /**
+   * Fondation éditeur visuel (docs/12 §12.2) : une fois qu'un tenant publie une
+   * version personnalisée via l'éditeur, c'est CETTE version qui doit être servie en
+   * mode "live" et "preview" — pas le manifeste par défaut du template. Vérifie
+   * l'intégration `resolve-tenant-site.ts` ↔ `site-versions-registry.ts` de bout en
+   * bout, avec de vraies données DB (pas un mock).
+   */
+  it("mode live et preview : sert la version PUBLIÉE de l'éditeur une fois personnalisée", async () => {
+    const draft = await withTenant(tenantAId, (tx) =>
+      getOrCreateDraftVersion(tx, tenantAId, tenantSiteAId),
+    );
+    const homePage = draft.pages.find((p) => p.isHome) ?? draft.pages[0]!;
+
+    await withTenant(tenantAId, (tx) =>
+      updatePageBlocks(tx, homePage.id, [
+        {
+          id: "cta-1",
+          sectionKey: "cta",
+          variant: "banner",
+          order: 0,
+          isEnabled: true,
+          animationOverride: "inherit",
+          params: {
+            title: "Titre personnalisé par l'éditeur",
+            buttonLabel: "Go",
+            buttonHref: "/y",
+          },
+        },
+      ]),
+    );
+    await withTenant(tenantAId, (tx) => publishVersion(tx, tenantAId, tenantSiteAId));
+
+    const live = await resolveTenantSiteForRendering(tenantAId, "live");
+    const preview = await resolveTenantSiteForRendering(tenantAId, "preview");
+
+    expect(live).not.toBeNull();
+    expect(preview).not.toBeNull();
+    expect((live!.manifest.pages[0]!.sections[0]!.params as { title: string }).title).toBe(
+      "Titre personnalisé par l'éditeur",
+    );
+    // Preview sert désormais le NOUVEAU brouillon créé par publishVersion (copie
+    // fidèle de ce qui vient d'être publié) — même contenu tant que rien n'a encore
+    // été réédité.
+    expect((preview!.manifest.pages[0]!.sections[0]!.params as { title: string }).title).toBe(
+      "Titre personnalisé par l'éditeur",
+    );
   });
 });

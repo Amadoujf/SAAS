@@ -1,0 +1,351 @@
+import type { Prisma } from "@prisma/client";
+import {
+  pageDefinitionSchema,
+  sectionInstanceSchema,
+  type SectionInstance,
+} from "@yamacommerce/templates";
+import { validateTemplateManifest } from "@yamacommerce/templates";
+
+/**
+ * Fondation données de l'éditeur visuel — voir docs/12 §12.2 et docs/04 §4.5.7.
+ *
+ * Portée VOLONTAIREMENT limitée à la persistance (brouillon/publié, historique,
+ * restauration, marquage "programmé") : le glisser-déposer, les panneaux de
+ * personnalisation par section et le job qui promeut réellement une version
+ * "scheduled" à l'heure prévue sont des étapes suivantes, pas construites ici
+ * ("sans passer à l'élément suivant sans confirmation", voir docs/09 §Méthode de
+ * livraison).
+ *
+ * Principe central (comme `templates-registry.ts`) : chaque `TenantSiteVersion` porte
+ * son propre jeu COMPLET de `Page` — publier fige une nouvelle version et archive
+ * l'ancienne, ne modifie jamais une version existante. C'est ce qui donne
+ * l'historique/l'annuler-rétablir "gratuitement" (voir docs/12 §12.2, tableau
+ * « Mécanique »).
+ */
+
+export type TenantSiteVersionStatus = "draft" | "scheduled" | "published" | "archived";
+
+/** Une page telle qu'écrite/lue par l'éditeur — mêmes champs qu'un `PageDefinition`
+ *  de @yamacommerce/templates (slug/title/isHome/sections), `blocks` étant le nom de
+ *  colonne côté base pour les sections. */
+export interface PageInput {
+  slug: string;
+  title: string;
+  isHome?: boolean;
+  blocks: SectionInstance[];
+}
+
+function validatePageInput(input: PageInput) {
+  return pageDefinitionSchema.parse({
+    slug: input.slug,
+    title: input.title,
+    isHome: input.isHome ?? false,
+    sections: input.blocks,
+  });
+}
+
+/**
+ * Retourne le brouillon courant d'un site tenant, en le créant s'il n'existe pas
+ * encore. Un tenant qui n'a JAMAIS ouvert l'éditeur reçoit un brouillon initial
+ * seedé depuis `SiteTemplate.pageManifest` (son site public continue entre-temps de
+ * servir directement ce manifeste par défaut — voir resolve-tenant-site.ts, qui ne
+ * bascule sur le contenu personnalisé qu'une fois une version PUBLIÉE).
+ */
+export async function getOrCreateDraftVersion(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  tenantSiteId: string,
+) {
+  const existingDraft = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "draft" },
+    include: { pages: true },
+  });
+  if (existingDraft) return existingDraft;
+
+  const hasAnyVersion = await tx.tenantSiteVersion.findFirst({ where: { tenantSiteId } });
+
+  // Premier brouillon jamais créé pour ce site : on le seed depuis le manifeste par
+  // défaut du template, pour que l'entrepreneur parte de son template choisi plutôt
+  // que d'une page blanche.
+  let seedPages: { slug: string; title: string; isHome: boolean; blocks: SectionInstance[] }[] = [];
+  if (!hasAnyVersion) {
+    const tenantSite = await tx.tenantSite.findUniqueOrThrow({
+      where: { id: tenantSiteId },
+      include: { template: true },
+    });
+    const manifest = validateTemplateManifest(tenantSite.template.pageManifest);
+    seedPages = manifest.pages.map((page) => ({
+      slug: page.slug,
+      title: page.title,
+      isHome: page.isHome,
+      blocks: page.sections,
+    }));
+  }
+
+  return tx.tenantSiteVersion.create({
+    data: {
+      tenantId,
+      tenantSiteId,
+      status: "draft",
+      pages: {
+        create: seedPages.map((page) => ({
+          tenantId,
+          slug: page.slug,
+          title: page.title,
+          isHome: page.isHome,
+          blocks: page.blocks as unknown as Prisma.InputJsonValue,
+        })),
+      },
+    },
+    include: { pages: true },
+  });
+}
+
+export async function getPublishedVersion(tx: Prisma.TransactionClient, tenantSiteId: string) {
+  return tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "published" },
+    include: { pages: true },
+  });
+}
+
+/** Versions archivées/publiées, les plus récentes d'abord — alimente l'écran
+ *  "historique" de l'éditeur (restauration). */
+export async function listVersionHistory(tx: Prisma.TransactionClient, tenantSiteId: string) {
+  return tx.tenantSiteVersion.findMany({
+    where: { tenantSiteId, status: { in: ["published", "archived"] } },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * Remplace le contenu (sections) d'une page du BROUILLON courant. Refuse
+ * explicitement toute écriture sur une page appartenant à une version publiée ou
+ * archivée — l'éditeur ne doit jamais pouvoir modifier l'historique ni le site en
+ * ligne directement, seulement via `publishVersion()`.
+ */
+export async function updatePageBlocks(
+  tx: Prisma.TransactionClient,
+  pageId: string,
+  blocks: SectionInstance[],
+) {
+  const page = await tx.page.findUniqueOrThrow({
+    where: { id: pageId },
+    include: { tenantSiteVersion: true },
+  });
+  if (page.tenantSiteVersion.status !== "draft") {
+    throw new Error(
+      `updatePageBlocks : la page "${page.slug}" appartient à une version ` +
+        `"${page.tenantSiteVersion.status}", pas au brouillon — modification refusée.`,
+    );
+  }
+
+  const validatedBlocks = blocks.map((block) => sectionInstanceSchema.parse(block));
+  const blockIds = new Set<string>();
+  for (const block of validatedBlocks) {
+    if (blockIds.has(block.id)) {
+      throw new Error(`updatePageBlocks : identifiant de section dupliqué "${block.id}".`);
+    }
+    blockIds.add(block.id);
+  }
+
+  return tx.page.update({
+    where: { id: pageId },
+    data: { blocks: validatedBlocks as unknown as Prisma.InputJsonValue },
+  });
+}
+
+/** Met à jour titre/isHome d'une page du brouillon courant (même garde que
+ *  `updatePageBlocks` : jamais sur une version publiée/archivée). */
+export async function updatePageMeta(
+  tx: Prisma.TransactionClient,
+  pageId: string,
+  meta: { title?: string; isHome?: boolean },
+) {
+  const page = await tx.page.findUniqueOrThrow({
+    where: { id: pageId },
+    include: { tenantSiteVersion: true },
+  });
+  if (page.tenantSiteVersion.status !== "draft") {
+    throw new Error(
+      `updatePageMeta : la page "${page.slug}" appartient à une version ` +
+        `"${page.tenantSiteVersion.status}", pas au brouillon — modification refusée.`,
+    );
+  }
+  return tx.page.update({ where: { id: pageId }, data: meta });
+}
+
+/**
+ * Duplique une page du brouillon courant sous un nouveau slug — voir docs/12 §12.2,
+ * "Duplication de page". `isHome` n'est jamais copié tel quel : une version ne peut
+ * avoir qu'une seule page d'accueil (même règle que `validateTemplateManifest`).
+ */
+export async function duplicatePage(
+  tx: Prisma.TransactionClient,
+  pageId: string,
+  newSlug: string,
+  newTitle: string,
+) {
+  const source = await tx.page.findUniqueOrThrow({
+    where: { id: pageId },
+    include: { tenantSiteVersion: true },
+  });
+  if (source.tenantSiteVersion.status !== "draft") {
+    throw new Error(
+      `duplicatePage : la page "${source.slug}" appartient à une version ` +
+        `"${source.tenantSiteVersion.status}", pas au brouillon — duplication refusée.`,
+    );
+  }
+
+  return tx.page.create({
+    data: {
+      tenantId: source.tenantId,
+      tenantSiteVersionId: source.tenantSiteVersionId,
+      slug: newSlug,
+      title: newTitle,
+      isHome: false,
+      blocks: source.blocks as Prisma.InputJsonValue,
+    },
+  });
+}
+
+/**
+ * Publie le brouillon courant : la version publiée précédente (s'il y en a une) est
+ * archivée — jamais supprimée, jamais écrasée — puis le brouillon est promu "published"
+ * et un NOUVEAU brouillon (copie fidèle de ce qui vient d'être publié) est créé pour que
+ * l'édition puisse continuer sans interruption. Met aussi à jour
+ * `TenantSite.isPublished`/`publishedAt` pour rester compatible avec
+ * `resolve-tenant-site.ts` tant qu'une version publiée existe.
+ */
+export async function publishVersion(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  tenantSiteId: string,
+) {
+  const draft = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "draft" },
+    include: { pages: true },
+  });
+  if (!draft) {
+    throw new Error("publishVersion : aucun brouillon à publier pour ce site.");
+  }
+  if (draft.pages.length === 0) {
+    throw new Error("publishVersion : le brouillon n'a aucune page — publication refusée.");
+  }
+  for (const page of draft.pages) {
+    validatePageInput({
+      slug: page.slug,
+      title: page.title,
+      isHome: page.isHome,
+      blocks: page.blocks as unknown as SectionInstance[],
+    });
+  }
+
+  const previousPublished = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "published" },
+  });
+  if (previousPublished) {
+    await tx.tenantSiteVersion.update({
+      where: { id: previousPublished.id },
+      data: { status: "archived" },
+    });
+  }
+
+  const now = new Date();
+  const published = await tx.tenantSiteVersion.update({
+    where: { id: draft.id },
+    data: { status: "published", publishedAt: now },
+  });
+
+  await tx.tenantSite.update({
+    where: { id: tenantSiteId },
+    data: { isPublished: true, publishedAt: now },
+  });
+
+  const newDraft = await tx.tenantSiteVersion.create({
+    data: {
+      tenantId,
+      tenantSiteId,
+      status: "draft",
+      pages: {
+        create: draft.pages.map((page) => ({
+          tenantId,
+          slug: page.slug,
+          title: page.title,
+          isHome: page.isHome,
+          blocks: page.blocks as Prisma.InputJsonValue,
+        })),
+      },
+    },
+    include: { pages: true },
+  });
+
+  return { published, newDraft };
+}
+
+/**
+ * Restaure une version archivée (ou publiée) DANS le brouillon courant — voir
+ * docs/12 §12.2, "Historique / Annuler-rétablir" : « restaurer copie les Page d'une
+ * version archivée dans le brouillon courant ». Remplace entièrement les pages du
+ * brouillon (elles ne sont pas fusionnées) ; la version archivée elle-même n'est ni
+ * modifiée ni supprimée — restaurer n'efface jamais l'historique.
+ */
+export async function restoreVersionIntoDraft(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  tenantSiteId: string,
+  sourceVersionId: string,
+) {
+  const source = await tx.tenantSiteVersion.findUniqueOrThrow({
+    where: { id: sourceVersionId },
+    include: { pages: true },
+  });
+  if (source.tenantSiteId !== tenantSiteId) {
+    throw new Error("restoreVersionIntoDraft : la version source n'appartient pas à ce site.");
+  }
+
+  const draft = await getOrCreateDraftVersion(tx, tenantId, tenantSiteId);
+  await tx.page.deleteMany({ where: { tenantSiteVersionId: draft.id } });
+  await tx.page.createMany({
+    data: source.pages.map((page) => ({
+      tenantId,
+      tenantSiteVersionId: draft.id,
+      slug: page.slug,
+      title: page.title,
+      isHome: page.isHome,
+      blocks: page.blocks as Prisma.InputJsonValue,
+    })),
+  });
+
+  return tx.tenantSiteVersion.findUniqueOrThrow({
+    where: { id: draft.id },
+    include: { pages: true },
+  });
+}
+
+/**
+ * Marque le brouillon courant "scheduled" — voir docs/12 §12.2, "Publication
+ * programmée". NE promeut PAS la version à l'heure dite : c'est le rôle d'un job
+ * planifié (file `site-publishing`, pas encore construite) qui appellera
+ * `publishVersion()` lorsque `scheduledAt` est atteint.
+ */
+export async function scheduleVersionPublish(
+  tx: Prisma.TransactionClient,
+  versionId: string,
+  scheduledAt: Date,
+) {
+  if (scheduledAt.getTime() <= Date.now()) {
+    throw new Error("scheduleVersionPublish : la date programmée doit être dans le futur.");
+  }
+  return tx.tenantSiteVersion.update({
+    where: { id: versionId },
+    data: { status: "scheduled", scheduledAt },
+  });
+}
+
+/** Annule une programmation — repasse la version en brouillon normal. */
+export async function cancelScheduledPublish(tx: Prisma.TransactionClient, versionId: string) {
+  return tx.tenantSiteVersion.update({
+    where: { id: versionId },
+    data: { status: "draft", scheduledAt: null },
+  });
+}
