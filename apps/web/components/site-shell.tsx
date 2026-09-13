@@ -5,6 +5,7 @@ import { CustomCursor } from "@/components/ui/custom-cursor";
 import { LocaleProvider } from "@/lib/locale-context";
 import { CartProvider, type CartLine } from "@/lib/commerce/cart-context";
 import { FavoritesProvider } from "@/lib/commerce/favorites-context";
+import { CurrencyProvider, type Currency } from "@/lib/commerce/currency-context";
 import type { Locale } from "@/lib/i18n";
 
 /**
@@ -27,12 +28,18 @@ export function SiteShell({
   animationLevel,
   initialLocale = "fr",
   initialCartLines = [],
+  initialCurrency = "FCFA",
   children,
 }: {
   tokens: DesignTokens;
   animationLevel: AnimationLevel;
   initialLocale?: Locale;
   initialCartLines?: CartLine[];
+  /** Devise d'affichage initiale — voir lib/commerce/currency-context.tsx. La plupart
+   *  des templates n'exposent pas de sélecteur et restent en FCFA ; ce provider reste
+   *  systématique pour que tout futur secteur/template puisse l'utiliser sans changer
+   *  `SiteShell`. */
+  initialCurrency?: Currency;
   children: React.ReactNode;
 }) {
   return (
@@ -41,14 +48,16 @@ export function SiteShell({
       className="bg-[var(--color-background)] text-[var(--color-text-primary)]"
     >
       <LocaleProvider initialLocale={initialLocale}>
-        <CartProvider initialLines={initialCartLines}>
-          <FavoritesProvider>
-            <AnimationLevelProvider level={animationLevel}>
-              <CustomCursor />
-              {children}
-            </AnimationLevelProvider>
-          </FavoritesProvider>
-        </CartProvider>
+        <CurrencyProvider initialCurrency={initialCurrency}>
+          <CartProvider initialLines={initialCartLines}>
+            <FavoritesProvider>
+              <AnimationLevelProvider level={animationLevel}>
+                <CustomCursor />
+                {children}
+              </AnimationLevelProvider>
+            </FavoritesProvider>
+          </CartProvider>
+        </CurrencyProvider>
       </LocaleProvider>
     </div>
   );

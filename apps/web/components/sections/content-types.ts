@@ -32,6 +32,9 @@ export type BrandManifestoParams = z.infer<typeof sectionParamSchemas.brand_mani
 export type SignatureProductParams = z.infer<typeof sectionParamSchemas.signature_product>;
 export type HeritageParams = z.infer<typeof sectionParamSchemas.heritage>;
 export type LookbookParams = z.infer<typeof sectionParamSchemas.lookbook>;
+export type DesignersParams = z.infer<typeof sectionParamSchemas.designers>;
+export type ProvenanceParams = z.infer<typeof sectionParamSchemas.provenance>;
+export type CatalogSearchParams = z.infer<typeof sectionParamSchemas.catalog_search>;
 
 export interface ResolvedCategoryItem {
   id: string;
@@ -67,4 +70,20 @@ export interface ResolvedPromotionsContent {
  */
 export interface ResolvedLookbookContent {
   productsById: Record<string, ProductCardData>;
+}
+
+/** Une fiche créateur — voir Teranga Atelier (template 4, 20 septembre 2026). Chaque
+ *  créateur a sa propre page (`/createur/[handle]`, construite comme la fiche produit
+ *  : route dynamique + fonction de lookup remplaçable). */
+export interface DesignerCardData {
+  id: string;
+  name: string;
+  specialty: string;
+  photoUrl: string;
+  href: string;
+  productCount?: number;
+}
+export interface ResolvedDesignersContent {
+  title?: string;
+  designers: DesignerCardData[];
 }

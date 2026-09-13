@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { LookbookParams } from "./content-types";
 import type { ResolvedLookbookContent } from "./content-types";
 import { Reveal } from "@/lib/motion/reveal";
-import { formatFcfa } from "@/lib/format";
+import { useCurrency } from "@/lib/commerce/currency-context";
 import { t, type Locale } from "@/lib/i18n";
 
 /**
@@ -30,20 +30,23 @@ export function LookbookSection({
   const [openHotspot, setOpenHotspot] = useState<{ imageIndex: number; productId: string } | null>(
     null,
   );
+  const { formatPrice } = useCurrency();
   const isFullscreen = variant === "fullscreen";
 
   return (
     <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:px-10 lg:py-32">
       {params.title && (
         <Reveal>
-          <h2 className="mb-10 lg:mb-16 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
+          <h2 className="mb-10 font-[family-name:var(--font-heading)] text-[length:var(--text-heading-2xl)] text-[var(--color-text-primary)] lg:mb-16">
             {params.title}
           </h2>
         </Reveal>
       )}
       <div
         className={
-          isFullscreen ? "flex flex-col gap-6" : "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
+          isFullscreen
+            ? "flex flex-col gap-6"
+            : "grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3"
         }
       >
         {params.images.map((image, imageIndex) => (
@@ -107,14 +110,19 @@ export function LookbookSection({
                     }}
                   >
                     <div className="relative h-14 w-11 shrink-0 overflow-hidden rounded-[2px] bg-[var(--color-surface-muted)]">
-                      <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
+                      <Image
+                        src={product.imageUrl}
+                        alt={product.name}
+                        fill
+                        className="object-cover"
+                      />
                     </div>
                     <div className="min-w-0">
-                      <p className="truncate text-[var(--color-text-primary)] text-[length:var(--text-body-sm)]">
+                      <p className="truncate text-[length:var(--text-body-sm)] text-[var(--color-text-primary)]">
                         {product.name}
                       </p>
-                      <p className="font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-sm)]">
-                        {formatFcfa(product.price, locale)}
+                      <p className="text-[length:var(--text-body-sm)] font-semibold text-[var(--color-text-primary)]">
+                        {formatPrice(product.price, locale)}
                       </p>
                     </div>
                   </motion.div>

@@ -3,11 +3,11 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
-import { formatFcfa } from "@/lib/format";
 import { t, type Locale } from "@/lib/i18n";
 import { CloseIcon } from "@/components/ui/icons";
 import type { ProductCardData, ProductColorOption } from "@/components/ui/product-card";
 import { useCart } from "@/lib/commerce/cart-context";
+import { useCurrency } from "@/lib/commerce/currency-context";
 
 const DEFAULT_SIZES = ["S", "M", "L"];
 /** Repli générique quand un produit ne définit pas ses propres couleurs — référence
@@ -37,6 +37,7 @@ export function QuickView({
   locale: Locale;
 }) {
   const { addLine } = useCart();
+  const { formatPrice } = useCurrency();
   const colors = product.colors && product.colors.length > 0 ? product.colors : DEFAULT_COLORS;
   const sizes = product.sizes && product.sizes.length > 0 ? product.sizes : DEFAULT_SIZES;
   const inStock = product.inStock !== false;
@@ -62,7 +63,13 @@ export function QuickView({
     if (!inStock) return;
     const colorLabel = colors.find((c) => c.hex === color)?.label;
     const variant = [colorLabel, size].filter(Boolean).join(" / ") || undefined;
-    addLine({ id: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl, variant });
+    addLine({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+      variant,
+    });
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1600);
   }
@@ -100,20 +107,20 @@ export function QuickView({
               <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
             </div>
             <div className="flex flex-col justify-center p-8 lg:p-10">
-              <h3 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-sm)]">
+              <h3 className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]">
                 {product.name}
               </h3>
-              <p className="mt-2 font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-lg)]">
-                {formatFcfa(product.price, locale)}
+              <p className="mt-2 text-[length:var(--text-body-lg)] font-semibold text-[var(--color-text-primary)]">
+                {formatPrice(product.price, locale)}
               </p>
               {!inStock && (
-                <p className="mt-2 text-[var(--color-danger)] text-[length:var(--text-body-sm)]">
+                <p className="mt-2 text-[length:var(--text-body-sm)] text-[var(--color-danger)]">
                   {locale === "en" ? "Sold out" : "Rupture de stock"}
                 </p>
               )}
 
               <div className="mt-8">
-                <p className="mb-3 uppercase tracking-[0.1em] text-[var(--color-text-muted)] text-[length:var(--text-body-xs)]">
+                <p className="mb-3 text-[length:var(--text-body-xs)] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
                   {locale === "en" ? "Color" : "Couleur"}
                 </p>
                 <div className="flex gap-2">
@@ -134,7 +141,7 @@ export function QuickView({
               </div>
 
               <div className="mt-6">
-                <p className="mb-3 uppercase tracking-[0.1em] text-[var(--color-text-muted)] text-[length:var(--text-body-xs)]">
+                <p className="mb-3 text-[length:var(--text-body-xs)] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
                   {locale === "en" ? "Size" : "Taille"}
                 </p>
                 <div className="flex gap-2">

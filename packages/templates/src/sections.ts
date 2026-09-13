@@ -32,6 +32,9 @@ export const SECTION_KEYS = [
   "signature_product",
   "heritage",
   "lookbook",
+  "designers",
+  "provenance",
+  "catalog_search",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -151,13 +154,23 @@ export const sectionParamSchemas = {
     detailMedia: mediaSchema.optional(),
     ctaLabel: z.string().optional(),
     ctaHref: z.string().optional(),
+    /** Mécaniques « édition limitée » — voir Teranga Atelier (template 4, 20
+     *  septembre 2026) : nombre de pièces encore disponibles et/ou précommande. Ces
+     *  deux champs restent optionnels pour ne rien changer au comportement existant
+     *  (Luxe minimaliste, Marketplace, Commerce moderne) qui ne les utilisent pas. */
+    piecesRemaining: z.number().int().min(0).optional(),
+    isPreorder: z.boolean().optional(),
+    preorderReleaseDate: z.string().optional(),
   }),
   heritage: z.object({
     eyebrow: z.string().optional(),
     title: z.string().min(1),
     body: z.string().min(1),
     media: mediaSchema,
-    stats: z.array(z.object({ value: z.string(), label: z.string() })).max(4).optional(),
+    stats: z
+      .array(z.object({ value: z.string(), label: z.string() }))
+      .max(4)
+      .optional(),
     ctaLabel: z.string().optional(),
     ctaHref: z.string().optional(),
   }),
@@ -180,6 +193,52 @@ export const sectionParamSchemas = {
         }),
       )
       .min(1),
+  }),
+  // Deux sections ajoutées pour le template « Boutique africaine contemporaine »
+  // (Teranga Atelier, 20 septembre 2026) : créateurs en vedette (avec fiche dédiée par
+  // créateur) et provenance/carte des régions de fabrication.
+  designers: z.object({
+    title: z.string().optional(),
+    designerIds: z.array(z.string()).min(1),
+  }),
+  provenance: z.object({
+    title: z.string().optional(),
+    intro: z.string().optional(),
+    regions: z
+      .array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          craft: z.string(),
+          description: z.string(),
+          media: mediaSchema,
+          /** Position en pourcentage sur l'illustration de carte — même mécanique que
+           *  les hotspots du lookbook. */
+          x: z.number().min(0).max(100),
+          y: z.number().min(0).max(100),
+        }),
+      )
+      .min(1),
+  }),
+  // Section ajoutée pour « Grossiste et revendeur professionnel » (Dakar Distribution
+  // Pro, template 5, 20 septembre 2026) : remplace le hero cinématographique par une
+  // recherche de produits très visible + raccourcis de catégories professionnelles —
+  // voir l'exigence explicite « recherche de produits très visible » en première
+  // position de la page d'accueil B2B.
+  catalog_search: z.object({
+    eyebrow: z.string().optional(),
+    title: z.string().min(1),
+    subtitle: z.string().optional(),
+    searchPlaceholder: z.string().optional(),
+    quickCategories: z
+      .array(z.object({ label: z.string(), href: z.string() }))
+      .max(8)
+      .optional(),
+    stats: z
+      .array(z.object({ value: z.string(), label: z.string() }))
+      .max(4)
+      .optional(),
+    media: mediaSchema.optional(),
   }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 
@@ -211,6 +270,9 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   signature_product: ["dark", "leather"],
   heritage: ["image-left", "image-right"],
   lookbook: ["mosaic", "fullscreen"],
+  designers: ["grid", "carousel"],
+  provenance: ["map", "list"],
+  catalog_search: ["hero", "compact"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {

@@ -22,11 +22,15 @@ import { BrandManifestoSection } from "./brand-manifesto";
 import { SignatureProductSection } from "./signature-product";
 import { HeritageSection } from "./heritage";
 import { LookbookSection } from "./lookbook";
+import { DesignersSection } from "./designers";
+import { ProvenanceSection } from "./provenance";
+import { CatalogSearchSection } from "./catalog-search";
 import type {
   ResolvedCategoriesContent,
   ResolvedProductsContent,
   ResolvedPromotionsContent,
   ResolvedLookbookContent,
+  ResolvedDesignersContent,
 } from "./content-types";
 
 /**
@@ -41,6 +45,7 @@ export type ResolvedContentBySectionId = Record<
   | ResolvedProductsContent
   | ResolvedPromotionsContent
   | ResolvedLookbookContent
+  | ResolvedDesignersContent
 >;
 
 /**
@@ -216,6 +221,24 @@ function renderByKey(
         />
       );
     }
+
+    case "designers": {
+      const content = resolvedContent?.[instance.id] as ResolvedDesignersContent | undefined;
+      if (!content) return <SectionFallback sectionKey="designers" />;
+      return <DesignersSection variant={instance.variant} content={content} locale={locale} />;
+    }
+
+    case "provenance":
+      return (
+        <ProvenanceSection
+          variant={instance.variant}
+          params={instance.params as any}
+          locale={locale}
+        />
+      );
+
+    case "catalog_search":
+      return <CatalogSearchSection variant={instance.variant} params={instance.params as any} />;
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être

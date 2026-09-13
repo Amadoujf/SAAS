@@ -6,9 +6,17 @@ import { MegaMenuNav, type NavItem } from "@/components/layout/mega-menu-nav";
 import { SearchOverlay, type SearchSuggestion } from "@/components/layout/search-overlay";
 import { CartDrawer } from "@/components/layout/cart-drawer";
 import { FavoritesDrawer } from "@/components/layout/favorites-drawer";
-import { SearchIcon, BagIcon, MenuIcon, CloseIcon, HeartIcon, UserIcon } from "@/components/ui/icons";
+import {
+  SearchIcon,
+  BagIcon,
+  MenuIcon,
+  CloseIcon,
+  HeartIcon,
+  UserIcon,
+} from "@/components/ui/icons";
 import { ComingSoonIconButton } from "@/components/ui/coming-soon-icon-button";
 import { LanguageSelector } from "@/components/layout/language-selector";
+import { CurrencySelector } from "@/components/layout/currency-selector";
 import { Button } from "@/components/ui/button";
 import { useLocale } from "@/lib/locale-context";
 import { useCart } from "@/lib/commerce/cart-context";
@@ -37,11 +45,15 @@ export function Header({
   navItems,
   searchSuggestions = [],
   transparentOverHero = false,
+  showCurrencySelector = false,
 }: {
   shopName: string;
   navItems: NavItem[];
   searchSuggestions?: SearchSuggestion[];
   transparentOverHero?: boolean;
+  /** Vente à la diaspora (voir Teranga Atelier, 20 septembre 2026) — masqué par défaut
+   *  pour ne rien changer aux templates qui ne vendent qu'en FCFA. */
+  showCurrencySelector?: boolean;
 }) {
   const { locale } = useLocale();
   const { count: cartCount } = useCart();
@@ -70,7 +82,7 @@ export function Header({
         className={`fixed inset-x-0 top-0 z-50 flex h-[var(--header-height)] items-center transition-[background-color,border-color,box-shadow] duration-300 ${
           isDark
             ? "border-b border-transparent bg-transparent"
-            : "border-b border-[var(--color-border)] [box-shadow:var(--shadow-sm)] backdrop-blur"
+            : "border-b border-[var(--color-border)] backdrop-blur [box-shadow:var(--shadow-sm)]"
         }`}
         // Tailwind ne peut pas mélanger une opacité sur `var(--color-background)`
         // (même limite que `text-[length:var(...)]`) — `bg-[var(...)]/95` restait
@@ -96,7 +108,8 @@ export function Header({
           <div
             className={`flex items-center gap-5 transition-colors ${isDark ? "text-white" : "text-[var(--color-text-primary)]"}`}
           >
-            <div className="hidden lg:block">
+            <div className="hidden items-center gap-5 lg:flex">
+              {showCurrencySelector && <CurrencySelector />}
               <LanguageSelector />
             </div>
             <button
@@ -153,7 +166,11 @@ export function Header({
               <Button
                 href="/panier"
                 variant={isDark ? "outline" : "solid"}
-                className={isDark ? "border-white text-white hover:bg-white hover:text-[var(--color-primary)]" : ""}
+                className={
+                  isDark
+                    ? "border-white text-white hover:bg-white hover:text-[var(--color-primary)]"
+                    : ""
+                }
               >
                 {locale === "en" ? "Shop now" : "Voir la boutique"}
               </Button>
@@ -169,7 +186,11 @@ export function Header({
         suggestions={searchSuggestions}
       />
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} locale={locale} />
-      <FavoritesDrawer open={favoritesOpen} onClose={() => setFavoritesOpen(false)} locale={locale} />
+      <FavoritesDrawer
+        open={favoritesOpen}
+        onClose={() => setFavoritesOpen(false)}
+        locale={locale}
+      />
 
       <AnimatePresence>
         {mobileOpen && (
@@ -187,7 +208,7 @@ export function Header({
               className="flex h-full flex-col gap-8 p-8"
             >
               <div className="flex items-center justify-between">
-                <span className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-sm)]">
+                <span className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]">
                   {shopName}
                 </span>
                 <button
@@ -205,7 +226,7 @@ export function Header({
                     key={item.href}
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
-                    className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-sm)]"
+                    className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]"
                   >
                     {item.label}
                   </a>

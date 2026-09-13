@@ -69,7 +69,9 @@ describe("sections ajoutées pour la refonte artistique (16 septembre 2026)", ()
   it("rejette un hotspot de lookbook hors bornes (x > 100)", () => {
     expect(() =>
       validateSectionParams("lookbook", {
-        images: [{ url: "https://example.com/look-1.jpg", hotspots: [{ x: 140, y: 60, productId: "x" }] }],
+        images: [
+          { url: "https://example.com/look-1.jpg", hotspots: [{ x: 140, y: 60, productId: "x" }] },
+        ],
       }),
     ).toThrow();
   });
@@ -77,6 +79,81 @@ describe("sections ajoutées pour la refonte artistique (16 septembre 2026)", ()
   it("valide la variante « editorial » pour categories et testimonials", () => {
     expect(isValidVariant("categories", "editorial")).toBe(true);
     expect(isValidVariant("testimonials", "editorial")).toBe(true);
+  });
+});
+
+describe("sections ajoutées pour Teranga Atelier (20 septembre 2026)", () => {
+  it("accepte un produit signature avec mécaniques édition limitée", () => {
+    expect(() =>
+      validateSectionParams("signature_product", {
+        title: "Le Boubou Sabar",
+        media: { url: "https://example.com/signature.jpg" },
+        piecesRemaining: 7,
+        isPreorder: true,
+        preorderReleaseDate: "2026-12-01",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepte une section créateurs en vedette", () => {
+    expect(() =>
+      validateSectionParams("designers", { designerIds: ["aissatou-diop"] }),
+    ).not.toThrow();
+  });
+
+  it("rejette une section créateurs sans identifiant", () => {
+    expect(() => validateSectionParams("designers", { designerIds: [] })).toThrow();
+  });
+
+  it("accepte une section provenance avec régions valides", () => {
+    expect(() =>
+      validateSectionParams("provenance", {
+        regions: [
+          {
+            id: "casamance",
+            name: "Casamance",
+            craft: "Tissage",
+            description: "Tissage traditionnel en coton local.",
+            media: { url: "https://example.com/casamance.jpg" },
+            x: 30,
+            y: 70,
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejette une région de provenance hors bornes (y > 100)", () => {
+    expect(() =>
+      validateSectionParams("provenance", {
+        regions: [
+          {
+            id: "x",
+            name: "x",
+            craft: "x",
+            description: "x",
+            media: { url: "https://example.com/x.jpg" },
+            x: 30,
+            y: 140,
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("section ajoutée pour Dakar Distribution Pro (20 septembre 2026)", () => {
+  it("accepte une recherche catalogue valide", () => {
+    expect(() =>
+      validateSectionParams("catalog_search", {
+        title: "Trouvez le produit qu'il vous faut",
+        quickCategories: [{ label: "Électronique", href: "/catalogue/electronique" }],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejette une recherche catalogue sans titre", () => {
+    expect(() => validateSectionParams("catalog_search", {})).toThrow();
   });
 });
 

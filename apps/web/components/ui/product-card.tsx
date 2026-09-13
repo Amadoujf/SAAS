@@ -4,12 +4,12 @@ import { useState } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAnimationLevel } from "@/lib/motion/animation-level-context";
-import { formatFcfa } from "@/lib/format";
 import { t, type Locale } from "@/lib/i18n";
 import { HeartIcon, EyeIcon, CheckIcon } from "@/components/ui/icons";
 import { QuickView } from "@/components/ui/quick-view";
 import { useCart } from "@/lib/commerce/cart-context";
 import { useFavorites } from "@/lib/commerce/favorites-context";
+import { useCurrency } from "@/lib/commerce/currency-context";
 
 /**
  * Carte produit générique — contrat commun `CardItem` évoqué en
@@ -48,16 +48,11 @@ export interface ProductCardData {
   inStock?: boolean;
 }
 
-export function ProductCard({
-  product,
-  locale,
-}: {
-  product: ProductCardData;
-  locale: Locale;
-}) {
+export function ProductCard({ product, locale }: { product: ProductCardData; locale: Locale }) {
   const level = useAnimationLevel();
   const { addLine } = useCart();
   const { isFavorited, toggle } = useFavorites();
+  const { formatPrice } = useCurrency();
   const favorited = isFavorited(product.id);
   const [added, setAdded] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -67,7 +62,12 @@ export function ProductCard({
   function handleAddToCart(event: React.MouseEvent) {
     event.preventDefault();
     if (!inStock) return;
-    addLine({ id: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl });
+    addLine({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.imageUrl,
+    });
     setAdded(true);
     window.setTimeout(() => setAdded(false), 1600);
   }
@@ -121,18 +121,27 @@ export function ProductCard({
             type="button"
             onClick={(event) => {
               event.preventDefault();
-              toggle({ id: product.id, name: product.name, price: product.price, imageUrl: product.imageUrl, href: product.href });
+              toggle({
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                imageUrl: product.imageUrl,
+                href: product.href,
+              });
             }}
             aria-label={locale === "en" ? "Add to wishlist" : "Ajouter aux favoris"}
             aria-pressed={favorited}
-            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-[var(--color-background)]/90 text-[var(--color-primary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
+            className="bg-[var(--color-background)]/90 absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[var(--color-primary)] opacity-0 transition-opacity duration-200 group-hover:opacity-100"
           >
             <HeartIcon filled={favorited} className="h-4 w-4" />
           </button>
 
           {revealActions && (
             <motion.div
-              variants={{ rest: { transform: "translateY(100%)" }, hover: { transform: "translateY(0%)" } }}
+              variants={{
+                rest: { transform: "translateY(100%)" },
+                hover: { transform: "translateY(0%)" },
+              }}
               transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
               className="absolute inset-x-0 bottom-0 flex"
             >
@@ -140,11 +149,16 @@ export function ProductCard({
                 type="button"
                 onClick={handleAddToCart}
                 disabled={!inStock}
-                className="flex flex-1 items-center justify-center gap-2 bg-[var(--color-primary)] py-3.5 text-[13px] font-medium uppercase tracking-[0.06em] text-white transition-colors hover:bg-[var(--color-primary)]/90 disabled:cursor-not-allowed disabled:opacity-60"
+                className="hover:bg-[var(--color-primary)]/90 flex flex-1 items-center justify-center gap-2 bg-[var(--color-primary)] py-3.5 text-[13px] font-medium uppercase tracking-[0.06em] text-white transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <AnimatePresence mode="wait" initial={false}>
                   {!inStock ? (
-                    <motion.span key="out-of-stock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <motion.span
+                      key="out-of-stock"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
                       {locale === "en" ? "Sold out" : "Rupture de stock"}
                     </motion.span>
                   ) : added ? (
@@ -177,7 +191,7 @@ export function ProductCard({
                   setQuickViewOpen(true);
                 }}
                 aria-label={locale === "en" ? "Quick view" : "Aperçu rapide"}
-                className="flex w-14 items-center justify-center border-l border-white/20 bg-[var(--color-primary)] text-white transition-colors hover:bg-[var(--color-primary)]/90"
+                className="hover:bg-[var(--color-primary)]/90 flex w-14 items-center justify-center border-l border-white/20 bg-[var(--color-primary)] text-white transition-colors"
               >
                 <EyeIcon className="h-4 w-4" />
               </button>
@@ -185,16 +199,16 @@ export function ProductCard({
           )}
         </Wrapper>
         <div className="flex flex-col gap-1.5 pt-4">
-          <h3 className="text-[var(--color-text-primary)] text-[length:var(--text-body-md)]">
+          <h3 className="text-[length:var(--text-body-md)] text-[var(--color-text-primary)]">
             {product.name}
           </h3>
           <div className="flex items-baseline gap-2.5">
-            <span className="font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-md)]">
-              {formatFcfa(product.price, locale)}
+            <span className="text-[length:var(--text-body-md)] font-semibold text-[var(--color-text-primary)]">
+              {formatPrice(product.price, locale)}
             </span>
             {product.compareAtPrice && (
-              <span className="text-[var(--color-text-muted)] text-[length:var(--text-body-sm)] line-through">
-                {formatFcfa(product.compareAtPrice, locale)}
+              <span className="text-[length:var(--text-body-sm)] text-[var(--color-text-muted)] line-through">
+                {formatPrice(product.compareAtPrice, locale)}
               </span>
             )}
           </div>

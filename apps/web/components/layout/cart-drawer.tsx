@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { formatFcfa } from "@/lib/format";
 import type { Locale } from "@/lib/i18n";
 import { useCart } from "@/lib/commerce/cart-context";
+import { useCurrency } from "@/lib/commerce/currency-context";
 
 /**
  * Panier latéral — lit et modifie désormais l'état partagé `useCart()` (voir la revue
@@ -23,6 +23,7 @@ export function CartDrawer({
   locale: Locale;
 }) {
   const { lines, removeLine, updateQuantity, subtotal } = useCart();
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     if (!open) return;
@@ -62,10 +63,10 @@ export function CartDrawer({
             className="fixed inset-y-0 right-0 z-[61] flex w-full max-w-md flex-col bg-[var(--color-background)] shadow-[var(--shadow-lg)]"
           >
             <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
-              <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-sm)]">
+              <h2 className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]">
                 {locale === "en" ? "Your selection" : "Votre sélection"}
                 {lines.length > 0 && (
-                  <span className="ml-2 text-[var(--color-text-muted)] text-[length:var(--text-body-sm)]">
+                  <span className="ml-2 text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
                     ({lines.reduce((sum, l) => sum + l.quantity, 0)})
                   </span>
                 )}
@@ -82,7 +83,7 @@ export function CartDrawer({
 
             {lines.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-                <p className="text-[var(--color-text-muted)] text-[length:var(--text-body-md)]">
+                <p className="text-[length:var(--text-body-md)] text-[var(--color-text-muted)]">
                   {locale === "en" ? "Your cart is empty." : "Votre panier est vide."}
                 </p>
                 <Button href="/catalogue" onClick={onClose}>
@@ -100,11 +101,11 @@ export function CartDrawer({
                       <div className="flex flex-1 flex-col justify-between">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <p className="font-medium text-[var(--color-text-primary)] text-[length:var(--text-body-md)]">
+                            <p className="text-[length:var(--text-body-md)] font-medium text-[var(--color-text-primary)]">
                               {line.name}
                             </p>
                             {line.variant && (
-                              <p className="text-[var(--color-text-muted)] text-[length:var(--text-body-xs)]">
+                              <p className="text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]">
                                 {line.variant}
                               </p>
                             )}
@@ -123,7 +124,9 @@ export function CartDrawer({
                             <button
                               type="button"
                               aria-label="-"
-                              onClick={() => updateQuantity(line.id, line.variant, line.quantity - 1)}
+                              onClick={() =>
+                                updateQuantity(line.id, line.variant, line.quantity - 1)
+                              }
                               className="px-2.5 py-1 text-[var(--color-text-primary)]"
                             >
                               −
@@ -134,14 +137,16 @@ export function CartDrawer({
                             <button
                               type="button"
                               aria-label="+"
-                              onClick={() => updateQuantity(line.id, line.variant, line.quantity + 1)}
+                              onClick={() =>
+                                updateQuantity(line.id, line.variant, line.quantity + 1)
+                              }
                               className="px-2.5 py-1 text-[var(--color-text-primary)]"
                             >
                               +
                             </button>
                           </div>
-                          <span className="font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-sm)]">
-                            {formatFcfa(line.price * line.quantity, locale)}
+                          <span className="text-[length:var(--text-body-sm)] font-semibold text-[var(--color-text-primary)]">
+                            {formatPrice(line.price * line.quantity, locale)}
                           </span>
                         </div>
                       </div>
@@ -149,9 +154,9 @@ export function CartDrawer({
                   ))}
                 </ul>
                 <div className="border-t border-[var(--color-border)] px-6 py-6">
-                  <div className="mb-4 flex items-center justify-between text-[var(--color-text-primary)] text-[length:var(--text-body-lg)]">
+                  <div className="mb-4 flex items-center justify-between text-[length:var(--text-body-lg)] text-[var(--color-text-primary)]">
                     <span>{locale === "en" ? "Subtotal" : "Sous-total"}</span>
-                    <span className="font-semibold">{formatFcfa(subtotal, locale)}</span>
+                    <span className="font-semibold">{formatPrice(subtotal, locale)}</span>
                   </div>
                   <Button href="/panier" onClick={onClose} className="w-full">
                     {locale === "en" ? "Go to checkout" : "Passer commande"}

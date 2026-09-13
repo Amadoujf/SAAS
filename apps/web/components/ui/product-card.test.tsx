@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { ProductCard, type ProductCardData } from "./product-card";
 import { CartProvider, useCart } from "@/lib/commerce/cart-context";
 import { FavoritesProvider, useFavorites } from "@/lib/commerce/favorites-context";
+import { CurrencyProvider } from "@/lib/commerce/currency-context";
 import { AnimationLevelProvider } from "@/lib/motion/animation-level-context";
 
 /**
@@ -31,15 +32,17 @@ function FavoritesCount() {
 
 function renderWithProviders(ui: React.ReactNode) {
   return render(
-    <CartProvider>
-      <FavoritesProvider>
-        <AnimationLevelProvider level="dynamic">
-          <CartCount />
-          <FavoritesCount />
-          {ui}
-        </AnimationLevelProvider>
-      </FavoritesProvider>
-    </CartProvider>,
+    <CurrencyProvider>
+      <CartProvider>
+        <FavoritesProvider>
+          <AnimationLevelProvider level="dynamic">
+            <CartCount />
+            <FavoritesCount />
+            {ui}
+          </AnimationLevelProvider>
+        </FavoritesProvider>
+      </CartProvider>
+    </CurrencyProvider>,
   );
 }
 

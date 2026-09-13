@@ -5,12 +5,20 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ProductGallery } from "@/components/product/product-gallery";
 import { Button } from "@/components/ui/button";
 import { Magnetic } from "@/lib/motion/magnetic";
-import { HeartIcon, CheckIcon, TruckIcon, ReturnIcon, ShieldIcon } from "@/components/ui/icons";
-import { formatFcfa } from "@/lib/format";
+import {
+  HeartIcon,
+  CheckIcon,
+  TruckIcon,
+  ReturnIcon,
+  ShieldIcon,
+  WhatsappIcon,
+} from "@/components/ui/icons";
 import { t, type Locale } from "@/lib/i18n";
 import type { ProductColorOption } from "@/components/ui/product-card";
 import { useCart } from "@/lib/commerce/cart-context";
 import { useFavorites } from "@/lib/commerce/favorites-context";
+import { useCurrency } from "@/lib/commerce/currency-context";
+import { SizeGuideModal, type SizeGuideRow } from "@/components/ui/size-guide-modal";
 
 /**
  * Props entièrement typées, sans logique métier ni contenu codé dans le composant —
@@ -32,18 +40,34 @@ export interface ProductDetailData {
   /** Absent = en stock. */
   inStock?: boolean;
   href?: string;
+  /** Absent = pas de lien « Guide des tailles » (produit sans variantes de coupe,
+   *  p. ex. un bijou) — voir Teranga Atelier (template 4, 20 septembre 2026). */
+  sizeGuideRows?: SizeGuideRow[];
 }
 
 export function ProductDetail({ product, locale }: { product: ProductDetailData; locale: Locale }) {
   const { addLine } = useCart();
   const { isFavorited, toggle } = useFavorites();
+  const { formatPrice } = useCurrency();
   const [color, setColor] = useState(product.colors[0]!.hex);
   const [size, setSize] = useState(product.sizes[1] ?? product.sizes[0]);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const [openPanel, setOpenPanel] = useState<string | null>("description");
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const inStock = product.inStock !== false;
   const favorited = isFavorited(product.id);
+
+  function handleShareWhatsapp() {
+    const url = typeof window !== "undefined" ? window.location.href : (product.href ?? "");
+    const message =
+      locale === "en" ? `Check out ${product.name} — ${url}` : `Regarde ${product.name} — ${url}`;
+    window.open(
+      `https://wa.me/?text=${encodeURIComponent(message)}`,
+      "_blank",
+      "noopener,noreferrer",
+    );
+  }
 
   function handleAddToCart() {
     if (!inStock) return;
@@ -62,12 +86,21 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
   }
 
   function handleToggleFavorite() {
-    toggle({ id: product.id, name: product.name, price: product.price, imageUrl: product.images[0]!, href: product.href });
+    toggle({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      imageUrl: product.images[0]!,
+      href: product.href,
+    });
   }
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] px-6 pb-32 pt-32 lg:px-10 lg:pb-24 lg:pt-40">
-      <nav aria-label="Fil d'Ariane" className="mb-8 text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]">
+      <nav
+        aria-label="Fil d'Ariane"
+        className="mb-8 text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]"
+      >
         <a href="/" className="hover:text-[var(--color-primary)]">
           {locale === "en" ? "Home" : "Accueil"}
         </a>{" "}
@@ -78,31 +111,31 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
         <ProductGallery images={product.images} alt={product.name} />
 
         <div>
-          <h1 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-lg)]">
+          <h1 className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-lg)] text-[var(--color-text-primary)]">
             {product.name}
           </h1>
           <div className="mt-3 flex items-baseline gap-3">
-            <span className="font-semibold text-[var(--color-text-primary)] text-[length:var(--text-heading-xs)]">
-              {formatFcfa(product.price, locale)}
+            <span className="text-[length:var(--text-heading-xs)] font-semibold text-[var(--color-text-primary)]">
+              {formatPrice(product.price, locale)}
             </span>
             {product.compareAtPrice && (
-              <span className="text-[var(--color-text-muted)] text-[length:var(--text-body-md)] line-through">
-                {formatFcfa(product.compareAtPrice, locale)}
+              <span className="text-[length:var(--text-body-md)] text-[var(--color-text-muted)] line-through">
+                {formatPrice(product.compareAtPrice, locale)}
               </span>
             )}
           </div>
           {!inStock && (
-            <p className="mt-3 font-medium text-[var(--color-danger)] text-[length:var(--text-body-sm)]">
+            <p className="mt-3 text-[length:var(--text-body-sm)] font-medium text-[var(--color-danger)]">
               {locale === "en" ? "Sold out" : "Rupture de stock"}
             </p>
           )}
 
-          <p className="mt-6 max-w-md text-[var(--color-text-secondary)] text-[length:var(--text-body-md)]">
+          <p className="mt-6 max-w-md text-[length:var(--text-body-md)] text-[var(--color-text-secondary)]">
             {product.description}
           </p>
 
           <div className="mt-8">
-            <p className="mb-3 uppercase tracking-[0.1em] text-[var(--color-text-muted)] text-[length:var(--text-body-xs)]">
+            <p className="mb-3 text-[length:var(--text-body-xs)] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
               {locale === "en" ? "Color" : "Couleur"}
             </p>
             <div className="flex gap-2">
@@ -123,9 +156,20 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
           </div>
 
           <div className="mt-6">
-            <p className="mb-3 uppercase tracking-[0.1em] text-[var(--color-text-muted)] text-[length:var(--text-body-xs)]">
-              {locale === "en" ? "Size" : "Taille"}
-            </p>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="text-[length:var(--text-body-xs)] uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                {locale === "en" ? "Size" : "Taille"}
+              </p>
+              {product.sizeGuideRows && product.sizeGuideRows.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="text-[length:var(--text-body-xs)] text-[var(--color-text-secondary)] underline underline-offset-2 hover:text-[var(--color-primary)]"
+                >
+                  {locale === "en" ? "Size guide" : "Guide des tailles"}
+                </button>
+              )}
+            </div>
             <div className="flex gap-2">
               {product.sizes.map((s) => (
                 <button
@@ -169,7 +213,12 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
               <Button onClick={handleAddToCart} disabled={!inStock} className="w-full" size="xl">
                 <AnimatePresence mode="wait" initial={false}>
                   {!inStock ? (
-                    <motion.span key="out-of-stock" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <motion.span
+                      key="out-of-stock"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
                       {locale === "en" ? "Sold out" : "Rupture de stock"}
                     </motion.span>
                   ) : added ? (
@@ -184,7 +233,12 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
                       {locale === "en" ? "Added to cart" : "Ajouté au panier"}
                     </motion.span>
                   ) : (
-                    <motion.span key="add" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                    <motion.span
+                      key="add"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
                       {t(locale, "product.add_to_cart")}
                     </motion.span>
                   )}
@@ -199,6 +253,14 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
               className="flex h-[58px] w-[58px] shrink-0 items-center justify-center border border-[var(--color-border)] text-[var(--color-primary)]"
             >
               <HeartIcon filled={favorited} className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleShareWhatsapp}
+              aria-label={locale === "en" ? "Share on WhatsApp" : "Partager sur WhatsApp"}
+              className="flex h-[58px] w-[58px] shrink-0 items-center justify-center border border-[var(--color-border)] text-[var(--color-primary)]"
+            >
+              <WhatsappIcon className="h-5 w-5" />
             </button>
           </div>
 
@@ -225,7 +287,11 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
 
           <div className="mt-2 divide-y divide-[var(--color-border)]">
             {[
-              { id: "description", label: locale === "en" ? "Description" : "Description", body: product.description },
+              {
+                id: "description",
+                label: locale === "en" ? "Description" : "Description",
+                body: product.description,
+              },
               {
                 id: "material",
                 label: locale === "en" ? "Material & craftsmanship" : "Matière & fabrication",
@@ -243,12 +309,18 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
               <div key={panel.id}>
                 <button
                   type="button"
-                  onClick={() => setOpenPanel((current) => (current === panel.id ? null : panel.id))}
+                  onClick={() =>
+                    setOpenPanel((current) => (current === panel.id ? null : panel.id))
+                  }
                   aria-expanded={openPanel === panel.id}
                   className="flex w-full items-center justify-between py-4 text-left font-medium text-[var(--color-text-primary)]"
                 >
                   {panel.label}
-                  <span aria-hidden="true" style={{ transform: openPanel === panel.id ? "rotate(45deg)" : "none" }} className="transition-transform">
+                  <span
+                    aria-hidden="true"
+                    style={{ transform: openPanel === panel.id ? "rotate(45deg)" : "none" }}
+                    className="transition-transform"
+                  >
                     +
                   </span>
                 </button>
@@ -261,7 +333,7 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
                       transition={{ duration: 0.25 }}
                       className="overflow-hidden"
                     >
-                      <p className="pb-4 text-[var(--color-text-muted)] text-[length:var(--text-body-sm)]">
+                      <p className="pb-4 text-[length:var(--text-body-sm)] text-[var(--color-text-muted)]">
                         {panel.body}
                       </p>
                     </motion.div>
@@ -276,8 +348,8 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
       {/* Barre d'action mobile — voir la refonte artistique du 16 septembre 2026
           (« barre d'action sur les fiches produits »), toujours accessible au pouce. */}
       <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-[var(--color-border)] bg-[var(--color-background)] p-4 lg:hidden">
-        <span className="shrink-0 font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-md)]">
-          {formatFcfa(product.price, locale)}
+        <span className="shrink-0 text-[length:var(--text-body-md)] font-semibold text-[var(--color-text-primary)]">
+          {formatPrice(product.price, locale)}
         </span>
         <Button
           onClick={handleAddToCart}
@@ -304,6 +376,15 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
           <HeartIcon filled={favorited} className="h-5 w-5" />
         </button>
       </div>
+
+      {product.sizeGuideRows && (
+        <SizeGuideModal
+          open={sizeGuideOpen}
+          onClose={() => setSizeGuideOpen(false)}
+          rows={product.sizeGuideRows}
+          locale={locale}
+        />
+      )}
     </div>
   );
 }

@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { formatFcfa } from "@/lib/format";
 import type { Locale } from "@/lib/i18n";
 import { useFavorites } from "@/lib/commerce/favorites-context";
+import { useCurrency } from "@/lib/commerce/currency-context";
 import { CloseIcon } from "@/components/ui/icons";
 
 /**
@@ -24,6 +24,7 @@ export function FavoritesDrawer({
   locale: Locale;
 }) {
   const { items, toggle } = useFavorites();
+  const { formatPrice } = useCurrency();
 
   useEffect(() => {
     if (!open) return;
@@ -63,7 +64,7 @@ export function FavoritesDrawer({
             className="fixed inset-y-0 right-0 z-[61] flex w-full max-w-md flex-col bg-[var(--color-background)] shadow-[var(--shadow-lg)]"
           >
             <div className="flex items-center justify-between border-b border-[var(--color-border)] px-6 py-5">
-              <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-sm)]">
+              <h2 className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]">
                 {locale === "en" ? "Your favorites" : "Vos favoris"}
               </h2>
               <button
@@ -78,7 +79,7 @@ export function FavoritesDrawer({
 
             {items.length === 0 ? (
               <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
-                <p className="text-[var(--color-text-muted)] text-[length:var(--text-body-md)]">
+                <p className="text-[length:var(--text-body-md)] text-[var(--color-text-muted)]">
                   {locale === "en" ? "No favorites yet." : "Aucun favori pour l'instant."}
                 </p>
                 <Button href="/catalogue" onClick={onClose}>
@@ -98,26 +99,28 @@ export function FavoritesDrawer({
                           <a
                             href={item.href}
                             onClick={onClose}
-                            className="font-medium text-[var(--color-text-primary)] text-[length:var(--text-body-md)] hover:underline"
+                            className="text-[length:var(--text-body-md)] font-medium text-[var(--color-text-primary)] hover:underline"
                           >
                             {item.name}
                           </a>
                         ) : (
-                          <p className="font-medium text-[var(--color-text-primary)] text-[length:var(--text-body-md)]">
+                          <p className="text-[length:var(--text-body-md)] font-medium text-[var(--color-text-primary)]">
                             {item.name}
                           </p>
                         )}
                         <button
                           type="button"
                           onClick={() => toggle(item)}
-                          aria-label={locale === "en" ? "Remove from favorites" : "Retirer des favoris"}
+                          aria-label={
+                            locale === "en" ? "Remove from favorites" : "Retirer des favoris"
+                          }
                           className="shrink-0 text-[var(--color-text-muted)] transition hover:text-[var(--color-danger)]"
                         >
                           ×
                         </button>
                       </div>
-                      <span className="font-semibold text-[var(--color-text-primary)] text-[length:var(--text-body-sm)]">
-                        {formatFcfa(item.price, locale)}
+                      <span className="text-[length:var(--text-body-sm)] font-semibold text-[var(--color-text-primary)]">
+                        {formatPrice(item.price, locale)}
                       </span>
                     </div>
                   </li>
