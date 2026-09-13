@@ -8,7 +8,7 @@ import type { CustomContentParams } from "./content-types";
  */
 export function CustomContentSection({ params }: { variant: string; params: CustomContentParams }) {
   return (
-    <section className="mx-auto max-w-[var(--content-max-width)] whitespace-pre-line px-6 py-16 text-[var(--color-text-secondary)] text-[var(--text-body-md)]">
+    <section className="mx-auto max-w-[var(--content-max-width)] whitespace-pre-line px-6 py-24 lg:py-32 lg:px-10 text-[var(--color-text-secondary)] text-[length:var(--text-body-md)]">
       {params.html}
     </section>
   );

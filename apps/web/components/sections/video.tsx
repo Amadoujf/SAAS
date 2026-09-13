@@ -7,10 +7,14 @@ export function VideoSection({ variant, params }: { variant: string; params: Vid
   const framed = variant === "framed";
 
   return (
-    <section className={framed ? "mx-auto max-w-[var(--content-max-width)] px-6 py-16" : "py-16"}>
+    <section
+      className={
+        framed ? "mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10" : "py-24 lg:py-32"
+      }
+    >
       {params.title && (
         <Reveal>
-          <h2 className="mb-8 text-center font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+          <h2 className="mb-10 lg:mb-16 text-center font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
             {params.title}
           </h2>
         </Reveal>

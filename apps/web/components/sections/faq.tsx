@@ -17,9 +17,9 @@ export function FaqSection({
 }) {
   if (variant === "two-column") {
     return (
-      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-16">
+      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10">
         <Reveal>
-          <h2 className="mb-8 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+          <h2 className="mb-10 lg:mb-16 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
             {t(locale, "section.faq.title")}
           </h2>
         </Reveal>
@@ -27,7 +27,7 @@ export function FaqSection({
           {params.items.map((item, index) => (
             <Reveal key={index}>
               <h3 className="mb-2 font-medium text-[var(--color-text-primary)]">{item.question}</h3>
-              <p className="text-[var(--color-text-muted)] text-[var(--text-body-sm)]">
+              <p className="text-[var(--color-text-muted)] text-[length:var(--text-body-sm)]">
                 {item.answer}
               </p>
             </Reveal>
@@ -38,9 +38,9 @@ export function FaqSection({
   }
 
   return (
-    <section className="mx-auto max-w-2xl px-6 py-16">
+    <section className="mx-auto max-w-2xl px-6 py-24 lg:py-32 lg:px-10">
       <Reveal>
-        <h2 className="mb-8 text-center font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+        <h2 className="mb-10 lg:mb-16 text-center font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
           {t(locale, "section.faq.title")}
         </h2>
       </Reveal>
@@ -86,7 +86,7 @@ function FaqAccordionItem({ question, answer }: { question: string; answer: stri
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <p className="pb-4 text-[var(--color-text-muted)] text-[var(--text-body-sm)]">
+            <p className="pb-4 text-[var(--color-text-muted)] text-[length:var(--text-body-sm)]">
               {answer}
             </p>
           </motion.div>

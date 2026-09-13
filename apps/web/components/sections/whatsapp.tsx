@@ -5,6 +5,7 @@ import type { WhatsappParams } from "./content-types";
 import { useAnimationLevel } from "@/lib/motion/animation-level-context";
 import { hoverLift } from "@/lib/motion/variants";
 import { t, type Locale } from "@/lib/i18n";
+import { WhatsappIcon } from "@/components/ui/icons";
 
 function buildWhatsappUrl(params: WhatsappParams): string {
   const digits = params.phoneNumber.replace(/[^\d]/g, "");
@@ -38,9 +39,10 @@ export function WhatsappSection({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-medium text-[#128C7E] hover:underline"
+          className="inline-flex items-center gap-2 font-medium text-[#128C7E] hover:underline"
         >
-          💬 {label}
+          <WhatsappIcon className="h-5 w-5" />
+          {label}
         </a>
       </section>
     );
@@ -52,10 +54,10 @@ export function WhatsappSection({
       target="_blank"
       rel="noopener noreferrer"
       aria-label={label}
-      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-2xl text-white shadow-lg"
+      className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg"
       {...hover}
     >
-      💬
+      <WhatsappIcon className="h-7 w-7" />
     </motion.a>
   );
 }

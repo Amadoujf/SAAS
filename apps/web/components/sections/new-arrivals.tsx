@@ -28,7 +28,7 @@ export function NewArrivalsSection({
 
   if (products.length === 0) {
     return (
-      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-16">
+      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10">
         <EmptyState title={t(locale, "empty.no_products.title")} />
       </section>
     );
@@ -36,15 +36,15 @@ export function NewArrivalsSection({
 
   if (variant === "carousel") {
     return (
-      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-16">
+      <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10">
         <Reveal>
-          <h2 className="mb-8 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+          <h2 className="mb-10 lg:mb-16 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
             {title}
           </h2>
         </Reveal>
-        <Carousel>
+        <Carousel autoplayMobile>
           {products.map((product) => (
-            <div key={product.id} className="w-[240px] shrink-0">
+            <div key={product.id} className="w-[300px] shrink-0 lg:w-[360px]">
               <ProductCard product={product} locale={locale} />
             </div>
           ))}
@@ -54,14 +54,14 @@ export function NewArrivalsSection({
   }
 
   return (
-    <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-16">
+    <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10">
       <Reveal>
-        <h2 className="mb-8 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+        <h2 className="mb-10 lg:mb-16 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
           {title}
         </h2>
       </Reveal>
       <motion.div
-        className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"
+        className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:gap-10"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}

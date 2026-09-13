@@ -26,6 +26,27 @@ export const colorsSchema = z.object({
   success: colorToken,
   danger: colorToken,
   warning: colorToken,
+  // Couleurs d'accent — ajoutées le 16 septembre 2026 suite à la revue de refonte
+  // artistique : certains templates (ex. « Luxe minimaliste ») avaient besoin de tons
+  // ponctuels (cuir, champagne) pour des sections à forte direction artistique (section
+  // signature, badges) et les codaient en dur dans les composants, ce qu'un futur
+  // changement de template n'aurait alors JAMAIS pu personnaliser. Ces six tokens
+  // couvrent ce besoin sans forcer chaque secteur/direction artistique à les utiliser
+  // (voir defaults.ts pour des valeurs neutres de repli).
+  accentPrimary: colorToken,
+  accentSecondary: colorToken,
+  /** Ton cuir/brun — sections immersives à forte direction artistique (ex. produit
+   *  signature), jamais utilisé pour le texte ou les éléments d'interface courants. */
+  leather: colorToken,
+  /** Ton champagne/doré clair — badges, libellés de promotion, petits accents. */
+  champagne: colorToken,
+  /** Couleur (avec transparence, ex. `rgba(...)`) des voiles posés sur les images —
+   *  dégradés de lisibilité sur le hero, les catégories éditoriales, etc. */
+  overlay: colorToken,
+  /** Distinct de `surfaceMuted` : une surface neutre pensée pour être posée SUR un
+   *  fond sombre/accentué (section signature, pied de page), alors que `surfaceMuted`
+   *  reste pensé pour le thème clair courant. */
+  mutedSurface: colorToken,
 });
 
 const fontSizeScale = z.object({

@@ -14,7 +14,7 @@ export function ContactSection({
   locale: Locale;
 }) {
   const infoBlock = (
-    <div className="flex flex-col gap-2 text-[var(--color-text-secondary)] text-[var(--text-body-md)]">
+    <div className="flex flex-col gap-2 text-[var(--color-text-secondary)] text-[length:var(--text-body-md)]">
       {params.address && <p>{params.address}</p>}
       {params.phone && (
         <p>
@@ -35,9 +35,9 @@ export function ContactSection({
 
   if (variant === "split") {
     return (
-      <section className="mx-auto grid max-w-[var(--content-max-width)] grid-cols-1 gap-10 px-6 py-16 md:grid-cols-2">
+      <section className="mx-auto grid max-w-[var(--content-max-width)] grid-cols-1 gap-10 px-6 py-24 lg:py-32 lg:px-10 md:grid-cols-2">
         <Reveal>
-          <h2 className="mb-4 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+          <h2 className="mb-4 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
             {t(locale, "section.contact.title")}
           </h2>
           {infoBlock}
@@ -56,9 +56,9 @@ export function ContactSection({
   }
 
   return (
-    <section className="px-6 py-16 text-center">
+    <section className="px-6 py-24 lg:py-32 lg:px-10 text-center">
       <Reveal className="mx-auto max-w-md">
-        <h2 className="mb-4 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+        <h2 className="mb-4 font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
           {t(locale, "section.contact.title")}
         </h2>
         {infoBlock}

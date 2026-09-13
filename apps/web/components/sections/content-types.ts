@@ -28,6 +28,10 @@ export type CtaParams = z.infer<typeof sectionParamSchemas.cta>;
 export type ContactParams = z.infer<typeof sectionParamSchemas.contact>;
 export type WhatsappParams = z.infer<typeof sectionParamSchemas.whatsapp>;
 export type CustomContentParams = z.infer<typeof sectionParamSchemas.custom_content>;
+export type BrandManifestoParams = z.infer<typeof sectionParamSchemas.brand_manifesto>;
+export type SignatureProductParams = z.infer<typeof sectionParamSchemas.signature_product>;
+export type HeritageParams = z.infer<typeof sectionParamSchemas.heritage>;
+export type LookbookParams = z.infer<typeof sectionParamSchemas.lookbook>;
 
 export interface ResolvedCategoryItem {
   id: string;
@@ -53,4 +57,14 @@ export interface ResolvedPromotionsContent {
   imageUrl?: string;
   ctaLabel: string;
   ctaHref: string;
+}
+
+/**
+ * Le lookbook référence des produits par identifiant depuis ses points interactifs
+ * (`hotspots[].productId`) — comme categories/featured_products/new_arrivals/
+ * promotions, il a donc besoin d'un contenu résolu séparé de sa config validée (voir
+ * l'en-tête de ce fichier). `productsById` permet un lookup direct O(1) par hotspot.
+ */
+export interface ResolvedLookbookContent {
+  productsById: Record<string, ProductCardData>;
 }

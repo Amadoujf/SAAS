@@ -28,6 +28,10 @@ export const SECTION_KEYS = [
   "contact",
   "whatsapp",
   "custom_content",
+  "brand_manifesto",
+  "signature_product",
+  "heritage",
+  "lookbook",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -82,6 +86,9 @@ export const sectionParamSchemas = {
           quote: z.string(),
           avatarUrl: z.string().optional(),
           rating: z.number().min(1).max(5).optional(),
+          /** Nom du produit acheté — variante "editorial" (voir la refonte du 16
+           *  septembre 2026, « produit acheté »). */
+          productPurchased: z.string().optional(),
         }),
       )
       .min(1),
@@ -126,18 +133,71 @@ export const sectionParamSchemas = {
   custom_content: z.object({
     html: z.string(),
   }),
+  // Quatre sections ajoutées pour la refonte artistique du 16 septembre 2026 (« luxe
+  // africain contemporain ») — voir docs/12 : manifeste de marque, produit signature
+  // (mise en scène immersive d'une pièce phare), savoir-faire/héritage, lookbook.
+  brand_manifesto: z.object({
+    eyebrow: z.string().optional(),
+    statement: z.string().min(1),
+    body: z.string().optional(),
+    media: mediaSchema,
+  }),
+  signature_product: z.object({
+    eyebrow: z.string().optional(),
+    collectionNumber: z.string().optional(),
+    title: z.string().min(1),
+    description: z.string().optional(),
+    media: mediaSchema,
+    detailMedia: mediaSchema.optional(),
+    ctaLabel: z.string().optional(),
+    ctaHref: z.string().optional(),
+  }),
+  heritage: z.object({
+    eyebrow: z.string().optional(),
+    title: z.string().min(1),
+    body: z.string().min(1),
+    media: mediaSchema,
+    stats: z.array(z.object({ value: z.string(), label: z.string() })).max(4).optional(),
+    ctaLabel: z.string().optional(),
+    ctaHref: z.string().optional(),
+  }),
+  lookbook: z.object({
+    title: z.string().optional(),
+    images: z
+      .array(
+        z.object({
+          url: z.string().url(),
+          alt: z.string().optional(),
+          hotspots: z
+            .array(
+              z.object({
+                x: z.number().min(0).max(100),
+                y: z.number().min(0).max(100),
+                productId: z.string(),
+              }),
+            )
+            .optional(),
+        }),
+      )
+      .min(1),
+  }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 
 /** Variantes visuelles disponibles par section — voir docs/12 (« plusieurs variantes
  *  visuelles »). Le moteur de rendu (étape suivante) fournira un composant par variante. */
 export const sectionVariants: Record<SectionKey, readonly string[]> = {
   hero: ["fullbleed", "split", "centered"],
-  categories: ["grid", "carousel"],
-  featured_products: ["grid", "carousel", "masonry"],
+  // "editorial" : grands blocs plein cadre asymétriques (voir la refonte artistique du
+  // 16 septembre 2026) — remplace l'affichage en petites cartes pour les univers de
+  // catégories (« aucun affichage sous forme de petites cartes ordinaires »).
+  categories: ["grid", "carousel", "editorial"],
+  featured_products: ["grid", "carousel", "masonry", "editorial"],
   new_arrivals: ["grid", "carousel"],
   promotions: ["banner", "split"],
   benefits: ["icons-row", "cards"],
-  testimonials: ["carousel", "grid"],
+  // "editorial" : portrait client + grande citation + produit acheté, mise en page
+  // horizontale plus émotionnelle qu'une simple grille de cartes.
+  testimonials: ["carousel", "grid", "editorial"],
   brands: ["marquee", "grid"],
   gallery: ["grid", "masonry", "carousel"],
   video: ["fullwidth", "framed"],
@@ -147,6 +207,10 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   contact: ["split", "centered"],
   whatsapp: ["floating-button", "inline-banner"],
   custom_content: ["default"],
+  brand_manifesto: ["image-left", "image-right"],
+  signature_product: ["dark", "leather"],
+  heritage: ["image-left", "image-right"],
+  lookbook: ["mosaic", "fullscreen"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {

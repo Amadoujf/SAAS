@@ -40,6 +40,22 @@ describe("mergeDesignTokens", () => {
       }),
     ).toThrow();
   });
+
+  /**
+   * Couleurs d'accent ajoutées le 16 septembre 2026 (revue de refonte artistique) :
+   * elles doivent suivre exactement les mêmes règles de fusion que les couleurs
+   * existantes — sinon un template continuerait de coder ces tons en dur faute de
+   * pouvoir les personnaliser par surcharge.
+   */
+  it("surcharge une couleur d'accent sans toucher aux autres champs de `colors`", () => {
+    const merged = mergeDesignTokens(DEFAULT_DESIGN_TOKENS, {
+      colors: { leather: "#3E2A1E", champagne: "#D9C7A3" },
+    });
+    expect(merged.colors.leather).toBe("#3E2A1E");
+    expect(merged.colors.champagne).toBe("#D9C7A3");
+    expect(merged.colors.accentPrimary).toBe(DEFAULT_DESIGN_TOKENS.colors.accentPrimary);
+    expect(merged.colors.primary).toBe(DEFAULT_DESIGN_TOKENS.colors.primary);
+  });
 });
 
 describe("DEFAULT_DESIGN_TOKENS", () => {

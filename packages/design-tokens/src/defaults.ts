@@ -19,6 +19,12 @@ export const DEFAULT_DESIGN_TOKENS: DesignTokens = {
     success: "#16A34A",
     danger: "#DC2626",
     warning: "#D97706",
+    accentPrimary: "#0F766E",
+    accentSecondary: "#F59E0B",
+    leather: "#6B4226",
+    champagne: "#E8D9B5",
+    overlay: "rgba(15, 23, 42, 0.5)",
+    mutedSurface: "#1E293B",
   },
   typography: {
     headingFont: "'Sora', sans-serif",

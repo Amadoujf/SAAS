@@ -98,4 +98,132 @@ describe("SectionRenderer", () => {
 
     expect(screen.getByRole("alert")).toHaveTextContent("categories");
   });
+
+  /**
+   * Sections ajoutées pour la refonte artistique du 16 septembre 2026
+   * (brand_manifesto, signature_product, heritage, lookbook) — voir la revue du même
+   * jour, point 4 : elles doivent être validées, se rendre correctement avec des
+   * paramètres valides, et échouer proprement (fallback, jamais un crash) avec des
+   * paramètres invalides, exactement comme les sections préexistantes.
+   */
+  describe("nouvelles sections (refonte artistique)", () => {
+    it("rend un manifeste de marque valide", () => {
+      render(
+        <SectionRenderer
+          instance={{
+            id: "manifesto-1",
+            sectionKey: "brand_manifesto",
+            variant: "image-right",
+            order: 0,
+            params: {
+              statement: "Le luxe se façonne à la main.",
+              media: { url: "https://images.unsplash.com/photo-test-manifesto" },
+            },
+          }}
+          locale="fr"
+        />,
+      );
+      // `RevealText` scinde la phrase en un `<span>` par mot pour l'animation en
+      // cascade (voir lib/motion/reveal-text.tsx) — le texte visible n'est donc jamais
+      // un seul nœud contigu ; l'assertion porte sur le nom accessible du titre
+      // (`aria-label`, posé exprès pour les lecteurs d'écran).
+      expect(screen.getByRole("heading", { name: /luxe se façonne/i })).toBeInTheDocument();
+    });
+
+    it("affiche un fallback pour un manifeste de marque sans média (paramètres invalides)", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(
+        <SectionRenderer
+          instance={{
+            id: "manifesto-2",
+            sectionKey: "brand_manifesto",
+            variant: "image-right",
+            order: 0,
+            params: { statement: "Sans média" },
+          }}
+          locale="fr"
+        />,
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("brand_manifesto");
+      errorSpy.mockRestore();
+    });
+
+    it("rend un produit signature valide", () => {
+      render(
+        <SectionRenderer
+          instance={{
+            id: "signature-1",
+            sectionKey: "signature_product",
+            variant: "leather",
+            order: 0,
+            params: {
+              title: "Le Sac Signature",
+              media: { url: "https://images.unsplash.com/photo-test-signature" },
+            },
+          }}
+          locale="fr"
+        />,
+      );
+      expect(screen.getByText("Le Sac Signature")).toBeInTheDocument();
+    });
+
+    it("rend une section héritage/savoir-faire valide, y compris ses chiffres clés", () => {
+      render(
+        <SectionRenderer
+          instance={{
+            id: "heritage-1",
+            sectionKey: "heritage",
+            variant: "image-left",
+            order: 0,
+            params: {
+              title: "Un savoir-faire dakarois",
+              body: "Chaque pièce est façonnée à la main.",
+              media: { url: "https://images.unsplash.com/photo-test-heritage" },
+              stats: [{ value: "12", label: "Artisans" }],
+            },
+          }}
+          locale="fr"
+        />,
+      );
+      expect(screen.getByText("Un savoir-faire dakarois")).toBeInTheDocument();
+      expect(screen.getByText("12")).toBeInTheDocument();
+    });
+
+    it("affiche un fallback pour une section héritage sans corps de texte (paramètres invalides)", () => {
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      render(
+        <SectionRenderer
+          instance={{
+            id: "heritage-2",
+            sectionKey: "heritage",
+            variant: "image-left",
+            order: 0,
+            params: { title: "Titre seul", media: { url: "https://example.com/x.jpg" } },
+          }}
+          locale="fr"
+        />,
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("heritage");
+      errorSpy.mockRestore();
+    });
+
+    it("rend un lookbook valide même sans contenu résolu pour ses points interactifs", () => {
+      render(
+        <SectionRenderer
+          instance={{
+            id: "lookbook-1",
+            sectionKey: "lookbook",
+            variant: "mosaic",
+            order: 0,
+            params: {
+              title: "Lookbook",
+              images: [{ url: "https://images.unsplash.com/photo-test-look", hotspots: [{ x: 50, y: 50, productId: "x" }] }],
+            },
+          }}
+          locale="fr"
+        />,
+      );
+      expect(screen.getByText("Lookbook")).toBeInTheDocument();
+    });
+  });
 });

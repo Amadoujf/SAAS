@@ -9,11 +9,11 @@ export function CtaSection({ variant, params }: { variant: string; params: CtaPa
     return (
       <section className="mx-auto flex max-w-[var(--content-max-width)] flex-col items-center justify-between gap-6 border-t border-[var(--color-border)] px-6 py-14 sm:flex-row">
         <Reveal>
-          <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-xl)]">
+          <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-xl)]">
             {params.title}
           </h2>
           {params.description && (
-            <p className="mt-2 text-[var(--color-text-muted)] text-[var(--text-body-md)]">
+            <p className="mt-2 text-[var(--color-text-muted)] text-[length:var(--text-body-md)]">
               {params.description}
             </p>
           )}
@@ -26,13 +26,13 @@ export function CtaSection({ variant, params }: { variant: string; params: CtaPa
   }
 
   return (
-    <section className="px-6 py-16">
+    <section className="px-6 py-24 lg:py-32 lg:px-10">
       <Reveal className="mx-auto flex max-w-[var(--content-max-width)] flex-col items-center gap-4 rounded-[var(--radius-lg)] border border-[var(--color-border)] bg-[var(--color-surface)] px-8 py-14 text-center">
-        <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[var(--text-heading-2xl)]">
+        <h2 className="font-[family-name:var(--font-heading)] text-[var(--color-text-primary)] text-[length:var(--text-heading-2xl)]">
           {params.title}
         </h2>
         {params.description && (
-          <p className="max-w-xl text-[var(--color-text-muted)] text-[var(--text-body-lg)]">
+          <p className="max-w-xl text-[var(--color-text-muted)] text-[length:var(--text-body-lg)]">
             {params.description}
           </p>
         )}

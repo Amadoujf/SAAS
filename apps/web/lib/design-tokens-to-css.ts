@@ -22,6 +22,12 @@ export function designTokensToCssVariables(tokens: DesignTokens): Record<string,
     "--color-success": tokens.colors.success,
     "--color-danger": tokens.colors.danger,
     "--color-warning": tokens.colors.warning,
+    "--color-accent-primary": tokens.colors.accentPrimary,
+    "--color-accent-secondary": tokens.colors.accentSecondary,
+    "--color-leather": tokens.colors.leather,
+    "--color-champagne": tokens.colors.champagne,
+    "--color-overlay": tokens.colors.overlay,
+    "--color-muted-surface": tokens.colors.mutedSurface,
 
     "--font-heading": tokens.typography.headingFont,
     "--font-body": tokens.typography.bodyFont,
@@ -54,6 +60,9 @@ export function designTokensToCssVariables(tokens: DesignTokens): Record<string,
     "--content-max-width": tokens.layout.contentMaxWidth,
 
     "--button-radius": radiusFor(tokens.buttonStyle.shape, tokens.radii),
+    "--button-padding-x": BUTTON_SIZE[tokens.buttonStyle.size].paddingX,
+    "--button-padding-y": BUTTON_SIZE[tokens.buttonStyle.size].paddingY,
+    "--button-font-size": BUTTON_SIZE[tokens.buttonStyle.size].fontSize,
 
     "--card-radius":
       tokens.cardStyle.radius === "sm"
@@ -79,6 +88,17 @@ export function designTokensToCssVariables(tokens: DesignTokens): Record<string,
     "--motion-easing-standard": tokens.animation.easing.standard,
   };
 }
+
+/** `buttonStyle.size` n'avait jusqu'ici aucun effet visuel — corrigé pour la refonte
+ *  du 16 septembre 2026 (« lisibilité des prix et boutons »). */
+const BUTTON_SIZE: Record<
+  DesignTokens["buttonStyle"]["size"],
+  { paddingX: string; paddingY: string; fontSize: string }
+> = {
+  sm: { paddingX: "1rem", paddingY: "0.5rem", fontSize: "0.875rem" },
+  md: { paddingX: "1.5rem", paddingY: "0.75rem", fontSize: "0.9375rem" },
+  lg: { paddingX: "2.25rem", paddingY: "1.0625rem", fontSize: "1.0625rem" },
+};
 
 function radiusFor(shape: "square" | "rounded" | "pill", radii: DesignTokens["radii"]): string {
   if (shape === "square") return "0px";

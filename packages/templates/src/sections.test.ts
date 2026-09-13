@@ -24,6 +24,62 @@ describe("validateSectionParams", () => {
   });
 });
 
+describe("sections ajoutées pour la refonte artistique (16 septembre 2026)", () => {
+  it("accepte un manifeste de marque valide", () => {
+    expect(() =>
+      validateSectionParams("brand_manifesto", {
+        statement: "Le luxe se porte, il se transmet.",
+        media: { url: "https://example.com/manifesto.jpg" },
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepte un produit signature valide", () => {
+    expect(() =>
+      validateSectionParams("signature_product", {
+        title: "Le Sac Almadies",
+        media: { url: "https://example.com/signature.jpg" },
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepte une section héritage/savoir-faire valide", () => {
+    expect(() =>
+      validateSectionParams("heritage", {
+        title: "Un savoir-faire dakarois",
+        body: "Chaque pièce est façonnée à la main.",
+        media: { url: "https://example.com/heritage.jpg" },
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepte un lookbook avec hotspots produits", () => {
+    expect(() =>
+      validateSectionParams("lookbook", {
+        images: [
+          {
+            url: "https://example.com/look-1.jpg",
+            hotspots: [{ x: 40, y: 60, productId: "sac-cabas-cuir" }],
+          },
+        ],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejette un hotspot de lookbook hors bornes (x > 100)", () => {
+    expect(() =>
+      validateSectionParams("lookbook", {
+        images: [{ url: "https://example.com/look-1.jpg", hotspots: [{ x: 140, y: 60, productId: "x" }] }],
+      }),
+    ).toThrow();
+  });
+
+  it("valide la variante « editorial » pour categories et testimonials", () => {
+    expect(isValidVariant("categories", "editorial")).toBe(true);
+    expect(isValidVariant("testimonials", "editorial")).toBe(true);
+  });
+});
+
 describe("isValidVariant", () => {
   it("valide une variante connue", () => {
     expect(isValidVariant("hero", "split")).toBe(true);

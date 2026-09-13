@@ -1,8 +1,24 @@
 import "@testing-library/jest-dom/vitest";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import { config } from "dotenv";
 import { resolve } from "node:path";
+import { createElement } from "react";
+
+// `next/image` valide ses hôtes distants (`next.config.mjs`) via une configuration
+// injectée par le build/dev server de Next — absente sous Vitest, ce qui fait échouer
+// TOUT rendu d'image avec une URL distante valide, quel que soit l'hôte (découvert le
+// 16 septembre 2026 en testant les nouvelles sections de la refonte artistique : même
+// `images.unsplash.com`, pourtant autorisé, échouait). Un remplacement par une simple
+// `<img>` est le contournement standard pour tester des composants qui utilisent
+// `next/image` sans dépendre du serveur Next.
+vi.mock("next/image", () => ({
+  __esModule: true,
+  default: (props: Record<string, unknown>) => {
+    const { fill: _fill, priority: _priority, sizes: _sizes, loader: _loader, ...rest } = props;
+    return createElement("img", rest);
+  },
+}));
 
 // `globals: true` n'est pas activé (voir vitest.config.ts) : React Testing Library ne
 // démonte donc pas automatiquement le DOM entre les tests d'un même fichier — sans ce

@@ -18,10 +18,15 @@ import { CtaSection } from "./cta";
 import { ContactSection } from "./contact";
 import { WhatsappSection } from "./whatsapp";
 import { CustomContentSection } from "./custom-content";
+import { BrandManifestoSection } from "./brand-manifesto";
+import { SignatureProductSection } from "./signature-product";
+import { HeritageSection } from "./heritage";
+import { LookbookSection } from "./lookbook";
 import type {
   ResolvedCategoriesContent,
   ResolvedProductsContent,
   ResolvedPromotionsContent,
+  ResolvedLookbookContent,
 } from "./content-types";
 
 /**
@@ -32,7 +37,10 @@ import type {
  */
 export type ResolvedContentBySectionId = Record<
   string,
-  ResolvedCategoriesContent | ResolvedProductsContent | ResolvedPromotionsContent
+  | ResolvedCategoriesContent
+  | ResolvedProductsContent
+  | ResolvedPromotionsContent
+  | ResolvedLookbookContent
 >;
 
 /**
@@ -187,6 +195,27 @@ function renderByKey(
 
     case "custom_content":
       return <CustomContentSection variant={instance.variant} params={instance.params as any} />;
+
+    case "brand_manifesto":
+      return <BrandManifestoSection variant={instance.variant} params={instance.params as any} />;
+
+    case "signature_product":
+      return <SignatureProductSection variant={instance.variant} params={instance.params as any} />;
+
+    case "heritage":
+      return <HeritageSection variant={instance.variant} params={instance.params as any} />;
+
+    case "lookbook": {
+      const content = resolvedContent?.[instance.id] as ResolvedLookbookContent | undefined;
+      return (
+        <LookbookSection
+          variant={instance.variant}
+          params={instance.params as any}
+          content={content}
+          locale={locale}
+        />
+      );
+    }
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être
