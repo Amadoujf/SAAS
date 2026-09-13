@@ -39,3 +39,6 @@ Thumbs.db
 
 # Docker
 infra/**/data/
+
+# Captures d'écran de vérification (non versionnées, générées localement)
+.claude-screenshots/

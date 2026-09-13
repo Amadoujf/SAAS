@@ -5,14 +5,25 @@ const nextConfig = {
   transpilePackages: [
     "@yamacommerce/auth",
     "@yamacommerce/database",
+    "@yamacommerce/design-tokens",
     "@yamacommerce/domains",
     "@yamacommerce/payments",
     "@yamacommerce/queue",
+    "@yamacommerce/templates",
   ],
   experimental: {
     // Prisma Client (moteur natif) ne doit pas être bundlé par Webpack pour les Server
     // Components / Route Handlers.
     serverComponentsExternalPackages: ["@prisma/client"],
+  },
+  images: {
+    // Domaines d'images utilisés par les données de démonstration (voir
+    // apps/web/lib/demo/luxury-minimal-template.ts). En production, chaque tenant
+    // héberge ses médias sur Cloudflare R2 (voir docs/03) — à ajouter ici le moment venu.
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "picsum.photos" },
+    ],
   },
 };
 

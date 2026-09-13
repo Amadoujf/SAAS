@@ -7,27 +7,40 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "dotenv -e ../../.env -- vitest run"
   },
   "dependencies": {
     "@yamacommerce/auth": "workspace:*",
     "@yamacommerce/database": "workspace:*",
+    "@yamacommerce/design-tokens": "workspace:*",
     "@yamacommerce/domains": "workspace:*",
     "@yamacommerce/queue": "workspace:*",
+    "@yamacommerce/templates": "workspace:*",
+    "framer-motion": "^11.15.0",
     "next": "14.2.18",
     "next-auth": "5.0.0-beta.25",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
     "@types/node": "^20.17.9",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "dotenv": "^16.4.7",
+    "dotenv-cli": "^7.4.4",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.18",
+    "jsdom": "^25.0.1",
     "postcss": "^8.4.49",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
   }
 }
