@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import type { SectionInstance } from "@yamacommerce/templates";
-import type { PreviewViewport } from "@/components/editor/viewport-toggle";
+import type { SpacingBreakpoint } from "@/lib/editor/device-presets";
 import type { SiteSettings } from "@/lib/editor/site-settings";
 import { ContentPanel } from "./content-panel";
 import { StylePanel } from "./style-panel";
@@ -61,7 +61,7 @@ export function CustomizationPanel({
   section: SectionInstance | undefined;
   originalSection: SectionInstance | undefined;
   tokens: DesignTokens;
-  viewport: PreviewViewport;
+  viewport: SpacingBreakpoint;
   siteSettings: SiteSettings;
   originalSiteSettings: SiteSettings;
   onUpdateParams: (params: Record<string, unknown>) => void;

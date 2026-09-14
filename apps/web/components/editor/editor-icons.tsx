@@ -94,33 +94,6 @@ export function RedoIcon({ className }: { className?: string }) {
   );
 }
 
-export function DesktopIcon({ className }: { className?: string }) {
-  return (
-    <svg {...common} className={className}>
-      <rect x="3" y="4.5" width="18" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M9 20h6M12 16.5V20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export function TabletIcon({ className }: { className?: string }) {
-  return (
-    <svg {...common} className={className}>
-      <rect x="6" y="3" width="12" height="18" rx="1.8" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M11.3 18h1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export function MobileIcon({ className }: { className?: string }) {
-  return (
-    <svg {...common} className={className}>
-      <rect x="8" y="2.5" width="8" height="19" rx="1.8" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M11.3 18.2h1.4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 /** Réinitialisation d'un réglage unique — voir docs/12 §12.2, « réinitialisation d'un
  *  réglage ». Flèche circulaire, distincte de `UndoIcon` (historique global). */
 export function ResetIcon({ className }: { className?: string }) {
@@ -147,6 +120,47 @@ export function WarningIcon({ className }: { className?: string }) {
         strokeLinejoin="round"
       />
       <path d="M12 9.5v4.2M12 16.8v.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Rotation portrait/paysage de l'aperçu (voir docs/12 §12.2, « rotation
+ *  portrait/paysage »). */
+export function RotateDeviceIcon({ className }: { className?: string }) {
+  return (
+    <svg {...common} className={className}>
+      <rect
+        x="7"
+        y="3"
+        width="10"
+        height="16"
+        rx="1.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        transform="rotate(90 12 12)"
+      />
+      <path
+        d="M4 9a8 8 0 0 1 13-5.5M20 15a8 8 0 0 1-13 5.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M17.5 3v3.5H14M6.5 21v-3.5H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Rechargement complet de l'aperçu (voir docs/12 §12.2, « rechargement de l'aperçu »). */
+export function ReloadIcon({ className }: { className?: string }) {
+  return (
+    <svg {...common} className={className}>
+      <path
+        d="M4 12a8 8 0 0 1 14.2-5M20 12a8 8 0 0 1-14.2 5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+      />
+      <path d="M18.5 3.5V7H15M5.5 20.5V17H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

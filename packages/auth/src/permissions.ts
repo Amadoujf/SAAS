@@ -43,6 +43,11 @@ export const PERMISSIONS = [
   "settings.domain",
   "settings.notifications",
   "settings.subscription",
+  // Éditeur visuel (pages/sections/style/site) — voir docs/12 §12.2. Distincte de
+  // "settings.branding" (logo/couleurs statiques déjà existant) : couvre la
+  // modification de la STRUCTURE du site (pages, sections, brouillon, publication),
+  // pas seulement son identité visuelle.
+  "settings.site_editor",
 
   "reports.view",
   "reports.export",

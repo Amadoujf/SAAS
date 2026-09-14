@@ -9,7 +9,6 @@ import {
   hoverEffectClassName,
   spacingClassNameForSection,
   spacingOverrideToMediaCss,
-  spacingValuesToStyle,
   styleOverrideToCssVars,
 } from "@/lib/editor/section-style";
 import { HeroSection } from "./hero";
@@ -73,7 +72,6 @@ export function SectionRenderer({
   locale,
   resolvedContent,
   tokens,
-  forcePreviewViewport,
 }: {
   instance: unknown;
   locale: Locale;
@@ -83,13 +81,6 @@ export function SectionRenderer({
    *  lib/editor/section-style.ts). Absent = surcharges de style ignorées, comportement
    *  strictement identique à avant leur ajout (20 septembre 2026). */
   tokens?: DesignTokens;
-  /** Posé UNIQUEMENT par l'aperçu de l'éditeur visuel (jamais par une page publique) :
-   *  applique directement l'espacement du point de rupture actuellement affiché,
-   *  fiable même quand l'aperçu n'est qu'une boîte redimensionnée dans un grand
-   *  navigateur (les vraies règles `@media` ci-dessous ne s'y déclenchent pas seules —
-   *  voir la limite assumée dans section-style.ts). Sur le site réel, ce prop est
-   *  toujours absent : les `@media` suffisent, un vrai visiteur a un vrai viewport. */
-  forcePreviewViewport?: "desktop" | "tablet" | "mobile";
 }) {
   let validated: SectionInstance;
   try {
@@ -132,16 +123,9 @@ export function SectionRenderer({
   }
 
   const spacingClassName = hasSpacing ? spacingClassNameForSection(validated.id) : undefined;
-  const forcedSpacingStyle =
-    hasSpacing && forcePreviewViewport
-      ? spacingValuesToStyle(validated.spacingOverride?.[forcePreviewViewport])
-      : {};
 
   return (
-    <div
-      className={[spacingClassName, hoverClass].filter(Boolean).join(" ")}
-      style={{ ...styleVars, ...forcedSpacingStyle }}
-    >
+    <div className={[spacingClassName, hoverClass].filter(Boolean).join(" ")} style={styleVars}>
       {hasSpacing && spacingClassName && (
         <style>{spacingOverrideToMediaCss(spacingClassName, validated.spacingOverride!)}</style>
       )}

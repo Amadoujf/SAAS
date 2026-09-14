@@ -49,6 +49,7 @@ export default function VisualEditorDemoPage() {
         tokens={LUXURY_MINIMAL_DESIGN_TOKENS}
         animationLevel={LUXURY_MINIMAL_DESIGN_TOKENS.animation.level}
         resolvedContent={DEMO_RESOLVED_CONTENT}
+        previewSrc="/demo/editeur-visuel/apercu"
       />
     </div>
   );

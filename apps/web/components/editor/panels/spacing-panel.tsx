@@ -6,12 +6,12 @@ import {
   type SectionSpacingValues,
 } from "@yamacommerce/templates";
 import { describeObjectSchema } from "@/lib/editor/schema-introspect";
-import type { PreviewViewport } from "@/components/editor/viewport-toggle";
+import type { SpacingBreakpoint } from "@/lib/editor/device-presets";
 import { SchemaForm } from "./schema-form";
 
 const spacingFields = describeObjectSchema(spacingValuesSchema);
 
-const VIEWPORT_LABEL: Record<PreviewViewport, string> = {
+const VIEWPORT_LABEL: Record<SpacingBreakpoint, string> = {
   desktop: "Ordinateur",
   tablet: "Tablette",
   mobile: "Téléphone",
@@ -19,12 +19,11 @@ const VIEWPORT_LABEL: Record<PreviewViewport, string> = {
 
 /**
  * Onglet "Espacement" — voir docs/12 §12.2, « réglages distincts ordinateur/tablette/
- * téléphone ». RÉUTILISE le même bouton de bascule que l'aperçu (barre d'outils
- * générale) plutôt que d'en dupliquer un second dans le panneau : le point de rupture
- * actuellement affiché dans l'aperçu est TOUJOURS celui qu'on est en train de régler
- * ici — évite toute confusion entre "ce que je vois" et "ce que je modifie" (voir la
- * limite assumée sur l'aperçu non-iframe dans lib/editor/section-style.ts, qui rend
- * cette cohérence d'autant plus importante).
+ * téléphone ». Ne duplique PAS les contrôles d'appareil de l'aperçu (voir
+ * `PreviewControls`) : le palier réglé ici (`viewport`) est dérivé de la largeur RÉELLE
+ * actuellement affichée dans l'aperçu iframe (voir
+ * `lib/editor/device-presets.ts#spacingBreakpointForWidth`) — toujours celui qui
+ * s'applique VRAIMENT, jamais une simple étiquette cosmétique d'appareil.
  */
 export function SpacingPanel({
   value,
@@ -34,7 +33,7 @@ export function SpacingPanel({
 }: {
   value: SectionSpacingOverride | undefined;
   original: SectionSpacingOverride | undefined;
-  viewport: PreviewViewport;
+  viewport: SpacingBreakpoint;
   onChange: (next: SectionSpacingOverride | undefined) => void;
 }) {
   const currentForViewport = value?.[viewport] ?? {};

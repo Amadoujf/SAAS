@@ -463,25 +463,6 @@ describe("SectionRenderer", () => {
       expect(styleTag?.textContent).toContain("@media (min-width: 1024px)");
     });
 
-    it("applique directement l'espacement du point de rupture forcé (aperçu de l'éditeur)", () => {
-      const { container } = renderSection(
-        <SectionRenderer
-          instance={{
-            id: "cta-forced",
-            sectionKey: "cta",
-            variant: "banner",
-            order: 0,
-            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
-            spacingOverride: { mobile: { paddingY: "12px" }, desktop: { paddingY: "80px" } },
-          }}
-          locale="fr"
-          forcePreviewViewport="mobile"
-        />,
-      );
-      const wrapper = container.firstElementChild as HTMLElement;
-      expect(wrapper.style.paddingTop).toBe("12px");
-    });
-
     it("pose la classe d'effet de survol correspondant à `animationDetail.hoverEffect`", () => {
       const { container } = renderSection(
         <SectionRenderer

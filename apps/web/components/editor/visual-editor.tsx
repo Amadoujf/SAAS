@@ -14,17 +14,22 @@ import {
   getSelectedSection,
   type EditorContent,
 } from "@/lib/editor/editor-reducer";
+import {
+  CUSTOM_DEVICE_ID,
+  clampDimension,
+  clampZoom,
+  findDevicePreset,
+  rotateDimensions,
+  spacingBreakpointForWidth,
+  type Dimensions,
+} from "@/lib/editor/device-presets";
 import { PreviewStage } from "./preview-stage";
+import { PreviewControls } from "./preview-controls";
 import { SectionRow } from "./section-row";
-import { ViewportToggle, type PreviewViewport } from "./viewport-toggle";
 import { RedoIcon, UndoIcon } from "./editor-icons";
 import { CustomizationPanel } from "./panels/customization-panel";
 
-const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
-  desktop: "100%",
-  tablet: "768px",
-  mobile: "390px",
-};
+const DEFAULT_DEVICE_ID = "desktop-1440";
 
 let duplicateCounter = 0;
 /** Identifiant de duplication — le réducteur reste pur (voir editor-reducer.ts), c'est
@@ -40,6 +45,11 @@ export interface VisualEditorProps {
   animationLevel: AnimationLevel;
   locale?: Locale;
   resolvedContent?: ResolvedContentBySectionId;
+  /** Chemin du document d'aperçu à charger dans l'iframe (voir `PreviewStage`) — voir
+   *  `app/demo/editeur-visuel/apercu/page.tsx` pour la démonstration publique, ou le
+   *  futur `app/apercu/[tenantId]/page.tsx` (authentifié) pour un vrai tenant. Ce
+   *  composant reste sector-agnostic : il ne sait pas lui-même où vit ce document. */
+  previewSrc: string;
   /** Rappels de persistance optionnels — l'éditeur reste utilisable sans backend
    *  branché (voir la démonstration statique) : sans ces props, "Enregistrer"/
    *  "Publier" se contentent d'un retour visuel local. Une vraie page de tableau de
@@ -70,6 +80,7 @@ export function VisualEditor({
   animationLevel,
   locale = "fr",
   resolvedContent,
+  previewSrc,
   onSaveDraft,
   onPublish,
 }: VisualEditorProps) {
@@ -77,9 +88,38 @@ export function VisualEditor({
     editorHistoryReducer,
     createInitialHistory(initialContent),
   );
-  const [viewport, setViewport] = useState<PreviewViewport>("desktop");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   const [panelMode, setPanelMode] = useState<"section" | "site">("section");
+
+  // État de l'aperçu — voir docs/12 §12.2, « aperçu iframe responsive » (21 septembre
+  // 2026) : préréglage d'appareil OU dimensions personnalisées, zoom purement visuel,
+  // et un jeton de rechargement forcé (voir lib/editor/device-presets.ts pour les
+  // fonctions pures qui font évoluer ces valeurs).
+  const [deviceId, setDeviceId] = useState(DEFAULT_DEVICE_ID);
+  const [dimensions, setDimensions] = useState<Dimensions>(
+    () => findDevicePreset(DEFAULT_DEVICE_ID) ?? { width: 1440, height: 900 },
+  );
+  const [zoom, setZoom] = useState(1);
+  const [reloadToken, setReloadToken] = useState(0);
+
+  function selectDevice(nextDeviceId: string) {
+    setDeviceId(nextDeviceId);
+    const preset = findDevicePreset(nextDeviceId);
+    if (preset) setDimensions({ width: preset.width, height: preset.height });
+  }
+
+  function setCustomDimensions(next: Dimensions) {
+    setDeviceId(CUSTOM_DEVICE_ID);
+    setDimensions({ width: clampDimension(next.width), height: clampDimension(next.height) });
+  }
+
+  function rotate() {
+    setDimensions((current) => rotateDimensions(current));
+  }
+
+  function reload() {
+    setReloadToken((token) => token + 1);
+  }
 
   // Cliché IMMUABLE du contenu tel que chargé — sert de référence pour "Retour aux
   // valeurs du template" (voir CustomizationPanel) : jamais réassigné après le montage,
@@ -178,8 +218,17 @@ export function VisualEditor({
           </button>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
-          <ViewportToggle value={viewport} onChange={setViewport} />
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <PreviewControls
+            deviceId={deviceId}
+            dimensions={dimensions}
+            zoom={zoom}
+            onSelectDevice={selectDevice}
+            onCustomDimensionsChange={setCustomDimensions}
+            onRotate={rotate}
+            onZoomChange={(next) => setZoom(clampZoom(next))}
+            onReload={reload}
+          />
           <div className="mx-1 h-5 w-px bg-gray-200" />
           <button
             type="button"
@@ -299,15 +348,14 @@ export function VisualEditor({
           </div>
         </div>
 
-        {/* Aperçu — voir docs/12 §12.2, « prévisualisation ordinateur/tablette/téléphone ».
-            Tout ce qui est DANS `PreviewStage` porte en revanche les vrais tokens du
-            tenant — c'est le point exprès où la marque du site édité doit apparaître. */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-100 p-6">
+        {/* Aperçu — voir docs/12 §12.2, « aperçu iframe responsive » (21 septembre 2026).
+            `PreviewStage` pilote un VRAI `<iframe>` (voir ce fichier) : ce qui s'y
+            affiche porte les vrais tokens du tenant ET réagit aux vraies media
+            queries — le point exprès où la marque ET la mise en page réelles du site
+            édité doivent apparaître, identiques au site publié. */}
+        <div className="flex min-h-0 flex-1 items-start justify-center overflow-auto bg-gray-100 p-6">
           {selectedPage && (
-            <div
-              className="mx-auto overflow-hidden rounded-md bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_12px_32px_rgba(0,0,0,0.12)] transition-[width] duration-300"
-              style={{ width: VIEWPORT_WIDTH[viewport], maxWidth: "100%" }}
-            >
+            <div className="overflow-hidden rounded-md bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.06),0_12px_32px_rgba(0,0,0,0.12)]">
               <PreviewStage
                 page={selectedPage}
                 tokens={effectiveTokens}
@@ -316,7 +364,11 @@ export function VisualEditor({
                 resolvedContent={resolvedContent}
                 selectedSectionId={content.selectedSectionId}
                 onSelectSection={selectSection}
-                viewport={viewport}
+                previewSrc={previewSrc}
+                width={dimensions.width}
+                height={dimensions.height}
+                zoom={zoom}
+                reloadToken={reloadToken}
               />
             </div>
           )}
@@ -328,7 +380,7 @@ export function VisualEditor({
           section={selectedSection}
           originalSection={originalSection}
           tokens={effectiveTokens}
-          viewport={viewport}
+          viewport={spacingBreakpointForWidth(dimensions.width)}
           siteSettings={content.siteSettings}
           originalSiteSettings={originalContentRef.current.siteSettings}
           onUpdateParams={(params) => {

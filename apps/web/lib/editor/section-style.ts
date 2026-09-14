@@ -86,11 +86,11 @@ function toCssDeclarations(values: SectionSpacingValues): string {
 /**
  * Génère les règles `@media` (points de rupture Tailwind déjà utilisés partout
  * ailleurs dans ce projet : 640px, 1024px) pour un espacement par section — c'est ce
- * qui rend "réglages distincts pour ordinateur/tablette/téléphone" réel sur le SITE
- * PUBLIÉ (un vrai visiteur, sur un vrai appareil). Voir aussi `forcePreviewViewport`
- * dans section-renderer.tsx pour la limite assumée côté aperçu de l'éditeur (une boîte
- * redimensionnée dans un navigateur large n'est pas un vrai viewport étroit — les
- * règles `@media` ci-dessous ne s'y déclenchent pas seules).
+ * qui rend "réglages distincts pour ordinateur/tablette/téléphone" réel, aussi bien sur
+ * le site publié que dans l'aperçu de l'éditeur : depuis le 21 septembre 2026, l'aperçu
+ * est un VRAI document dans un `<iframe>` séparé (voir `PreviewFrameApp`), avec un VRAI
+ * viewport — ces règles s'y déclenchent donc exactement comme pour un vrai visiteur,
+ * sans mécanisme de "forçage" séparé (l'ancien `forcePreviewViewport`, retiré).
  */
 export function spacingOverrideToMediaCss(
   className: string,
