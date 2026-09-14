@@ -171,6 +171,19 @@ export function PreviewStage({
         ref={iframeRef}
         src={previewSrc}
         title="Aperçu du site"
+        // Attribut sandbox MINIMAL — voir docs/12 §12.2, « médiathèque R2 » (21
+        // septembre 2026), « Attribut sandbox minimal ». `allow-scripts` : le document
+        // d'aperçu est une vraie application React, elle ne fonctionne pas sans JS.
+        // `allow-same-origin` : sans lui, l'iframe reçoit une origine opaque
+        // ("null"), qu'`isAllowedOrigin` refuse TOUJOURS explicitement (voir
+        // preview-protocol.ts) — notre propre protocole postMessage cesserait de
+        // fonctionner. Ni l'un ni l'autre n'est ajouté "par prudence" : chacun est
+        // strictement nécessaire au fonctionnement déjà testé. Aucun autre privilège
+        // (allow-forms, allow-popups, allow-top-navigation, allow-modals,
+        // allow-downloads...) n'est accordé : un formulaire affiché dans l'aperçu
+        // (newsletter, contact) ne doit jamais pouvoir réellement se soumettre ni
+        // ouvrir de fenêtre depuis l'éditeur.
+        sandbox="allow-scripts allow-same-origin"
         style={{
           width,
           height,

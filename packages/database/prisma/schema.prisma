@@ -95,6 +95,7 @@ model Tenant {
   tenantSite     TenantSite?
   siteVersions   TenantSiteVersion[]
   pages          Page[]
+  mediaAssets    MediaAsset[]
 
   @@index([status])
 }
@@ -161,6 +162,17 @@ model Plan {
   maxShops            Int
   storageMB           Int
   customDomainAllowed Boolean @default(false)
+  // Limites de la médiathèque (voir docs/12 §12.2, « médiathèque R2 », 21 septembre
+  // 2026) — `storageMB` ci-dessus reste le quota TOTAL de stockage ; ces 4 champs
+  // couvrent les limites complémentaires explicitement demandées : taille maximale
+  // par image/vidéo/document, nombre maximal de fichiers, quota mensuel d'importation.
+  // "Entreprise" reste une valeur par défaut généreuse, ajustable au cas par cas
+  // (même convention que `maxProducts`/`maxEmployees` pour cette formule).
+  maxImageFileMB    Int @default(10)
+  maxVideoFileMB    Int @default(200)
+  maxDocumentFileMB Int @default(10)
+  maxMediaFileCount Int @default(2000)
+  monthlyUploadMB   Int @default(2048)
   advancedReports     Boolean @default(false)
   whatsappAutomation  Boolean @default(false)
   commissionRate      Decimal @default(0) @db.Decimal(5, 2) // % prélevé sur les ventes
@@ -373,6 +385,77 @@ model Page {
 }
 
 // ============================================================================
+// MÉDIATHÈQUE (voir docs/12 §12.2, « médiathèque R2 », 21 septembre 2026)
+// ============================================================================
+
+enum MediaAssetType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+/// PENDING : URL de dépôt créée, fichier pas encore reçu/vérifié — jamais utilisable
+/// dans l'éditeur à ce stade (voir la garantie « aucun accès public à un fichier non
+/// vérifié »). READY : vérifié, variantes générées si applicable. FAILED : rejeté par
+/// `validateUploadedFile` (voir @yamacommerce/storage) — conservé brièvement pour
+/// audit, jamais listé dans la médiathèque. TRASHED : dans la corbeille (suppression
+/// différée, voir « Suppression »).
+enum MediaAssetStatus {
+  PENDING
+  READY
+  FAILED
+  TRASHED
+}
+
+/// Un média importé par un tenant — voir docs/12 §12.2. `storageKey` est TOUJOURS
+/// préfixée par le tenant (voir @yamacommerce/storage `buildStorageKey`) : cette
+/// colonne n'est JAMAIS envoyée telle quelle au navigateur (voir « les clés R2 ne
+/// doivent jamais être envoyées au navigateur ») — seules des URLs signées
+/// temporaires ou l'URL CDN publique d'une variante le sont.
+///
+/// `variants` porte les dérivés générés (miniature/petite/moyenne/grande/original
+/// optimisé, voir @yamacommerce/storage `image-variants.ts`) sous la forme
+/// `[{ key, storageKey, width, height, format, sizeBytes }]` — jamais de pixels ici,
+/// uniquement des références de stockage. `referenceCount` est un CACHE recalculé par
+/// `refreshMediaReferenceCount()` (voir lib/editor/media-references.ts côté
+/// application, qui scanne les pages via les schémas de section déjà génériques) —
+/// jamais mis à jour de façon fiable à chaque frappe dans l'éditeur, ce serait un
+/// couplage bien plus fragile qu'un recalcul explicite avant suppression/affichage.
+model MediaAsset {
+  id              String           @id @default(uuid())
+  tenantId        String
+  tenant          Tenant           @relation(fields: [tenantId], references: [id])
+  ownerId         String
+  owner           User             @relation(fields: [ownerId], references: [id])
+  originalName    String
+  storageKey      String           @unique
+  type            MediaAssetType
+  mimeType        String
+  sizeBytes       Int
+  width           Int?
+  height          Int?
+  durationSeconds Float?
+  altText         String?
+  caption         String?
+  folder          String           @default("")
+  status          MediaAssetStatus @default(PENDING)
+  isPublic        Boolean          @default(false)
+  checksumSha256  String
+  importedAt      DateTime         @default(now())
+  deletedAt       DateTime?
+  metadata        Json             @default("{}")
+  referenceCount  Int              @default(0)
+  variants        Json             @default("[]")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, folder])
+  @@index([tenantId, checksumSha256])
+  @@index([tenantId, deletedAt])
+}
+
+// ============================================================================
 // IDENTITÉ & ACCÈS
 // ============================================================================
 
@@ -390,8 +473,9 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  memberships    TenantUser[]
-  impersonations ImpersonationSession[] @relation("SuperAdminActor")
+  memberships      TenantUser[]
+  impersonations   ImpersonationSession[] @relation("SuperAdminActor")
+  ownedMediaAssets MediaAsset[]
 }
 
 model Role {

@@ -5,3 +5,4 @@ export * from "./encryption";
 export * from "./modules-registry";
 export * from "./templates-registry";
 export * from "./site-versions-registry";
+export * from "./media-assets-registry";

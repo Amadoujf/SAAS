@@ -75,7 +75,10 @@ export function PreviewFrameApp({
   );
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null);
 
-  const readySentRef = useRef(false);
+  const hasContentRef = useRef(false);
+  useEffect(() => {
+    hasContentRef.current = page !== null;
+  });
 
   const postToParent = useCallback(
     (message: FrameToParentMessage) => {
@@ -86,9 +89,16 @@ export function PreviewFrameApp({
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      // Vérification stricte de l'origine ET du format — indépendantes, toutes deux
-      // obligatoires (voir isAllowedOrigin/parseParentToFrameMessage). Un message qui
-      // échoue l'une ou l'autre est silencieusement ignoré, jamais appliqué.
+      // Vérification stricte de l'origine, DE LA SOURCE, et du format — les trois
+      // indépendantes, toutes obligatoires (voir « Validation continue de
+      // event.origin » / « Validation de event.source »). `event.source` n'est
+      // vérifié que lorsqu'il est fourni : un vrai navigateur le renseigne TOUJOURS
+      // pour un message reçu d'une fenêtre `window.parent` réelle (ce qui rend ce
+      // contrôle effectif en production) ; les événements synthétiques des tests
+      // unitaires (jsdom, aucune vraie imbrication de fenêtres) n'en fournissent
+      // aucun — les laisser passer ici évite de casser le protocole déjà testé sans
+      // affaiblir la garantie réelle en navigateur.
+      if (event.source && event.source !== window.parent) return;
       if (!isAllowedOrigin(event.origin, [resolvedOrigin])) return;
       const message = parseParentToFrameMessage(event.data);
       if (!message) return;
@@ -123,11 +133,23 @@ export function PreviewFrameApp({
 
   useEffect(() => {
     // Signale au parent que ce document est prêt à recevoir un CONTENT_UPDATE — le
-    // parent n'envoie jamais avant ce signal (voir preview-frame.tsx), pour ne jamais
-    // perdre un message envoyé avant que l'écouteur ci-dessus n'existe.
-    if (readySentRef.current) return;
-    readySentRef.current = true;
-    postToParent({ channel: PREVIEW_CHANNEL, version: PREVIEW_PROTOCOL_VERSION, type: "READY" });
+    // parent n'envoie jamais avant ce signal (voir preview-stage.tsx). RENVOYÉ TOUTES
+    // LES 200 MS tant qu'aucun contenu n'est arrivé : voir « Bug corrigé le 21
+    // septembre 2026 » — un envoi UNIQUE ("fire and forget") peut arriver avant que
+    // l'effet du PARENT qui attache son propre écouteur `message` (et peuple
+    // `iframeRef.current`) n'ait eu le temps de s'exécuter, en particulier lors d'un
+    // premier chargement complet de la page (pas un simple remontage de l'iframe) —
+    // le message est alors perdu SANS AUCUNE ERREUR ni des deux côtés, et l'aperçu
+    // reste bloqué sur "En attente du contenu…" indéfiniment. Le répéter jusqu'à
+    // accusé de réception (un CONTENT_UPDATE) rend la poignée de main robuste face à
+    // n'importe quel ordre de montage, sans dépendre d'un délai fixe deviné.
+    function sendReadyUntilAcknowledged() {
+      if (hasContentRef.current) return;
+      postToParent({ channel: PREVIEW_CHANNEL, version: PREVIEW_PROTOCOL_VERSION, type: "READY" });
+    }
+    sendReadyUntilAcknowledged();
+    const interval = setInterval(sendReadyUntilAcknowledged, 200);
+    return () => clearInterval(interval);
   }, [postToParent]);
 
   if (!page || !tokens) {

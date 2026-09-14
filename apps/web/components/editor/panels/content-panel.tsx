@@ -18,10 +18,12 @@ export function ContentPanel({
   section,
   originalSection,
   onChange,
+  mediaApiBase,
 }: {
   section: SectionInstance;
   originalSection: SectionInstance | undefined;
   onChange: (params: Record<string, unknown>) => void;
+  mediaApiBase?: string;
 }) {
   // `sectionParamSchemas[section.sectionKey]` indexe par une union de clés : TypeScript
   // ne peut pas savoir statiquement laquelle des 23 formes précises en résulte (elle
@@ -43,6 +45,7 @@ export function ContentPanel({
         originalValue={originalSection?.params}
         errors={validation.success ? undefined : validation.fieldErrors}
         idPrefix={`content-${section.id}`}
+        mediaApiBase={mediaApiBase}
       />
     </div>
   );

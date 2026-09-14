@@ -55,6 +55,7 @@ export function CustomizationPanel({
   onUpdateSpacing,
   onUpdateAnimation,
   onUpdateSiteSettings,
+  mediaApiBase,
 }: {
   mode: "section" | "site";
   onModeChange: (mode: "section" | "site") => void;
@@ -72,6 +73,9 @@ export function CustomizationPanel({
     detail: SectionInstance["animationDetail"],
   ) => void;
   onUpdateSiteSettings: (settings: SiteSettings) => void;
+  /** Voir docs/12 §12.2, « INTÉGRATION À L'ÉDITEUR » — absent = pas de médiathèque
+   *  disponible (comportement d'avant son ajout, champs "url" restent du texte libre). */
+  mediaApiBase?: string;
 }) {
   const [tab, setTab] = useState<Tab>("content");
 
@@ -106,6 +110,7 @@ export function CustomizationPanel({
             originalSettings={originalSiteSettings}
             effectiveTokens={tokens}
             onChange={onUpdateSiteSettings}
+            mediaApiBase={mediaApiBase}
           />
         </div>
       )}
@@ -159,7 +164,12 @@ export function CustomizationPanel({
             )}
 
             {tab === "content" && (
-              <ContentPanel section={section} originalSection={originalSection} onChange={onUpdateParams} />
+              <ContentPanel
+                section={section}
+                originalSection={originalSection}
+                onChange={onUpdateParams}
+                mediaApiBase={mediaApiBase}
+              />
             )}
             {tab === "style" && (
               <StylePanel

@@ -70,6 +70,12 @@ describe("PreviewStage — communication avec l'iframe d'aperçu", () => {
     postMessageSpy?.mockRestore();
   });
 
+  it("SANDBOX MINIMAL : l'iframe ne porte que allow-scripts et allow-same-origin", () => {
+    const { container } = render(<PreviewStage {...baseProps()} />);
+    const iframe = getIframe(container);
+    expect(iframe.getAttribute("sandbox")).toBe("allow-scripts allow-same-origin");
+  });
+
   it("n'envoie AUCUN CONTENT_UPDATE avant que l'iframe ait signalé READY", () => {
     const { container } = render(<PreviewStage {...baseProps()} />);
     const iframe = getIframe(container);

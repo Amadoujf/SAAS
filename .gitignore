@@ -42,3 +42,9 @@ infra/**/data/
 
 # Captures d'écran de vérification (non versionnées, générées localement)
 .claude-screenshots/
+
+# Stockage local de la médiathèque (adaptateur de développement/démonstration — voir
+# @yamacommerce/storage LocalStorageProvider) : fichiers réellement écrits sur disque,
+# jamais destinés à être versionnés, comme n'importe quel autre répertoire d'upload local.
+.local-storage-demo/
+.local-storage/

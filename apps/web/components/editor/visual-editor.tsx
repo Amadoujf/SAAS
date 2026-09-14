@@ -57,6 +57,12 @@ export interface VisualEditorProps {
    *  Actions qui appellent @yamacommerce/database `site-versions-registry.ts`. */
   onSaveDraft?: (content: EditorContent) => void | Promise<void>;
   onPublish?: (content: EditorContent) => void | Promise<void>;
+  /** Base d'API de la médiathèque (ex. "/api/demo-media") — voir docs/12 §12.2,
+   *  « médiathèque R2 » (21 septembre 2026), « INTÉGRATION À L'ÉDITEUR ». Absent =
+   *  aucun bouton "Média" dans les champs image/vidéo (comportement d'avant son
+   *  ajout, texte libre uniquement) — l'éditeur reste utilisable sans médiathèque
+   *  branchée, comme sans backend de sauvegarde. */
+  mediaApiBase?: string;
 }
 
 /**
@@ -83,6 +89,7 @@ export function VisualEditor({
   previewSrc,
   onSaveDraft,
   onPublish,
+  mediaApiBase,
 }: VisualEditorProps) {
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
@@ -381,6 +388,7 @@ export function VisualEditor({
           originalSection={originalSection}
           tokens={effectiveTokens}
           viewport={spacingBreakpointForWidth(dimensions.width)}
+          mediaApiBase={mediaApiBase}
           siteSettings={content.siteSettings}
           originalSiteSettings={originalContentRef.current.siteSettings}
           onUpdateParams={(params) => {

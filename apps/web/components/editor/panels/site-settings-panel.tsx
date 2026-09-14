@@ -12,9 +12,11 @@ import {
   type DesignTokens,
   type DesignTokensOverrides,
 } from "@yamacommerce/design-tokens";
+import { useState } from "react";
 import { describeObjectSchema } from "@/lib/editor/schema-introspect";
 import type { SiteSettings } from "@/lib/editor/site-settings";
 import { SchemaForm } from "./schema-form";
+import { MediaLibrary } from "@/components/media/media-library";
 
 /** `colorsSchema` est structurellement 100% des jetons de couleur — on force le
  *  type "color" sur chacun de ses champs plutôt que de compter sur l'heuristique
@@ -59,13 +61,16 @@ export function SiteSettingsPanel({
   originalSettings,
   effectiveTokens,
   onChange,
+  mediaApiBase,
 }: {
   settings: SiteSettings;
   originalSettings: SiteSettings;
   effectiveTokens: DesignTokens;
   onChange: (next: SiteSettings) => void;
+  mediaApiBase?: string;
 }) {
   const overrides = settings.designTokenOverrides;
+  const [picking, setPicking] = useState<"logo" | "favicon" | null>(null);
 
   function setGroup(group: GroupKey, next: Record<string, unknown>) {
     const cleaned = Object.fromEntries(
@@ -88,27 +93,49 @@ export function SiteSettingsPanel({
             <label htmlFor="site-logo" className="text-[12px] font-medium text-gray-700">
               Logo
             </label>
-            <input
-              id="site-logo"
-              type="text"
-              placeholder="https://..."
-              value={settings.logoUrl ?? ""}
-              onChange={(event) => onChange({ ...settings, logoUrl: event.target.value || undefined })}
-              className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-            />
+            <div className="flex gap-1.5">
+              <input
+                id="site-logo"
+                type="text"
+                placeholder="https://..."
+                value={settings.logoUrl ?? ""}
+                onChange={(event) => onChange({ ...settings, logoUrl: event.target.value || undefined })}
+                className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              />
+              {mediaApiBase && (
+                <button
+                  type="button"
+                  onClick={() => setPicking("logo")}
+                  className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-[12px] font-medium text-gray-700 hover:border-indigo-400 hover:text-indigo-600"
+                >
+                  Média
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="site-favicon" className="text-[12px] font-medium text-gray-700">
               Favicon
             </label>
-            <input
-              id="site-favicon"
-              type="text"
-              placeholder="https://..."
-              value={settings.faviconUrl ?? ""}
-              onChange={(event) => onChange({ ...settings, faviconUrl: event.target.value || undefined })}
-              className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-            />
+            <div className="flex gap-1.5">
+              <input
+                id="site-favicon"
+                type="text"
+                placeholder="https://..."
+                value={settings.faviconUrl ?? ""}
+                onChange={(event) => onChange({ ...settings, faviconUrl: event.target.value || undefined })}
+                className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              />
+              {mediaApiBase && (
+                <button
+                  type="button"
+                  onClick={() => setPicking("favicon")}
+                  className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-[12px] font-medium text-gray-700 hover:border-indigo-400 hover:text-indigo-600"
+                >
+                  Média
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </Section>
@@ -220,6 +247,21 @@ export function SiteSettingsPanel({
           </select>
         </div>
       </Section>
+
+      {picking && mediaApiBase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <div className="h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-xl">
+            <MediaLibrary
+              apiBase={mediaApiBase}
+              onSelect={(asset) => {
+                onChange(picking === "logo" ? { ...settings, logoUrl: asset.url } : { ...settings, faviconUrl: asset.url });
+                setPicking(null);
+              }}
+              onClose={() => setPicking(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

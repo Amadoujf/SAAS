@@ -65,6 +65,41 @@ describe("PreviewFrameApp — document de l'iframe d'aperçu", () => {
     );
   });
 
+  it("POIGNÉE DE MAIN ROBUSTE : continue de renvoyer READY tant qu'aucun CONTENT_UPDATE n'est arrivé", () => {
+    // Reproduit la vraie course détectée le 21 septembre 2026 : si le PARENT attache
+    // son écouteur `message` APRÈS le tout premier READY (chargement complet d'une
+    // page, pas un simple remontage d'iframe déjà monté), ce premier envoi est perdu
+    // sans aucune erreur ni des deux côtés — l'aperçu reste bloqué indéfiniment sur
+    // "En attente du contenu…". Le renvoi périodique doit couvrir ce cas.
+    vi.useFakeTimers();
+    render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
+    const callsAfterMount = (window.parent.postMessage as ReturnType<typeof vi.fn>).mock.calls.length;
+
+    vi.advanceTimersByTime(650); // ~3 renvois supplémentaires à 200ms d'intervalle
+
+    const readyCalls = (window.parent.postMessage as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) => (call[0] as { type?: string })?.type === "READY",
+    );
+    expect(readyCalls.length).toBeGreaterThan(callsAfterMount);
+    vi.useRealTimers();
+  });
+
+  it("POIGNÉE DE MAIN ROBUSTE : arrête de renvoyer READY une fois un CONTENT_UPDATE reçu", () => {
+    vi.useFakeTimers();
+    render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
+
+    dispatchFromParent(contentUpdate());
+    (window.parent.postMessage as ReturnType<typeof vi.fn>).mockClear();
+
+    vi.advanceTimersByTime(1000);
+
+    const readyCallsAfterContent = (window.parent.postMessage as ReturnType<typeof vi.fn>).mock.calls.filter(
+      (call) => (call[0] as { type?: string })?.type === "READY",
+    );
+    expect(readyCallsAfterContent).toHaveLength(0);
+    vi.useRealTimers();
+  });
+
   it("affiche un état d'attente tant qu'aucun CONTENT_UPDATE n'est reçu", () => {
     render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
     expect(screen.getByText(/En attente du contenu/)).toBeInTheDocument();
@@ -79,6 +114,18 @@ describe("PreviewFrameApp — document de l'iframe d'aperçu", () => {
   it("REFUS D'ORIGINE : ignore un CONTENT_UPDATE provenant d'une origine non autorisée", () => {
     render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
     dispatchFromParent(contentUpdate(), "https://attaquant.example.com");
+    expect(screen.queryByText("Bienvenue")).not.toBeInTheDocument();
+    expect(screen.getByText(/En attente du contenu/)).toBeInTheDocument();
+  });
+
+  it("VALIDATION DE event.source : ignore un message dont la source n'est pas window.parent", () => {
+    render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
+    const message = new MessageEvent("message", { data: contentUpdate(), origin: ALLOWED_ORIGIN });
+    // jsdom ne permet pas de passer `source` au constructeur `MessageEvent` — on le
+    // pose directement (il est normalement en lecture seule côté navigateur, mais pas
+    // sur l'implémentation jsdom utilisée par les tests).
+    Object.defineProperty(message, "source", { value: {}, configurable: true });
+    fireEvent(window, message);
     expect(screen.queryByText("Bienvenue")).not.toBeInTheDocument();
     expect(screen.getByText(/En attente du contenu/)).toBeInTheDocument();
   });

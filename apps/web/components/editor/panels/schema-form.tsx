@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { FieldDescriptor } from "@/lib/editor/schema-introspect";
 import { emptyValueForField } from "@/lib/editor/schema-introspect";
 import { CloseSmallIcon, ResetIcon } from "@/components/editor/editor-icons";
+import { MediaLibrary } from "@/components/media/media-library";
 
 /**
  * Formulaire générique généré à partir d'une liste de `FieldDescriptor` (voir
@@ -44,6 +45,11 @@ export interface SchemaFormProps {
    *  réinitialisation par champ quand fourni. */
   originalValue?: Record<string, unknown>;
   idPrefix?: string;
+  /** Base d'API de la médiathèque (ex. "/api/demo-media") — voir docs/12 §12.2,
+   *  « INTÉGRATION À L'ÉDITEUR ». Absent = les champs "url" restent de simples champs
+   *  texte (comportement d'avant l'ajout de la médiathèque, inchangé) ; fourni =
+   *  chacun gagne un bouton "Média" ouvrant `MediaLibrary` en mode sélection. */
+  mediaApiBase?: string;
 }
 
 export function SchemaForm({
@@ -53,6 +59,7 @@ export function SchemaForm({
   errors,
   originalValue,
   idPrefix = "f",
+  mediaApiBase,
 }: SchemaFormProps) {
   function setField(name: string, next: unknown) {
     onChange({ ...value, [name]: next });
@@ -111,6 +118,7 @@ export function SchemaForm({
               value={current}
               onChange={(next) => setField(field.name, next)}
               hasError={Boolean(fieldErrors?.length)}
+              mediaApiBase={mediaApiBase}
             />
 
             {fieldErrors?.map((message, index) => (
@@ -131,12 +139,14 @@ function FieldInput({
   value,
   onChange,
   hasError,
+  mediaApiBase,
 }: {
   id: string;
   field: FieldDescriptor;
   value: unknown;
   onChange: (next: unknown) => void;
   hasError: boolean;
+  mediaApiBase?: string;
 }) {
   const baseInputClass = `w-full rounded-md border px-2.5 py-1.5 text-[13px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
     hasError ? "border-red-400" : "border-gray-300 focus:border-indigo-500"
@@ -144,7 +154,6 @@ function FieldInput({
 
   switch (field.kind) {
     case "text":
-    case "url":
     case "email":
       return (
         <input
@@ -153,6 +162,17 @@ function FieldInput({
           value={typeof value === "string" ? value : ""}
           onChange={(event) => onChange(event.target.value)}
           className={baseInputClass}
+        />
+      );
+
+    case "url":
+      return (
+        <UrlFieldInput
+          id={id}
+          value={typeof value === "string" ? value : ""}
+          onChange={onChange}
+          className={baseInputClass}
+          mediaApiBase={mediaApiBase}
         />
       );
 
@@ -230,6 +250,7 @@ function FieldInput({
             value={isPlainObject(value) ? value : {}}
             onChange={onChange}
             idPrefix={id}
+            mediaApiBase={mediaApiBase}
           />
         </div>
       );
@@ -241,6 +262,7 @@ function FieldInput({
           value={Array.isArray(value) ? (value as Record<string, unknown>[]) : []}
           onChange={onChange}
           idPrefix={id}
+          mediaApiBase={mediaApiBase}
         />
       );
 
@@ -251,6 +273,69 @@ function FieldInput({
         </p>
       );
   }
+}
+
+/**
+ * Champ "url" — voir docs/12 §12.2, « INTÉGRATION À L'ÉDITEUR » : « Depuis un champ
+ * image ou vidéo, le client doit pouvoir ouvrir la médiathèque, sélectionner un
+ * média... ». Le champ texte reste TOUJOURS éditable directement (une URL externe
+ * reste valide) — le bouton "Média" est un raccourci, jamais une contrainte.
+ */
+function UrlFieldInput({
+  id,
+  value,
+  onChange,
+  className,
+  mediaApiBase,
+}: {
+  id: string;
+  value: string;
+  onChange: (next: string) => void;
+  className: string;
+  mediaApiBase?: string;
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex gap-1.5">
+        <input
+          id={id}
+          type="text"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          className={className}
+        />
+        {mediaApiBase && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="shrink-0 rounded-md border border-gray-300 px-2.5 py-1.5 text-[12px] font-medium text-gray-700 hover:border-indigo-400 hover:text-indigo-600"
+          >
+            Média
+          </button>
+        )}
+      </div>
+      {value && /^https?:\/\/|^\/api\//.test(value) && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={value} alt="" className="h-16 w-16 rounded border border-gray-200 object-cover" />
+      )}
+      {pickerOpen && mediaApiBase && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6">
+          <div className="h-[80vh] w-full max-w-4xl overflow-hidden rounded-lg bg-white shadow-xl">
+            <MediaLibrary
+              apiBase={mediaApiBase}
+              onSelect={(asset) => {
+                onChange(asset.url);
+                setPickerOpen(false);
+              }}
+              onClose={() => setPickerOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ColorInput({
@@ -354,11 +439,13 @@ function ArrayObjectInput({
   value,
   onChange,
   idPrefix,
+  mediaApiBase,
 }: {
   field: FieldDescriptor;
   value: Record<string, unknown>[];
   onChange: (next: Record<string, unknown>[]) => void;
   idPrefix: string;
+  mediaApiBase?: string;
 }) {
   const itemFields = field.itemFields ?? [];
   const canRemove = field.min === undefined || value.length > field.min;
@@ -386,6 +473,7 @@ function ArrayObjectInput({
             value={item}
             onChange={(next) => onChange(value.map((existing, i) => (i === index ? next : existing)))}
             idPrefix={`${idPrefix}-${index}`}
+            mediaApiBase={mediaApiBase}
           />
         </div>
       ))}
