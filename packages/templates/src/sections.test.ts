@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { validateSectionInstance, validateSectionParams, isValidVariant } from "./sections";
+import {
+  validateSectionInstance,
+  validateSectionParams,
+  isValidVariant,
+  sectionStyleOverrideSchema,
+  sectionSpacingOverrideSchema,
+  sectionAnimationDetailSchema,
+} from "./sections";
 
 describe("validateSectionParams", () => {
   it("accepte des paramètres hero valides", () => {
@@ -154,6 +161,54 @@ describe("section ajoutée pour Dakar Distribution Pro (20 septembre 2026)", () 
 
   it("rejette une recherche catalogue sans titre", () => {
     expect(() => validateSectionParams("catalog_search", {})).toThrow();
+  });
+});
+
+describe("panneaux avancés de personnalisation (20 septembre 2026)", () => {
+  it("accepte une instance de section sans aucune surcharge (comportement hérité)", () => {
+    const instance = validateSectionInstance({
+      id: "s1",
+      sectionKey: "cta",
+      variant: "banner",
+      params: { title: "x", buttonLabel: "y", buttonHref: "/z" },
+      order: 0,
+    });
+    expect(instance.styleOverride).toBeUndefined();
+    expect(instance.spacingOverride).toBeUndefined();
+    expect(instance.animationDetail).toBeUndefined();
+  });
+
+  it("accepte une instance avec les trois surcharges renseignées", () => {
+    const instance = validateSectionInstance({
+      id: "s2",
+      sectionKey: "cta",
+      variant: "banner",
+      params: { title: "x", buttonLabel: "y", buttonHref: "/z" },
+      order: 0,
+      styleOverride: { colorPrimary: "#112233", headingSize: "lg", textAlign: "center" },
+      spacingOverride: { mobile: { paddingY: "24px" }, desktop: { paddingY: "96px" } },
+      animationDetail: { type: "slide", direction: "left", durationMs: 400, hoverEffect: "lift" },
+    });
+    expect(instance.styleOverride?.colorPrimary).toBe("#112233");
+    expect(instance.spacingOverride?.mobile?.paddingY).toBe("24px");
+    expect(instance.animationDetail?.hoverEffect).toBe("lift");
+  });
+
+  it("rejette une taille de titre hors énumération", () => {
+    expect(() => sectionStyleOverrideSchema.parse({ headingSize: "huge" })).toThrow();
+  });
+
+  it("rejette une durée d'animation négative ou excessive", () => {
+    expect(() => sectionAnimationDetailSchema.parse({ durationMs: -5 })).toThrow();
+    expect(() => sectionAnimationDetailSchema.parse({ durationMs: 10_000 })).toThrow();
+  });
+
+  it("accepte un espacement partiel (un seul point de rupture renseigné)", () => {
+    expect(() => sectionSpacingOverrideSchema.parse({ tablet: { marginTop: "16px" } })).not.toThrow();
+  });
+
+  it("rejette une chaîne vide pour un champ de style renseigné", () => {
+    expect(() => sectionStyleOverrideSchema.parse({ colorPrimary: "" })).toThrow();
   });
 });
 

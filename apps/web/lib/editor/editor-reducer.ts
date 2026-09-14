@@ -1,4 +1,5 @@
-import type { SectionInstance } from "@yamacommerce/templates";
+import type { SectionInstance, SectionStyleOverride, SectionSpacingOverride, SectionAnimationDetail } from "@yamacommerce/templates";
+import type { SiteSettings } from "./site-settings";
 
 /**
  * Cœur logique de l'éditeur visuel — voir docs/12 §12.2. Module VOLONTAIREMENT pur
@@ -10,8 +11,18 @@ import type { SectionInstance } from "@yamacommerce/templates";
  *
  * L'undo/rétablir (docs/12 §12.2, « Historique / Annuler-rétablir ») utilise le
  * classique triptyque past/present/future : seules les actions qui modifient le
- * CONTENU (réordonner, masquer, dupliquer, supprimer) empilent dans `past` — la simple
- * navigation (changer de page/section sélectionnée) ne pollue jamais l'historique.
+ * CONTENU (réordonner, masquer, dupliquer, supprimer, ET depuis le 20 septembre 2026
+ * les panneaux avancés — contenu/style/espacement/animation/paramètres du site)
+ * empilent dans `past` — la simple navigation (changer de page/section sélectionnée,
+ * changer d'onglet de panneau) ne pollue jamais l'historique.
+ *
+ * Les actions `UPDATE_SECTION_*` REMPLACENT l'objet concerné dans son ensemble
+ * (params/styleOverride/spacingOverride) plutôt que de fusionner champ par champ : les
+ * panneaux (composants React, pas ce module) maintiennent l'objet complet à jour et
+ * envoient toujours la version finale — ça garde ce réducteur simple et générique,
+ * sans qu'il ait besoin de connaître la forme interne de chaque schéma de section.
+ * Passer `undefined` à `styleOverride`/`spacingOverride`/`animationDetail` réinitialise
+ * proprement à l'hérité du template (voir "Retour aux valeurs du template").
  */
 
 export interface EditorPage {
@@ -26,6 +37,7 @@ export interface EditorContent {
   pages: EditorPage[];
   selectedPageId: string;
   selectedSectionId: string | null;
+  siteSettings: SiteSettings;
 }
 
 export interface EditorHistoryState {
@@ -41,6 +53,27 @@ export type EditorAction =
   | { type: "TOGGLE_SECTION_ENABLED"; pageId: string; sectionId: string }
   | { type: "DUPLICATE_SECTION"; pageId: string; sectionId: string; newId: string }
   | { type: "DELETE_SECTION"; pageId: string; sectionId: string }
+  | { type: "UPDATE_SECTION_PARAMS"; pageId: string; sectionId: string; params: Record<string, unknown> }
+  | {
+      type: "UPDATE_SECTION_STYLE_OVERRIDE";
+      pageId: string;
+      sectionId: string;
+      styleOverride: SectionStyleOverride | undefined;
+    }
+  | {
+      type: "UPDATE_SECTION_SPACING_OVERRIDE";
+      pageId: string;
+      sectionId: string;
+      spacingOverride: SectionSpacingOverride | undefined;
+    }
+  | {
+      type: "UPDATE_SECTION_ANIMATION";
+      pageId: string;
+      sectionId: string;
+      animationOverride: SectionInstance["animationOverride"];
+      animationDetail: SectionAnimationDetail | undefined;
+    }
+  | { type: "UPDATE_SITE_SETTINGS"; siteSettings: SiteSettings }
   | { type: "UNDO" }
   | { type: "REDO" };
 
@@ -73,6 +106,25 @@ function mapPage(
     return next;
   });
   return changed ? { ...content, pages } : content;
+}
+
+/** Comme `mapPage`, mais cible UN bloc précis au sein de la page — factorise la garde
+ *  "id introuvable = no-op" commune à toutes les actions `UPDATE_SECTION_*`. */
+function mapBlock(
+  content: EditorContent,
+  pageId: string,
+  sectionId: string,
+  fn: (block: SectionInstance) => SectionInstance,
+): EditorContent {
+  return mapPage(content, pageId, (page) => {
+    const index = page.blocks.findIndex((block) => block.id === sectionId);
+    if (index === -1) return page;
+    const nextBlock = fn(page.blocks[index]!);
+    if (nextBlock === page.blocks[index]) return page;
+    const blocks = [...page.blocks];
+    blocks[index] = nextBlock;
+    return { ...page, blocks };
+  });
 }
 
 /** Applique une action de CONTENU (pas une simple sélection) sur l'état courant. */
@@ -129,6 +181,40 @@ function applyContentAction(content: EditorContent, action: EditorAction): Edito
       });
     }
 
+    case "UPDATE_SECTION_PARAMS": {
+      return mapBlock(content, action.pageId, action.sectionId, (block) => ({
+        ...block,
+        params: action.params,
+      }));
+    }
+
+    case "UPDATE_SECTION_STYLE_OVERRIDE": {
+      return mapBlock(content, action.pageId, action.sectionId, (block) => ({
+        ...block,
+        styleOverride: action.styleOverride,
+      }));
+    }
+
+    case "UPDATE_SECTION_SPACING_OVERRIDE": {
+      return mapBlock(content, action.pageId, action.sectionId, (block) => ({
+        ...block,
+        spacingOverride: action.spacingOverride,
+      }));
+    }
+
+    case "UPDATE_SECTION_ANIMATION": {
+      return mapBlock(content, action.pageId, action.sectionId, (block) => ({
+        ...block,
+        animationOverride: action.animationOverride,
+        animationDetail: action.animationDetail,
+      }));
+    }
+
+    case "UPDATE_SITE_SETTINGS": {
+      if (content.siteSettings === action.siteSettings) return content;
+      return { ...content, siteSettings: action.siteSettings };
+    }
+
     default:
       return content;
   }
@@ -139,6 +225,11 @@ const CONTENT_ACTION_TYPES = new Set<EditorAction["type"]>([
   "TOGGLE_SECTION_ENABLED",
   "DUPLICATE_SECTION",
   "DELETE_SECTION",
+  "UPDATE_SECTION_PARAMS",
+  "UPDATE_SECTION_STYLE_OVERRIDE",
+  "UPDATE_SECTION_SPACING_OVERRIDE",
+  "UPDATE_SECTION_ANIMATION",
+  "UPDATE_SITE_SETTINGS",
 ]);
 
 export function editorHistoryReducer(
@@ -198,4 +289,9 @@ export function canRedo(state: EditorHistoryState): boolean {
 
 export function getSelectedPage(content: EditorContent): EditorPage | undefined {
   return content.pages.find((page) => page.id === content.selectedPageId);
+}
+
+export function getSelectedSection(content: EditorContent): SectionInstance | undefined {
+  const page = getSelectedPage(content);
+  return page?.blocks.find((block) => block.id === content.selectedSectionId);
 }

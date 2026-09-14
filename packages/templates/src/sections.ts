@@ -290,6 +290,75 @@ export function validateSectionParams(sectionKey: SectionKey, params: unknown): 
  * `sectionKey`), son ordre, son état d'activation et un éventuel override d'animation
  * — voir « chaque section doit avoir ... un état désactivé, un ordre d'affichage ».
  */
+/**
+ * Surcharge de style PAR SECTION — voir docs/12 §12.2 (panneau « Style ») et la demande
+ * du 20 septembre 2026. Chaque champ correspond EXACTEMENT à une variable CSS déjà
+ * posée par `designTokensToCssVariables()` (voir apps/web/lib/design-tokens-to-css.ts) :
+ * appliquer cette surcharge revient à re-déclarer ces variables sur un conteneur
+ * enveloppant CETTE section — aucun composant de section n'a besoin d'être modifié
+ * pour en tenir compte, puisqu'ils consomment déjà tous `var(--color-*)`,
+ * `var(--text-*)`, `var(--card-radius)`, etc. plutôt que des valeurs codées en dur.
+ * `headingSize`/`bodySize`/`radius`/`shadow` référencent une clé de l'échelle de
+ * tokens (résolue au rendu, jamais une valeur figée) — si les tokens du site changent
+ * plus tard, la surcharge reste cohérente avec la nouvelle échelle.
+ */
+export const sectionStyleOverrideSchema = z.object({
+  colorPrimary: z.string().min(1).optional(),
+  colorSecondary: z.string().min(1).optional(),
+  colorBackground: z.string().min(1).optional(),
+  colorTextPrimary: z.string().min(1).optional(),
+  colorTextSecondary: z.string().min(1).optional(),
+  headingFont: z.string().min(1).optional(),
+  bodyFont: z.string().min(1).optional(),
+  headingSize: z.enum(["xs", "sm", "md", "lg", "xl", "2xl", "3xl", "4xl"]).optional(),
+  bodySize: z.enum(["xs", "sm", "md", "lg", "xl"]).optional(),
+  textAlign: z.enum(["left", "center", "right"]).optional(),
+  borderColor: z.string().min(1).optional(),
+  borderWidth: z.string().min(1).optional(),
+  radius: z.enum(["none", "sm", "md", "lg", "full"]).optional(),
+  shadow: z.enum(["none", "sm", "md", "lg"]).optional(),
+  /** Largeur de la colonne de contenu de cette section — ex. "960px". */
+  maxWidth: z.string().min(1).optional(),
+});
+export type SectionStyleOverride = z.infer<typeof sectionStyleOverrideSchema>;
+
+export const spacingValuesSchema = z.object({
+  marginTop: z.string().min(1).optional(),
+  marginBottom: z.string().min(1).optional(),
+  paddingX: z.string().min(1).optional(),
+  paddingY: z.string().min(1).optional(),
+});
+export type SectionSpacingValues = z.infer<typeof spacingValuesSchema>;
+
+/**
+ * Surcharge d'espacement PAR SECTION, avec réglages distincts par point de rupture
+ * (docs/12 §12.2, panneau « Espacement »). Ajoute de l'espace AUTOUR de la section
+ * (marge/espacement interne) sans modifier le rythme interne déjà calibré par le
+ * template — voir le rapport de livraison pour la limite assumée sur l'espacement
+ * ENTRE les éléments internes d'une section (pas couvert par ce champ).
+ */
+export const sectionSpacingOverrideSchema = z.object({
+  desktop: spacingValuesSchema.optional(),
+  tablet: spacingValuesSchema.optional(),
+  mobile: spacingValuesSchema.optional(),
+});
+export type SectionSpacingOverride = z.infer<typeof sectionSpacingOverrideSchema>;
+
+/**
+ * Détail d'animation PAR SECTION, au-delà du simple niveau (docs/12 §12.2, panneau
+ * « Animation »). `hoverEffect` s'applique au conteneur de la section dans son
+ * ensemble (pas aux survols déjà propres à certains éléments internes, ex. une carte
+ * produit) — voir le rapport de livraison.
+ */
+export const sectionAnimationDetailSchema = z.object({
+  type: z.enum(["fade", "slide", "scale"]).optional(),
+  direction: z.enum(["up", "down", "left", "right"]).optional(),
+  durationMs: z.number().int().min(0).max(3000).optional(),
+  delayMs: z.number().int().min(0).max(3000).optional(),
+  hoverEffect: z.enum(["none", "lift", "zoom", "glow"]).optional(),
+});
+export type SectionAnimationDetail = z.infer<typeof sectionAnimationDetailSchema>;
+
 export const sectionInstanceSchema = z.object({
   id: z.string(),
   sectionKey: z.enum(SECTION_KEYS),
@@ -303,6 +372,11 @@ export const sectionInstanceSchema = z.object({
     .default("inherit"),
   /** Variante spécifique pour l'affichage mobile — absente = même variante que desktop. */
   mobileVariant: z.string().optional(),
+  /** Panneaux avancés de personnalisation (20 septembre 2026) — tous optionnels,
+   *  absents = comportement hérité du template, identique à avant leur ajout. */
+  styleOverride: sectionStyleOverrideSchema.optional(),
+  spacingOverride: sectionSpacingOverrideSchema.optional(),
+  animationDetail: sectionAnimationDetailSchema.optional(),
 });
 
 export type SectionInstance = z.infer<typeof sectionInstanceSchema>;

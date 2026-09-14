@@ -1,7 +1,17 @@
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
+import type { DesignTokens } from "@yamacommerce/design-tokens";
 import type { Locale } from "@/lib/i18n";
 import { AnimationScopeOverride } from "@/lib/motion/animation-level-context";
+import { AnimationDetailScope } from "@/lib/motion/animation-detail-context";
 import { SectionFallback } from "@/components/ui/section-fallback";
+import {
+  hasStyleOverride,
+  hoverEffectClassName,
+  spacingClassNameForSection,
+  spacingOverrideToMediaCss,
+  spacingValuesToStyle,
+  styleOverrideToCssVars,
+} from "@/lib/editor/section-style";
 import { HeroSection } from "./hero";
 import { CategoriesSection } from "./categories";
 import { FeaturedProductsSection } from "./featured-products";
@@ -62,10 +72,24 @@ export function SectionRenderer({
   instance,
   locale,
   resolvedContent,
+  tokens,
+  forcePreviewViewport,
 }: {
   instance: unknown;
   locale: Locale;
   resolvedContent?: ResolvedContentBySectionId;
+  /** Tokens EFFECTIFS du site — nécessaires uniquement pour résoudre
+   *  `styleOverride.headingSize/bodySize/radius/shadow` contre l'échelle réelle (voir
+   *  lib/editor/section-style.ts). Absent = surcharges de style ignorées, comportement
+   *  strictement identique à avant leur ajout (20 septembre 2026). */
+  tokens?: DesignTokens;
+  /** Posé UNIQUEMENT par l'aperçu de l'éditeur visuel (jamais par une page publique) :
+   *  applique directement l'espacement du point de rupture actuellement affiché,
+   *  fiable même quand l'aperçu n'est qu'une boîte redimensionnée dans un grand
+   *  navigateur (les vraies règles `@media` ci-dessous ne s'y déclenchent pas seules —
+   *  voir la limite assumée dans section-style.ts). Sur le site réel, ce prop est
+   *  toujours absent : les `@media` suffisent, un vrai visiteur a un vrai viewport. */
+  forcePreviewViewport?: "desktop" | "tablet" | "mobile";
 }) {
   let validated: SectionInstance;
   try {
@@ -87,7 +111,43 @@ export function SectionRenderer({
 
   const element = renderByKey(validated, locale, resolvedContent);
 
-  return <AnimationScopeOverride override={animationOverride}>{element}</AnimationScopeOverride>;
+  const wrapped = (
+    <AnimationScopeOverride override={animationOverride}>
+      <AnimationDetailScope override={validated.animationDetail}>{element}</AnimationDetailScope>
+    </AnimationScopeOverride>
+  );
+
+  // Panneaux avancés de personnalisation (20 septembre 2026) — voir docs/12 §12.2.
+  // Conteneur ADDITIONNEL posé UNIQUEMENT quand une surcharge existe : une section
+  // sans styleOverride/spacingOverride/hoverEffect (les 5 templates déjà livrés,
+  // aujourd'hui) traverse ce composant EXACTEMENT comme avant leur ajout — aucun DOM
+  // supplémentaire, donc aucun risque de régression visuelle.
+  const styleVars = tokens ? styleOverrideToCssVars(validated.styleOverride, tokens) : {};
+  const hasStyle = hasStyleOverride(validated.styleOverride) && tokens !== undefined;
+  const hasSpacing = Boolean(validated.spacingOverride);
+  const hoverClass = hoverEffectClassName(validated.animationDetail?.hoverEffect);
+
+  if (!hasStyle && !hasSpacing && !hoverClass) {
+    return wrapped;
+  }
+
+  const spacingClassName = hasSpacing ? spacingClassNameForSection(validated.id) : undefined;
+  const forcedSpacingStyle =
+    hasSpacing && forcePreviewViewport
+      ? spacingValuesToStyle(validated.spacingOverride?.[forcePreviewViewport])
+      : {};
+
+  return (
+    <div
+      className={[spacingClassName, hoverClass].filter(Boolean).join(" ")}
+      style={{ ...styleVars, ...forcedSpacingStyle }}
+    >
+      {hasSpacing && spacingClassName && (
+        <style>{spacingOverrideToMediaCss(spacingClassName, validated.spacingOverride!)}</style>
+      )}
+      {wrapped}
+    </div>
+  );
 }
 
 function renderByKey(

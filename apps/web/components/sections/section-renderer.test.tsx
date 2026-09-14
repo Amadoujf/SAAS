@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { DEFAULT_DESIGN_TOKENS } from "@yamacommerce/design-tokens";
 import { SectionRenderer } from "./section-renderer";
 import { CurrencyProvider } from "@/lib/commerce/currency-context";
 
@@ -376,6 +377,127 @@ describe("SectionRenderer", () => {
       );
       expect(screen.getByRole("alert")).toHaveTextContent("catalog_search");
       errorSpy.mockRestore();
+    });
+  });
+
+  /**
+   * Panneaux avancés de personnalisation (20 septembre 2026, docs/12 §12.2) —
+   * vérifie que `styleOverride`/`spacingOverride`/`animationDetail` ont un effet RÉEL
+   * sur le DOM produit, et qu'une section SANS aucune surcharge n'est jamais enveloppée
+   * dans un conteneur supplémentaire (zéro risque de régression pour les 5 templates
+   * déjà livrés, qui ne posent aucun de ces champs).
+   */
+  describe("surcharges de style/espacement/animation par section", () => {
+    it("n'ajoute AUCUN conteneur supplémentaire quand aucune surcharge n'est posée", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-plain",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+          }}
+          locale="fr"
+          tokens={DEFAULT_DESIGN_TOKENS}
+        />,
+      );
+      // Le premier enfant direct doit être la <section> du CTA lui-même, pas un <div>
+      // englobant posé par le mécanisme de surcharge.
+      expect(container.firstElementChild?.tagName).toBe("SECTION");
+    });
+
+    it("pose la variable CSS correspondante quand `styleOverride` est renseigné", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-styled",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+            styleOverride: { colorPrimary: "#ff0000" },
+          }}
+          locale="fr"
+          tokens={DEFAULT_DESIGN_TOKENS}
+        />,
+      );
+      const wrapper = container.firstElementChild as HTMLElement;
+      expect(wrapper.style.getPropertyValue("--color-primary")).toBe("#ff0000");
+    });
+
+    it("ignore silencieusement `styleOverride` si aucun `tokens` n'est fourni (jamais un plantage)", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-styled-2",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+            styleOverride: { colorPrimary: "#ff0000" },
+          }}
+          locale="fr"
+          // `tokens` volontairement omis
+        />,
+      );
+      expect(container.firstElementChild?.tagName).toBe("SECTION");
+    });
+
+    it("émet une règle @media par point de rupture quand `spacingOverride` est renseigné", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-spaced",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+            spacingOverride: { mobile: { paddingY: "12px" }, desktop: { paddingY: "80px" } },
+          }}
+          locale="fr"
+        />,
+      );
+      const styleTag = container.querySelector("style");
+      expect(styleTag?.textContent).toContain("padding-top: 12px");
+      expect(styleTag?.textContent).toContain("@media (min-width: 1024px)");
+    });
+
+    it("applique directement l'espacement du point de rupture forcé (aperçu de l'éditeur)", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-forced",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+            spacingOverride: { mobile: { paddingY: "12px" }, desktop: { paddingY: "80px" } },
+          }}
+          locale="fr"
+          forcePreviewViewport="mobile"
+        />,
+      );
+      const wrapper = container.firstElementChild as HTMLElement;
+      expect(wrapper.style.paddingTop).toBe("12px");
+    });
+
+    it("pose la classe d'effet de survol correspondant à `animationDetail.hoverEffect`", () => {
+      const { container } = renderSection(
+        <SectionRenderer
+          instance={{
+            id: "cta-hover",
+            sectionKey: "cta",
+            variant: "banner",
+            order: 0,
+            params: { title: "Titre", buttonLabel: "Go", buttonHref: "/x" },
+            animationDetail: { hoverEffect: "lift" },
+          }}
+          locale="fr"
+        />,
+      );
+      const wrapper = container.firstElementChild as HTMLElement;
+      expect(wrapper.className).toContain("hover:-translate-y-1");
     });
   });
 });

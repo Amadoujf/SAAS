@@ -120,3 +120,41 @@ export function MobileIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** Réinitialisation d'un réglage unique — voir docs/12 §12.2, « réinitialisation d'un
+ *  réglage ». Flèche circulaire, distincte de `UndoIcon` (historique global). */
+export function ResetIcon({ className }: { className?: string }) {
+  return (
+    <svg {...common} className={className}>
+      <path
+        d="M4 12a8 8 0 1 1 2.6 5.9M4 12V7M4 12h5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function WarningIcon({ className }: { className?: string }) {
+  return (
+    <svg {...common} className={className}>
+      <path
+        d="M12 3.5 21.5 20h-19L12 3.5Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <path d="M12 9.5v4.2M12 16.8v.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function CloseSmallIcon({ className }: { className?: string }) {
+  return (
+    <svg {...common} className={className}>
+      <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}

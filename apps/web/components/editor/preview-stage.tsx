@@ -35,6 +35,7 @@ export function PreviewStage({
   resolvedContent,
   selectedSectionId,
   onSelectSection,
+  viewport,
 }: {
   page: EditorPage;
   tokens: DesignTokens;
@@ -43,6 +44,11 @@ export function PreviewStage({
   resolvedContent?: ResolvedContentBySectionId;
   selectedSectionId: string | null;
   onSelectSection: (sectionId: string) => void;
+  /** Voir `SectionRenderer`'s `forcePreviewViewport` — applique directement
+   *  l'espacement du point de rupture affiché, fiable même si cette boîte n'est pas
+   *  un vrai viewport redimensionné (voir la limite assumée dans
+   *  lib/editor/section-style.ts). */
+  viewport?: "desktop" | "tablet" | "mobile";
 }) {
   const sortedBlocks = [...page.blocks].sort((a, b) => a.order - b.order);
 
@@ -87,6 +93,8 @@ export function PreviewStage({
                         instance={block}
                         locale={locale}
                         resolvedContent={resolvedContent}
+                        tokens={tokens}
+                        forcePreviewViewport={viewport}
                       />
                     </div>
                   );

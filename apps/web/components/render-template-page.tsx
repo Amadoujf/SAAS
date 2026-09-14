@@ -47,6 +47,7 @@ export function RenderTemplatePage({
             instance={section}
             locale={locale}
             resolvedContent={resolvedContent}
+            tokens={tokens}
           />
         ))}
       </AnimationLevelProvider>

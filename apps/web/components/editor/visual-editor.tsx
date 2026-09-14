@@ -1,8 +1,8 @@
 "use client";
 
-import { useReducer, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Reorder } from "framer-motion";
-import type { AnimationLevel, DesignTokens } from "@yamacommerce/design-tokens";
+import { mergeDesignTokens, type AnimationLevel, type DesignTokens } from "@yamacommerce/design-tokens";
 import type { ResolvedContentBySectionId } from "@/components/sections/section-renderer";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -11,12 +11,14 @@ import {
   createInitialHistory,
   editorHistoryReducer,
   getSelectedPage,
+  getSelectedSection,
   type EditorContent,
 } from "@/lib/editor/editor-reducer";
 import { PreviewStage } from "./preview-stage";
 import { SectionRow } from "./section-row";
 import { ViewportToggle, type PreviewViewport } from "./viewport-toggle";
 import { RedoIcon, UndoIcon } from "./editor-icons";
+import { CustomizationPanel } from "./panels/customization-panel";
 
 const VIEWPORT_WIDTH: Record<PreviewViewport, string> = {
   desktop: "100%",
@@ -55,11 +57,12 @@ export interface VisualEditorProps {
  * la note de mémoire "project-multisector-saas-goal". Aucune donnée ni logique propre
  * à l'e-commerce n'apparaît ici.
  *
- * Portée VOLONTAIREMENT arrêtée avant les panneaux avancés de personnalisation
- * (couleurs/polices/textes/images par section, voir docs/12 §12.2) : la sélection
- * d'une section la met en évidence dans la liste et dans l'aperçu, sans encore
- * proposer de formulaire d'édition de ses paramètres — étape suivante, pas construite
- * ici (« sans passer à l'élément suivant sans confirmation »).
+ * Depuis le 20 septembre 2026, inclut les panneaux avancés de personnalisation
+ * (Contenu/Style/Espacement/Animation par section + Paramètres généraux du site, voir
+ * `CustomizationPanel`) — toujours générés à partir des schémas (voir
+ * lib/editor/schema-introspect.ts), jamais d'un champ codé en dur propre à un
+ * template. Portée VOLONTAIREMENT arrêtée avant la médiathèque R2 et la publication
+ * définitive (consigne du 20 septembre 2026).
  */
 export function VisualEditor({
   initialContent,
@@ -76,24 +79,68 @@ export function VisualEditor({
   );
   const [viewport, setViewport] = useState<PreviewViewport>("desktop");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [panelMode, setPanelMode] = useState<"section" | "site">("section");
+
+  // Cliché IMMUABLE du contenu tel que chargé — sert de référence pour "Retour aux
+  // valeurs du template" (voir CustomizationPanel) : jamais réassigné après le montage,
+  // contrairement à `history.present` qui change à chaque modification.
+  const originalContentRef = useRef(initialContent);
+  // Dernier contenu réellement enregistré (brouillon) — sert à la protection contre la
+  // perte des modifications (voir l'écouteur `beforeunload` ci-dessous) : un simple
+  // test de référence suffit puisque le réducteur ne mute jamais `content` en place.
+  const lastSavedContentRef = useRef(initialContent);
 
   const content = history.present;
   const selectedPage = getSelectedPage(content);
+  const selectedSection = getSelectedSection(content);
+  const originalSection = selectedPage
+    ? originalContentRef.current.pages
+        .find((page) => page.id === selectedPage.id)
+        ?.blocks.find((block) => block.id === selectedSection?.id)
+    : undefined;
   const orderedBlocks = selectedPage
     ? [...selectedPage.blocks].sort((a, b) => a.order - b.order)
     : [];
   const orderedIds = orderedBlocks.map((block) => block.id);
 
+  // Tokens EFFECTIFS du site édité — mêmes règles de fusion que le site publié (voir
+  // `mergeDesignTokens`, @yamacommerce/design-tokens) : les "Paramètres généraux du
+  // site" (palette/typographie/...) se reflètent donc immédiatement dans l'aperçu ET
+  // dans les panneaux (ex. contraste WCAG), sans logique de simulation séparée.
+  const effectiveTokens = useMemo(
+    () => mergeDesignTokens(tokens, content.siteSettings.designTokenOverrides),
+    [tokens, content.siteSettings.designTokenOverrides],
+  );
+
+  const isDirty = content !== lastSavedContentRef.current;
+
+  useEffect(() => {
+    if (!isDirty) return;
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
   async function handleSave() {
     if (!onSaveDraft) {
+      lastSavedContentRef.current = content;
       setSaveState("saved");
       window.setTimeout(() => setSaveState("idle"), 1600);
       return;
     }
     setSaveState("saving");
     await onSaveDraft(content);
+    lastSavedContentRef.current = content;
     setSaveState("saved");
     window.setTimeout(() => setSaveState("idle"), 1600);
+  }
+
+  function selectSection(sectionId: string | null) {
+    dispatch({ type: "SELECT_SECTION", sectionId });
+    if (sectionId) setPanelMode("section");
   }
 
   return (
@@ -216,7 +263,13 @@ export function VisualEditor({
                     key={block.id}
                     block={block}
                     isSelected={block.id === content.selectedSectionId}
-                    onSelect={() => dispatch({ type: "SELECT_SECTION", sectionId: block.id })}
+                    hasCustomization={
+                      Boolean(block.styleOverride && Object.keys(block.styleOverride).length > 0) ||
+                      Boolean(block.spacingOverride && Object.keys(block.spacingOverride).length > 0) ||
+                      block.animationOverride !== "inherit" ||
+                      Boolean(block.animationDetail)
+                    }
+                    onSelect={() => selectSection(block.id)}
                     onToggleEnabled={() =>
                       dispatch({
                         type: "TOGGLE_SECTION_ENABLED",
@@ -257,16 +310,66 @@ export function VisualEditor({
             >
               <PreviewStage
                 page={selectedPage}
-                tokens={tokens}
+                tokens={effectiveTokens}
                 animationLevel={animationLevel}
                 locale={locale}
                 resolvedContent={resolvedContent}
                 selectedSectionId={content.selectedSectionId}
-                onSelectSection={(sectionId) => dispatch({ type: "SELECT_SECTION", sectionId })}
+                onSelectSection={selectSection}
+                viewport={viewport}
               />
             </div>
           )}
         </div>
+
+        <CustomizationPanel
+          mode={panelMode}
+          onModeChange={setPanelMode}
+          section={selectedSection}
+          originalSection={originalSection}
+          tokens={effectiveTokens}
+          viewport={viewport}
+          siteSettings={content.siteSettings}
+          originalSiteSettings={originalContentRef.current.siteSettings}
+          onUpdateParams={(params) => {
+            if (!selectedPage || !selectedSection) return;
+            dispatch({
+              type: "UPDATE_SECTION_PARAMS",
+              pageId: selectedPage.id,
+              sectionId: selectedSection.id,
+              params,
+            });
+          }}
+          onUpdateStyle={(styleOverride) => {
+            if (!selectedPage || !selectedSection) return;
+            dispatch({
+              type: "UPDATE_SECTION_STYLE_OVERRIDE",
+              pageId: selectedPage.id,
+              sectionId: selectedSection.id,
+              styleOverride,
+            });
+          }}
+          onUpdateSpacing={(spacingOverride) => {
+            if (!selectedPage || !selectedSection) return;
+            dispatch({
+              type: "UPDATE_SECTION_SPACING_OVERRIDE",
+              pageId: selectedPage.id,
+              sectionId: selectedSection.id,
+              spacingOverride,
+            });
+          }}
+          onUpdateAnimation={(animationOverride, animationDetail) => {
+            if (!selectedPage || !selectedSection) return;
+            dispatch({
+              type: "UPDATE_SECTION_ANIMATION",
+              pageId: selectedPage.id,
+              sectionId: selectedSection.id,
+              animationOverride,
+              animationDetail,
+            });
+          }}
+          onUpdateSiteSettings={(siteSettings) => dispatch({ type: "UPDATE_SITE_SETTINGS", siteSettings })}
+        />
       </div>
     </div>
   );

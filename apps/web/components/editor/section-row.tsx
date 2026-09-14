@@ -15,6 +15,7 @@ import { EyeIcon } from "@/components/ui/icons";
 export function SectionRow({
   block,
   isSelected,
+  hasCustomization = false,
   onSelect,
   onToggleEnabled,
   onDuplicate,
@@ -22,6 +23,10 @@ export function SectionRow({
 }: {
   block: SectionInstance;
   isSelected: boolean;
+  /** Voir docs/12 §12.2, « indicateur des propriétés personnalisées » — vrai dès que
+   *  cette section porte un style/espacement/animation surchargé par rapport au
+   *  template (calculé par l'appelant, ce composant reste sector-agnostic). */
+  hasCustomization?: boolean;
   onSelect: () => void;
   onToggleEnabled: () => void;
   onDuplicate: () => void;
@@ -50,9 +55,18 @@ export function SectionRow({
         <DragHandleIcon />
       </button>
 
-      <button type="button" onClick={onSelect} className="min-w-0 flex-1 text-left">
-        <p className="truncate text-[13px] font-medium text-gray-800">{block.sectionKey}</p>
-        <p className="truncate text-[11px] text-gray-500">{block.variant}</p>
+      <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+        <span className="min-w-0 flex-1">
+          <p className="truncate text-[13px] font-medium text-gray-800">{block.sectionKey}</p>
+          <p className="truncate text-[11px] text-gray-500">{block.variant}</p>
+        </span>
+        {hasCustomization && (
+          <span
+            title="Personnalisé"
+            aria-label="Personnalisé"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500"
+          />
+        )}
       </button>
 
       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">

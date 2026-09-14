@@ -6,6 +6,7 @@ import {
   LUXURY_MINIMAL_DESIGN_TOKENS,
 } from "@/lib/demo/luxury-minimal-template";
 import type { EditorContent } from "@/lib/editor/editor-reducer";
+import { createEmptySiteSettings } from "@/lib/editor/site-settings";
 
 /**
  * Démonstration de l'éditeur visuel (Phase 1, étape 5 — voir docs/12 §12.2) —
@@ -31,6 +32,7 @@ export default function VisualEditorDemoPage() {
   const initialContent: EditorContent = {
     selectedPageId: DEMO_MANIFEST.pages[0]!.slug,
     selectedSectionId: null,
+    siteSettings: createEmptySiteSettings(),
     pages: DEMO_MANIFEST.pages.map((page) => ({
       id: page.slug,
       slug: page.slug,

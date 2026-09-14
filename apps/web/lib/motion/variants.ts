@@ -37,6 +37,54 @@ export function fadeInUp(level: EffectiveAnimationLevel): Variants {
   };
 }
 
+/**
+ * Généralisation de `fadeInUp` — voir docs/12 §12.2, panneau « Animation » (type
+ * d'apparition, direction, durée, délai). `fadeInUp` reste inchangée et exportée
+ * (d'autres sections l'appellent directement pour leurs propres listes en cascade,
+ * ex. heritage.tsx) : cette fonction est un AJOUT, pas un remplacement.
+ */
+export interface RevealDetail {
+  type?: "fade" | "slide" | "scale";
+  direction?: "up" | "down" | "left" | "right";
+  durationMs?: number;
+  delayMs?: number;
+}
+
+export function revealVariant(level: EffectiveAnimationLevel, detail: RevealDetail = {}): Variants {
+  if (level === "none") {
+    return { hidden: { opacity: 1 }, visible: { opacity: 1 } };
+  }
+
+  const type = detail.type ?? "fade";
+  const direction = detail.direction ?? "up";
+  const duration = detail.durationMs != null ? detail.durationMs / 1000 : DURATION_BY_LEVEL[level];
+  const delay = detail.delayMs != null ? detail.delayMs / 1000 : 0;
+  const transition = { duration, delay, ease: [0.4, 0, 0.2, 1] as const };
+
+  if (type === "scale") {
+    return {
+      hidden: { opacity: 0, transform: "scale(0.92)" },
+      visible: { opacity: 1, transform: "scale(1)", transition },
+    };
+  }
+
+  // "fade" (décalage léger, l'apparition classique) et "slide" (décalage plus
+  // marqué, l'entrée se remarque davantage) partagent le même axe de direction —
+  // seule l'amplitude du décalage initial diffère.
+  const distance = DISTANCE_BY_LEVEL[level] * (type === "slide" ? 2.5 : 1);
+  const AXIS: Record<NonNullable<RevealDetail["direction"]>, string> = {
+    up: `translateY(${distance}px)`,
+    down: `translateY(-${distance}px)`,
+    left: `translateX(${distance}px)`,
+    right: `translateX(-${distance}px)`,
+  };
+
+  return {
+    hidden: { opacity: 0, transform: AXIS[direction] },
+    visible: { opacity: 1, transform: "translate(0px, 0px)", transition },
+  };
+}
+
 export function staggerChildren(level: EffectiveAnimationLevel): Variants {
   if (level === "none") return { hidden: {}, visible: {} };
   const stagger = level === "immersive" ? 0.12 : level === "dynamic" ? 0.08 : 0.04;
