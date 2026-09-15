@@ -357,6 +357,35 @@ model TenantSiteVersion {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
+  /// Numéro séquentiel par site (voir @yamacommerce/database `nextCounterValue`,
+  /// scope `site-version-{tenantSiteId}`) — attribué UNIQUEMENT au moment de la
+  /// publication effective (`publishVersion`), jamais sur un simple brouillon : c'est
+  /// le numéro affiché dans l'historique ("Version 12"), pas un id de ligne.
+  versionNumber Int?
+  /// Message facultatif saisi par le publieur — voir docs/12 §12.3, "message facultatif".
+  publishMessage String?
+  /// Figé au moment de la publication par `computeChangesSummary`
+  /// (@yamacommerce/publishing) — jamais recalculé a posteriori, voir la note de tête
+  /// de fichier de `changes-summary.ts` sur l'immuabilité d'une version publiée.
+  changesSummary Json?
+  /// Domaine/sous-domaine effectivement servi par CETTE version au moment de sa
+  /// publication (peut différer d'une version à l'autre si le domaine a changé depuis).
+  domainUsed String?
+  /// Vrai si cette version a été publiée via une publication PROGRAMMÉE (le job
+  /// `site-publishing`) plutôt qu'un clic direct sur "Publier maintenant".
+  wasScheduled Boolean @default(false)
+
+  /// Restauration : voir docs/12 §12.3, "Une restauration doit créer une nouvelle
+  /// version. Elle ne doit jamais modifier l'ancienne." — trace UNIQUEMENT quelle
+  /// version archivée a servi de source, ne modifie jamais cette source.
+  restoredFromVersionId String?
+  restoredFrom          TenantSiteVersion?  @relation("VersionRestoredFrom", fields: [restoredFromVersionId], references: [id])
+  restoredInto          TenantSiteVersion[] @relation("VersionRestoredFrom")
+  /// Justification obligatoire uniquement quand la restauration est effectuée par un
+  /// Super Admin (voir docs/12 §12.3, "SUPER ADMIN" : "restaurer une version avec
+  /// justification obligatoire") — null pour une restauration normale par le tenant.
+  restoreJustification String?
+
   pages Page[]
 
   @@index([tenantSiteId, status])

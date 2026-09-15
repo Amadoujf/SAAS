@@ -116,6 +116,11 @@ export class InMemoryMediaRepository implements MediaRepository {
     return { ...record };
   }
 
+  async setPublic(tenantId: string, id: string, isPublic: boolean): Promise<void> {
+    const record = this.ownedOrNull(tenantId, id);
+    if (record) record.isPublic = isPublic;
+  }
+
   async findByChecksum(tenantId: string, checksumSha256: string): Promise<MediaAssetRecord | null> {
     const found = [...this.records.values()].find(
       (record) => record.tenantId === tenantId && record.status === "READY" && record.checksumSha256 === checksumSha256,

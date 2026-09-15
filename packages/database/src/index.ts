@@ -1,3 +1,8 @@
+/** Réexporté UNIQUEMENT pour le type `Prisma.TransactionClient` — permet aux fonctions
+ *  applicatives (ex. apps/web/lib/publishing/*) qui reçoivent un `tx` déjà ouvert par
+ *  `withTenant()` de le typer explicitement sans dépendre directement de
+ *  `@prisma/client` (qui reste un détail d'implémentation de ce package). */
+export type { Prisma } from "@prisma/client";
 export * from "./client";
 export * from "./tenant-context";
 export * from "./counters";
@@ -6,3 +11,4 @@ export * from "./modules-registry";
 export * from "./templates-registry";
 export * from "./site-versions-registry";
 export * from "./media-assets-registry";
+export * from "./audit-log-registry";

@@ -6,6 +6,7 @@ import type {
   ImportJobData,
   InvoiceJobData,
   NotificationJobData,
+  SitePublishingJobData,
   WebhookPaymentJobData,
 } from "@yamacommerce/queue";
 import { processPaymentWebhook } from "@yamacommerce/payments";
@@ -84,6 +85,44 @@ const notificationsWorker = new Worker<NotificationJobData>(
   { connection: redisConnection, concurrency },
 );
 
+/**
+ * Promotion des publications PROGRAMMÉES — voir docs/12 §12.3, « PUBLICATION
+ * PROGRAMMÉE ». Contrairement aux workers ci-dessus, celui-ci est RÉEL, pas un TODO :
+ * c'est le cœur du déclenchement à échéance. N'exécute jamais la logique de
+ * publication lui-même (verrou/transaction/RLS/cache Next.js) — il appelle la route
+ * interne d'`apps/web`, seule à disposer d'un contexte Next.js pour
+ * `revalidateTag` (voir apps/web/app/api/internal/site-publishing/promote/route.ts).
+ *
+ * Un statut HTTP 409 (verrou déjà détenu, transitoire) fait lever une exception pour
+ * déclencher le réessai BullMQ déjà configuré sur cette file (backoff exponentiel,
+ * voir @yamacommerce/queue `queues.ts`) ; toute autre réponse (publiée, bloquée,
+ * permission révoquée, déjà traitée) est un résultat DÉFINITIF — le job se termine
+ * normalement, l'erreur/le blocage final ayant déjà été journalisé et notifié côté
+ * route interne.
+ */
+const webAppInternalUrl = process.env.WEB_APP_INTERNAL_URL ?? "http://localhost:3000";
+const internalWorkerSecret = process.env.INTERNAL_WORKER_SECRET ?? "";
+
+const sitePublishingWorker = new Worker<SitePublishingJobData>(
+  QUEUE_NAMES.sitePublishing,
+  async (job) => {
+    const response = await fetch(`${webAppInternalUrl}/api/internal/site-publishing/promote`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": internalWorkerSecret },
+      body: JSON.stringify(job.data),
+    });
+    if (response.status === 409) {
+      throw new Error(`[site-publishing] verrou déjà détenu pour la version "${job.data.versionId}" — réessai.`);
+    }
+    if (!response.ok) {
+      throw new Error(`[site-publishing] réponse inattendue de la route interne : ${response.status}`);
+    }
+    const result = (await response.json()) as { outcome: string };
+    console.info(`[site-publishing] version "${job.data.versionId}" → ${result.outcome}`);
+  },
+  { connection: redisConnection, concurrency },
+);
+
 const workers = [
   webhooksPaymentsWorker,
   emailsWorker,
@@ -91,6 +130,7 @@ const workers = [
   aiJobsWorker,
   importsWorker,
   notificationsWorker,
+  sitePublishingWorker,
 ];
 
 for (const worker of workers) {

@@ -5,6 +5,8 @@ import {
   type SectionInstance,
 } from "@yamacommerce/templates";
 import { validateTemplateManifest } from "@yamacommerce/templates";
+import { computeChangesSummary, type PageSnapshot } from "@yamacommerce/publishing";
+import { nextCounterValue } from "./counters";
 
 /**
  * Fondation données de l'éditeur visuel — voir docs/12 §12.2 et docs/04 §4.5.7.
@@ -208,30 +210,57 @@ export async function duplicatePage(
   });
 }
 
+function toPageSnapshot(page: { slug: string; title: string; blocks: Prisma.JsonValue }): PageSnapshot {
+  return { slug: page.slug, title: page.title, contentFingerprint: JSON.stringify(page.blocks) };
+}
+
+/** Scope de compteur pour la numérotation séquentielle des versions PUBLIÉES d'un
+ *  site (voir @yamacommerce/database `nextCounterValue`) — un compteur par site, pas
+ *  par tenant, puisqu'un tenant n'a qu'un seul `TenantSite` de toute façon en Phase 1. */
+export function siteVersionCounterScope(tenantSiteId: string): string {
+  return `site-version-${tenantSiteId}`;
+}
+
+export interface PublishVersionOptions {
+  /** Message facultatif saisi par le publieur — voir docs/12 §12.3. */
+  publishMessage?: string;
+  /** Domaine/sous-domaine effectivement servi par cette version au moment de la
+   *  publication (snapshot, voir `TenantSiteVersion.domainUsed`). */
+  domainUsed?: string | null;
+  /** Vrai quand cette publication provient du job de publication programmée plutôt
+   *  que d'un clic direct sur "Publier maintenant". */
+  wasScheduled?: boolean;
+  /** Renseignés UNIQUEMENT par le pipeline de restauration (voir
+   *  apps/web/lib/publishing/restore-pipeline.ts) : trace la version archivée source
+   *  et, pour une restauration Super Admin, la justification obligatoire — jamais
+   *  saisis directement par un appel "Publier maintenant" normal. */
+  restoredFromVersionId?: string;
+  restoreJustification?: string;
+}
+
+type PageRow = { slug: string; title: string; isHome: boolean; blocks: Prisma.JsonValue };
+
 /**
- * Publie le brouillon courant : la version publiée précédente (s'il y en a une) est
- * archivée — jamais supprimée, jamais écrasée — puis le brouillon est promu "published"
- * et un NOUVEAU brouillon (copie fidèle de ce qui vient d'être publié) est créé pour que
- * l'édition puisse continuer sans interruption. Met aussi à jour
- * `TenantSite.isPublished`/`publishedAt` pour rester compatible avec
- * `resolve-tenant-site.ts` tant qu'une version publiée existe.
+ * Cœur commun de `publishVersion` (source = le brouillon courant) et
+ * `publishScheduledVersion` (source = une version précise déjà marquée "scheduled") —
+ * factorisé pour qu'une seule et même logique de validation/archivage/numérotation
+ * s'applique aux deux chemins de publication (voir docs/12 §12.3, « PUBLICATION
+ * ATOMIQUE »). Ne touche JAMAIS au brouillon courant : la gestion du nouveau brouillon
+ * après publication diffère entre les deux appelants (voir leurs commentaires
+ * respectifs) et reste donc de LEUR responsabilité, pas de celle-ci.
  */
-export async function publishVersion(
+async function finalizePublish(
   tx: Prisma.TransactionClient,
   tenantId: string,
   tenantSiteId: string,
+  sourceVersionId: string,
+  sourcePages: PageRow[],
+  options: PublishVersionOptions,
 ) {
-  const draft = await tx.tenantSiteVersion.findFirst({
-    where: { tenantSiteId, status: "draft" },
-    include: { pages: true },
-  });
-  if (!draft) {
-    throw new Error("publishVersion : aucun brouillon à publier pour ce site.");
+  if (sourcePages.length === 0) {
+    throw new Error("finalizePublish : la version à publier n'a aucune page — publication refusée.");
   }
-  if (draft.pages.length === 0) {
-    throw new Error("publishVersion : le brouillon n'a aucune page — publication refusée.");
-  }
-  for (const page of draft.pages) {
+  for (const page of sourcePages) {
     validatePageInput({
       slug: page.slug,
       title: page.title,
@@ -242,7 +271,14 @@ export async function publishVersion(
 
   const previousPublished = await tx.tenantSiteVersion.findFirst({
     where: { tenantSiteId, status: "published" },
+    include: { pages: true },
   });
+
+  const changesSummary = computeChangesSummary(
+    (previousPublished?.pages ?? []).map(toPageSnapshot),
+    sourcePages.map(toPageSnapshot),
+  );
+
   if (previousPublished) {
     await tx.tenantSiteVersion.update({
       where: { id: previousPublished.id },
@@ -250,10 +286,22 @@ export async function publishVersion(
     });
   }
 
+  const versionNumber = await nextCounterValue(tx, tenantId, siteVersionCounterScope(tenantSiteId));
+
   const now = new Date();
   const published = await tx.tenantSiteVersion.update({
-    where: { id: draft.id },
-    data: { status: "published", publishedAt: now },
+    where: { id: sourceVersionId },
+    data: {
+      status: "published",
+      publishedAt: now,
+      versionNumber,
+      publishMessage: options.publishMessage ?? null,
+      changesSummary: changesSummary as unknown as Prisma.InputJsonValue,
+      domainUsed: options.domainUsed ?? null,
+      wasScheduled: options.wasScheduled ?? false,
+      restoredFromVersionId: options.restoredFromVersionId ?? null,
+      restoreJustification: options.restoreJustification ?? null,
+    },
   });
 
   await tx.tenantSite.update({
@@ -261,25 +309,130 @@ export async function publishVersion(
     data: { isPublished: true, publishedAt: now },
   });
 
+  return { published, changesSummary };
+}
+
+function copyPagesData(tenantId: string, pages: PageRow[]) {
+  return pages.map((page) => ({
+    tenantId,
+    slug: page.slug,
+    title: page.title,
+    isHome: page.isHome,
+    blocks: page.blocks as Prisma.InputJsonValue,
+  }));
+}
+
+/**
+ * Publie le brouillon courant : la version publiée précédente (s'il y en a une) est
+ * archivée — jamais supprimée, jamais écrasée — puis le brouillon est promu "published"
+ * et un NOUVEAU brouillon (copie fidèle de ce qui vient d'être publié) est créé pour que
+ * l'édition puisse continuer sans interruption. Met aussi à jour
+ * `TenantSite.isPublished`/`publishedAt` pour rester compatible avec
+ * `resolve-tenant-site.ts` tant qu'une version publiée existe.
+ *
+ * Fige `versionNumber` (compteur séquentiel), `changesSummary` (calculé UNE FOIS ici,
+ * jamais recalculé plus tard — voir @yamacommerce/publishing) et le reste des métadonnées
+ * d'historique. Les VALIDATIONS de préparation (`checkPublishReadiness`) sont la
+ * responsabilité de l'appelant (voir apps/web/lib/publishing/publish-pipeline.ts) : cette
+ * fonction reste le dernier verrou (pages non vides, sections valides), pas le seul.
+ */
+export async function publishVersion(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  tenantSiteId: string,
+  options: PublishVersionOptions = {},
+) {
+  const draft = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "draft" },
+    include: { pages: true },
+  });
+  if (!draft) {
+    throw new Error("publishVersion : aucun brouillon à publier pour ce site.");
+  }
+
+  const { published, changesSummary } = await finalizePublish(
+    tx,
+    tenantId,
+    tenantSiteId,
+    draft.id,
+    draft.pages,
+    options,
+  );
+
   const newDraft = await tx.tenantSiteVersion.create({
     data: {
       tenantId,
       tenantSiteId,
       status: "draft",
-      pages: {
-        create: draft.pages.map((page) => ({
-          tenantId,
-          slug: page.slug,
-          title: page.title,
-          isHome: page.isHome,
-          blocks: page.blocks as Prisma.InputJsonValue,
-        })),
-      },
+      pages: { create: copyPagesData(tenantId, draft.pages) },
     },
     include: { pages: true },
   });
 
-  return { published, newDraft };
+  return { published, newDraft, changesSummary };
+}
+
+/**
+ * Publie une version PRÉCISE déjà marquée "scheduled" — voir docs/12 §12.3,
+ * « PUBLICATION PROGRAMMÉE » : le job planifié appelle CETTE fonction, jamais
+ * `publishVersion()`, car `scheduleVersionPublish()` ne fait que marquer le brouillon
+ * courant "scheduled" SANS en créer un nouveau : `publishVersion()` chercherait alors
+ * un brouillon "draft" et, si l'utilisateur en a entre-temps créé un nouveau en
+ * continuant à éditer pendant l'attente, publierait CE brouillon-là par erreur au lieu
+ * de la version programmée. Idempotent : si la version n'est déjà plus "scheduled"
+ * (déjà publiée ou annulée par ailleurs), ne fait rien et retourne `null` — c'est ce
+ * qui permet au job planifié d'être rejoué sans risque de double publication.
+ *
+ * Ne crée un nouveau brouillon QUE s'il n'en existe pas déjà un — si l'utilisateur a
+ * continué à éditer pendant l'attente, CE brouillon reste intact et devient le
+ * brouillon courant après publication, sans être remplacé par une copie de la version
+ * qui vient d'être publiée.
+ */
+export async function publishScheduledVersion(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  tenantSiteId: string,
+  versionId: string,
+  options: PublishVersionOptions = {},
+) {
+  const scheduled = await tx.tenantSiteVersion.findUnique({
+    where: { id: versionId },
+    include: { pages: true },
+  });
+  if (!scheduled || scheduled.tenantSiteId !== tenantSiteId) {
+    throw new Error(`publishScheduledVersion : version "${versionId}" introuvable pour ce site.`);
+  }
+  if (scheduled.status !== "scheduled") {
+    // Idempotence : déjà publiée, annulée, ou rejouée après un job précédent réussi.
+    return null;
+  }
+
+  const { published, changesSummary } = await finalizePublish(
+    tx,
+    tenantId,
+    tenantSiteId,
+    scheduled.id,
+    scheduled.pages,
+    { ...options, wasScheduled: true },
+  );
+
+  const existingDraft = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "draft" },
+    include: { pages: true },
+  });
+  const newDraft =
+    existingDraft ??
+    (await tx.tenantSiteVersion.create({
+      data: {
+        tenantId,
+        tenantSiteId,
+        status: "draft",
+        pages: { create: copyPagesData(tenantId, scheduled.pages) },
+      },
+      include: { pages: true },
+    }));
+
+  return { published, newDraft, changesSummary };
 }
 
 /**

@@ -22,6 +22,7 @@
     "@prisma/client": "^5.22.0",
     "@yamacommerce/auth": "workspace:*",
     "@yamacommerce/design-tokens": "workspace:*",
+    "@yamacommerce/publishing": "workspace:*",
     "@yamacommerce/templates": "workspace:*",
     "bcryptjs": "^2.4.3"
   },

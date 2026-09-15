@@ -10,6 +10,7 @@ export const QUEUE_NAMES = {
   imports: "imports",
   webhooksPayments: "webhooks-payments",
   notifications: "notifications",
+  sitePublishing: "site-publishing",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -52,6 +53,23 @@ export interface NotificationJobData {
   templateType: string;
   recipient: string;
   variables: Record<string, unknown>;
+}
+
+/**
+ * Publication programmée d'un site — voir docs/12 §12.3, « publication définitive »
+ * (22 septembre 2026). Un job est mis en file avec un `delay` calculé au moment de
+ * `scheduleVersionPublish()` (voir @yamacommerce/database) pour arriver exactement à
+ * `scheduledAtIso` ; `versionId` est la source de vérité au moment de l'exécution
+ * (le worker relit TOUJOURS l'état réel en base plutôt que de faire confiance aux
+ * autres champs, qui ne sont là que pour le diagnostic/les journaux — voir « Réessayer
+ * en cas d'erreur temporaire », « Éviter les doubles publications »).
+ */
+export interface SitePublishingJobData {
+  tenantId: string;
+  tenantSiteId: string;
+  versionId: string;
+  scheduledAtIso: string;
+  requestedByUserId: string;
 }
 
 /** Options par défaut appliquées à tous les jobs : retries avec backoff exponentiel,

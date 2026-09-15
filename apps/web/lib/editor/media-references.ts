@@ -96,3 +96,52 @@ export function findMediaReferencesInPages(
   }
   return results;
 }
+
+function collectAllUrls(fields: FieldDescriptor[], value: unknown): string[] {
+  if (!value || typeof value !== "object") return [];
+  const record = value as Record<string, unknown>;
+  const urls: string[] = [];
+
+  for (const field of fields) {
+    const raw = record[field.name];
+    if (field.kind === "url") {
+      if (typeof raw === "string" && raw.length > 0) urls.push(raw);
+    } else if (field.kind === "object") {
+      urls.push(...collectAllUrls(field.fields ?? [], raw));
+    } else if (field.kind === "array-object" && Array.isArray(raw)) {
+      raw.forEach((item) => urls.push(...collectAllUrls(field.itemFields ?? [], item)));
+    }
+  }
+
+  return urls;
+}
+
+export interface MediaUrlReference {
+  url: string;
+  pageSlug: string;
+  sectionId: string;
+}
+
+/**
+ * Extrait TOUTES les URLs de médias référencées par un ensemble de pages — voir
+ * docs/12 §12.3, « MÉDIAS » : « rendre publics uniquement les médias réellement
+ * utilisés par la version publiée ». Contrairement à `findMediaReferencesInPages`
+ * (qui cherche UNE url précise, pour la garde de suppression), cette fonction énumère
+ * chaque référence trouvée — utilisée par le pipeline de publication pour construire
+ * `PublishReadinessInput.mediaReferences` (voir @yamacommerce/publishing) et pour
+ * décider quels médias promouvoir publics au moment de publier.
+ */
+export function extractMediaUrlsFromPages(pages: PageForMediaScan[]): MediaUrlReference[] {
+  const results: MediaUrlReference[] = [];
+  for (const page of pages) {
+    for (const block of page.blocks) {
+      const schema = sectionParamSchemas[block.sectionKey] as z.ZodObject<z.ZodRawShape> | undefined;
+      if (!schema) continue;
+      const fields = describeObjectSchema(schema);
+      for (const url of collectAllUrls(fields, block.params)) {
+        results.push({ url, pageSlug: page.slug, sectionId: block.id });
+      }
+    }
+  }
+  return results;
+}

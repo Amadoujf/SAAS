@@ -3,12 +3,14 @@ import { DEFAULT_DESIGN_TOKENS } from "@yamacommerce/design-tokens";
 import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 import { assignTemplateToTenant, upsertTemplate } from "../src/templates-registry";
+import { writeAuditLog } from "../src/audit-log-registry";
 import {
   cancelScheduledPublish,
   duplicatePage,
   getOrCreateDraftVersion,
   getPublishedVersion,
   listVersionHistory,
+  publishScheduledVersion,
   publishVersion,
   restoreVersionIntoDraft,
   scheduleVersionPublish,
@@ -115,6 +117,7 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
   afterAll(async () => {
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
+      await tx.auditLog.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
       await tx.page.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
       await tx.tenantSiteVersion.deleteMany({
         where: { tenantId: { in: [tenantAId, tenantBId] } },
@@ -219,13 +222,23 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
       getOrCreateDraftVersion(tx, tenantAId, tenantSiteAId),
     );
 
-    const { published, newDraft } = await withTenant(tenantAId, (tx) =>
-      publishVersion(tx, tenantAId, tenantSiteAId),
+    const { published, newDraft, changesSummary } = await withTenant(tenantAId, (tx) =>
+      publishVersion(tx, tenantAId, tenantSiteAId, {
+        publishMessage: "Première mise en ligne",
+        domainUsed: "boutique-test.yamacommerce.app",
+      }),
     );
 
     expect(published.id).toBe(before.id);
     expect(published.status).toBe("published");
     expect(published.publishedAt).not.toBeNull();
+    // Première publication : aucune version publiée précédente à comparer, toutes les
+    // pages du brouillon sont donc comptées comme "ajoutées".
+    expect(published.versionNumber).toBe(1);
+    expect(published.publishMessage).toBe("Première mise en ligne");
+    expect(published.domainUsed).toBe("boutique-test.yamacommerce.app");
+    expect(published.wasScheduled).toBe(false);
+    expect(changesSummary.addedPageSlugs).toEqual(["accueil"]);
     expect(newDraft.id).not.toBe(before.id);
     expect(newDraft.status).toBe("draft");
     // `before` inclut déjà la page dupliquée par le test précédent (2 pages) — le
@@ -244,12 +257,18 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
     expect(site.isPublished).toBe(true);
   });
 
-  it("republier archive l'ancienne version publiée au lieu de l'écraser", async () => {
+  it("republier archive l'ancienne version publiée au lieu de l'écraser, et incrémente le numéro de version", async () => {
     const firstPublished = await withTenant(tenantAId, (tx) =>
       getPublishedVersion(tx, tenantSiteAId),
     );
 
-    await withTenant(tenantAId, (tx) => publishVersion(tx, tenantAId, tenantSiteAId));
+    const { published: secondPublished, changesSummary } = await withTenant(tenantAId, (tx) =>
+      publishVersion(tx, tenantAId, tenantSiteAId),
+    );
+    expect(secondPublished.versionNumber).toBe((firstPublished!.versionNumber ?? 0) + 1);
+    // Rien n'a changé entre les deux publications : le résumé ne doit signaler aucune
+    // page modifiée.
+    expect(changesSummary.totalChangedPages).toBe(0);
 
     const history = await withTenant(tenantAId, (tx) => listVersionHistory(tx, tenantSiteAId));
     const archivedEntry = history.find((v) => v.id === firstPublished!.id);
@@ -325,6 +344,105 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
     await expect(
       withTenant(tenantAId, (tx) => scheduleVersionPublish(tx, draft.id, past)),
     ).rejects.toThrow();
+  });
+
+  it("publishScheduledVersion : publie une version programmée précise SANS toucher à un brouillon créé entre-temps", async () => {
+    const draftToSchedule = await withTenant(tenantAId, (tx) =>
+      getOrCreateDraftVersion(tx, tenantAId, tenantSiteAId),
+    );
+    const future = new Date(Date.now() + 3_600_000);
+    await withTenant(tenantAId, (tx) => scheduleVersionPublish(tx, draftToSchedule.id, future));
+
+    // L'utilisateur continue à éditer pendant l'attente : un NOUVEAU brouillon apparaît
+    // (aucune ligne "draft" n'existe plus tant que celui-ci est "scheduled").
+    const newDraftWhileWaiting = await withTenant(tenantAId, (tx) =>
+      getOrCreateDraftVersion(tx, tenantAId, tenantSiteAId),
+    );
+    expect(newDraftWhileWaiting.id).not.toBe(draftToSchedule.id);
+    const renamed = await withTenant(tenantAId, (tx) =>
+      updatePageMeta(tx, newDraftWhileWaiting.pages[0]!.id, { title: "Modifié pendant l'attente" }),
+    );
+    expect(renamed.title).toBe("Modifié pendant l'attente");
+
+    const result = await withTenant(tenantAId, (tx) =>
+      publishScheduledVersion(tx, tenantAId, tenantSiteAId, draftToSchedule.id),
+    );
+    expect(result).not.toBeNull();
+    expect(result!.published.id).toBe(draftToSchedule.id);
+    expect(result!.published.status).toBe("published");
+    expect(result!.published.wasScheduled).toBe(true);
+    // Le brouillon créé PENDANT l'attente n'est ni remplacé ni écrasé.
+    expect(result!.newDraft.id).toBe(newDraftWhileWaiting.id);
+
+    const stillEditableDraft = await withTenant(tenantAId, (tx) =>
+      tx.page.findUniqueOrThrow({ where: { id: newDraftWhileWaiting.pages[0]!.id } }),
+    );
+    expect(stillEditableDraft.title).toBe("Modifié pendant l'attente");
+  });
+
+  it("publishScheduledVersion : idempotent — ne fait rien si la version n'est plus 'scheduled' (déjà rejouée)", async () => {
+    const draft = await withTenant(tenantAId, (tx) =>
+      getOrCreateDraftVersion(tx, tenantAId, tenantSiteAId),
+    );
+    const future = new Date(Date.now() + 3_600_000);
+    await withTenant(tenantAId, (tx) => scheduleVersionPublish(tx, draft.id, future));
+
+    const first = await withTenant(tenantAId, (tx) =>
+      publishScheduledVersion(tx, tenantAId, tenantSiteAId, draft.id),
+    );
+    expect(first).not.toBeNull();
+
+    const replay = await withTenant(tenantAId, (tx) =>
+      publishScheduledVersion(tx, tenantAId, tenantSiteAId, draft.id),
+    );
+    expect(replay).toBeNull();
+  });
+
+  it("une publication issue d'une restauration trace la version source et la justification (Super Admin)", async () => {
+    const history = await withTenant(tenantAId, (tx) => listVersionHistory(tx, tenantSiteAId));
+    const archived = history.find((v) => v.status === "archived")!;
+
+    await withTenant(tenantAId, (tx) =>
+      restoreVersionIntoDraft(tx, tenantAId, tenantSiteAId, archived.id),
+    );
+
+    const { published } = await withTenant(tenantAId, (tx) =>
+      publishVersion(tx, tenantAId, tenantSiteAId, {
+        restoredFromVersionId: archived.id,
+        restoreJustification: "Rollback demandé par le client après incident.",
+      }),
+    );
+
+    expect(published.restoredFromVersionId).toBe(archived.id);
+    expect(published.restoreJustification).toBe("Rollback demandé par le client après incident.");
+
+    // La restauration ne modifie JAMAIS la version archivée source elle-même.
+    const sourceStillArchived = await withTenant(tenantAId, (tx) =>
+      tx.tenantSiteVersion.findUniqueOrThrow({ where: { id: archived.id } }),
+    );
+    expect(sourceStillArchived.status).toBe("archived");
+    expect(sourceStillArchived.restoredFromVersionId).toBeNull();
+  });
+
+  it("journalise une action Super Admin dans AuditLog (premier point d'écriture du modèle)", async () => {
+    const entry = await withSuperAdminAccess((tx) =>
+      writeAuditLog(tx, {
+        tenantId: tenantAId,
+        actorUserId: null,
+        actorType: "super_admin",
+        action: "site_version.restored",
+        entityType: "TenantSiteVersion",
+        entityId: tenantSiteAId,
+        metadata: { reason: "test" },
+      }),
+    );
+    expect(entry.tenantId).toBe(tenantAId);
+    expect(entry.action).toBe("site_version.restored");
+
+    const readBack = await withTenant(tenantAId, (tx) =>
+      tx.auditLog.findUniqueOrThrow({ where: { id: entry.id } }),
+    );
+    expect(readBack.actorType).toBe("super_admin");
   });
 
   it("isole TenantSiteVersion et Page entre tenants (même garantie RLS que les autres tables)", async () => {

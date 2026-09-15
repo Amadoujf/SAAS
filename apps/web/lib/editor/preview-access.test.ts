@@ -13,9 +13,16 @@ describe("canAccessDraftPreview", () => {
     expect(canAccessDraftPreview(subject({ isSuperAdmin: true }), TENANT_A)).toBe(true);
   });
 
-  it("autorise une adhésion ACTIVE avec la permission settings.site_editor", () => {
+  it("autorise une adhésion ACTIVE avec la permission site.edit", () => {
     const s = subject({
-      memberships: [{ tenantId: TENANT_A, status: "ACTIVE", permissions: ["settings.site_editor"] }],
+      memberships: [{ tenantId: TENANT_A, status: "ACTIVE", permissions: ["site.edit"] }],
+    });
+    expect(canAccessDraftPreview(s, TENANT_A)).toBe(true);
+  });
+
+  it("autorise aussi une adhésion ACTIVE avec SEULEMENT la permission site.preview (l'une ou l'autre suffit)", () => {
+    const s = subject({
+      memberships: [{ tenantId: TENANT_A, status: "ACTIVE", permissions: ["site.preview"] }],
     });
     expect(canAccessDraftPreview(s, TENANT_A)).toBe(true);
   });
@@ -29,14 +36,14 @@ describe("canAccessDraftPreview", () => {
 
   it("refuse une adhésion INVITED (pas encore active), même avec la permission", () => {
     const s = subject({
-      memberships: [{ tenantId: TENANT_A, status: "INVITED", permissions: ["settings.site_editor"] }],
+      memberships: [{ tenantId: TENANT_A, status: "INVITED", permissions: ["site.edit"] }],
     });
     expect(canAccessDraftPreview(s, TENANT_A)).toBe(false);
   });
 
   it("refuse une adhésion SUSPENDED, même avec la permission", () => {
     const s = subject({
-      memberships: [{ tenantId: TENANT_A, status: "SUSPENDED", permissions: ["settings.site_editor"] }],
+      memberships: [{ tenantId: TENANT_A, status: "SUSPENDED", permissions: ["site.edit"] }],
     });
     expect(canAccessDraftPreview(s, TENANT_A)).toBe(false);
   });
@@ -47,7 +54,7 @@ describe("canAccessDraftPreview", () => {
 
   it("ISOLATION TENANT : une adhésion ACTIVE + la permission pour le tenant A n'autorise jamais le tenant B", () => {
     const s = subject({
-      memberships: [{ tenantId: TENANT_A, status: "ACTIVE", permissions: ["settings.site_editor"] }],
+      memberships: [{ tenantId: TENANT_A, status: "ACTIVE", permissions: ["site.edit"] }],
     });
     expect(canAccessDraftPreview(s, TENANT_B)).toBe(false);
   });
@@ -55,7 +62,7 @@ describe("canAccessDraftPreview", () => {
   it("autorise seulement le tenant correspondant parmi plusieurs adhésions", () => {
     const s = subject({
       memberships: [
-        { tenantId: TENANT_A, status: "ACTIVE", permissions: ["settings.site_editor"] },
+        { tenantId: TENANT_A, status: "ACTIVE", permissions: ["site.edit"] },
         { tenantId: TENANT_B, status: "ACTIVE", permissions: [] },
       ],
     });

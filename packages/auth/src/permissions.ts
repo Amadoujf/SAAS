@@ -43,11 +43,17 @@ export const PERMISSIONS = [
   "settings.domain",
   "settings.notifications",
   "settings.subscription",
-  // Éditeur visuel (pages/sections/style/site) — voir docs/12 §12.2. Distincte de
-  // "settings.branding" (logo/couleurs statiques déjà existant) : couvre la
-  // modification de la STRUCTURE du site (pages, sections, brouillon, publication),
-  // pas seulement son identité visuelle.
-  "settings.site_editor",
+
+  // Éditeur visuel et publication de site (voir docs/12 §12.2 et §12.3, 22 septembre
+  // 2026) — distinctes de "settings.branding" (logo/couleurs statiques) : couvrent la
+  // STRUCTURE du site (pages, sections, brouillon) et son cycle de publication.
+  // Remplace l'ancienne "settings.site_editor" unique par un jeu plus granulaire :
+  // un éditeur sans "site.publish" peut préparer un brouillon mais jamais le publier.
+  "site.edit",
+  "site.preview",
+  "site.publish",
+  "site.schedule",
+  "site.restore",
 
   "reports.view",
   "reports.export",

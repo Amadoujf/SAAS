@@ -238,6 +238,23 @@ export async function listPermanentDeletionCandidates(
   });
 }
 
+/**
+ * Promeut (ou non) un média public — voir docs/12 §12.3, « MÉDIAS » : « rendre publics
+ * uniquement les médias réellement utilisés par la version publiée » et « ne jamais
+ * rendre publics les documents sensibles ». N'agit QUE sur `isPublic` : jamais utilisé
+ * pour DÉMARQUER un média déjà public (voir « conserver les médias utilisés par une
+ * ancienne version tant que celle-ci peut être restaurée ») — l'appelant
+ * (apps/web/lib/publishing) ne passe jamais `isPublic: false` en pratique.
+ */
+export async function setMediaAssetPublic(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  id: string,
+  isPublic: boolean,
+) {
+  await tx.mediaAsset.updateMany({ where: { id, tenantId }, data: { isPublic } });
+}
+
 export async function refreshMediaAssetReferenceCount(
   tx: Prisma.TransactionClient,
   tenantId: string,

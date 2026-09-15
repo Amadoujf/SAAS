@@ -15,6 +15,7 @@
     "@yamacommerce/database": "workspace:*",
     "@yamacommerce/design-tokens": "workspace:*",
     "@yamacommerce/domains": "workspace:*",
+    "@yamacommerce/publishing": "workspace:*",
     "@yamacommerce/queue": "workspace:*",
     "@yamacommerce/storage": "workspace:*",
     "@yamacommerce/templates": "workspace:*",

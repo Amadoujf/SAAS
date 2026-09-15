@@ -10,6 +10,7 @@ import {
   permanentlyDeleteMediaAsset,
   refreshMediaAssetReferenceCount,
   restoreMediaAsset,
+  setMediaAssetPublic,
   trashMediaAsset,
   updateMediaAsset,
   computeStorageUsage,
@@ -104,6 +105,10 @@ export class PrismaMediaRepository implements MediaRepository {
   async update(tenantId: string, id: string, input: UpdateInput): Promise<MediaAssetRecord> {
     const row = await withTenant(tenantId, (tx) => updateMediaAsset(tx, tenantId, id, input));
     return toRecord(row);
+  }
+
+  async setPublic(tenantId: string, id: string, isPublic: boolean): Promise<void> {
+    await withTenant(tenantId, (tx) => setMediaAssetPublic(tx, tenantId, id, isPublic));
   }
 
   async findByChecksum(tenantId: string, checksumSha256: string): Promise<MediaAssetRecord | null> {

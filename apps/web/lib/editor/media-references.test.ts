@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { SectionInstance } from "@yamacommerce/templates";
-import { findMediaReferencesInPages, findMediaReferencesInSection } from "./media-references";
+import {
+  extractMediaUrlsFromPages,
+  findMediaReferencesInPages,
+  findMediaReferencesInSection,
+} from "./media-references";
 
 const TARGET = "https://cdn.example.com/media/photo.jpg";
 const OTHER = "https://cdn.example.com/media/other.jpg";
@@ -69,5 +73,40 @@ describe("findMediaReferencesInPages", () => {
   it("retourne un tableau vide quand aucune page ne référence le média", () => {
     const pages = [{ id: "home", slug: "accueil", title: "Accueil", blocks: [hero(OTHER)] }];
     expect(findMediaReferencesInPages(pages, TARGET)).toEqual([]);
+  });
+});
+
+describe("extractMediaUrlsFromPages", () => {
+  it("énumère toutes les URLs de médias référencées, toutes pages confondues", () => {
+    const pages = [
+      { id: "home", slug: "accueil", title: "Accueil", blocks: [hero(TARGET), gallery([OTHER])] },
+      { id: "about", slug: "a-propos", title: "À propos", blocks: [gallery([TARGET, OTHER])] },
+    ];
+    const refs = extractMediaUrlsFromPages(pages);
+    expect(refs).toEqual([
+      { url: TARGET, pageSlug: "accueil", sectionId: "hero-1" },
+      { url: OTHER, pageSlug: "accueil", sectionId: "gallery-1" },
+      { url: TARGET, pageSlug: "a-propos", sectionId: "gallery-1" },
+      { url: OTHER, pageSlug: "a-propos", sectionId: "gallery-1" },
+    ]);
+  });
+
+  it("ignore les champs média vides et les sections de clé inconnue", () => {
+    const emptyHero: SectionInstance = {
+      id: "hero-2",
+      sectionKey: "hero",
+      variant: "split",
+      order: 0,
+      isEnabled: true,
+      animationOverride: "inherit",
+      params: { title: "x", media: { url: "", alt: "" } },
+    };
+    const unknown = { ...hero(TARGET), sectionKey: "future_sector_section" as never };
+    const pages = [{ id: "home", slug: "accueil", title: "Accueil", blocks: [emptyHero, unknown] }];
+    expect(extractMediaUrlsFromPages(pages)).toEqual([]);
+  });
+
+  it("retourne un tableau vide pour un site sans page", () => {
+    expect(extractMediaUrlsFromPages([])).toEqual([]);
   });
 });

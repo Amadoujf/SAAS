@@ -94,6 +94,10 @@ export interface MediaRepository {
   get(tenantId: string, id: string): Promise<MediaAssetRecord | null>;
   list(tenantId: string, filter?: ListFilter): Promise<MediaAssetRecord[]>;
   update(tenantId: string, id: string, input: UpdateInput): Promise<MediaAssetRecord>;
+  /** Voir docs/12 §12.3, « MÉDIAS » — appelé UNIQUEMENT par le pipeline de publication
+   *  pour promouvoir (jamais démarquer) un média réellement utilisé par la version
+   *  publiée. */
+  setPublic(tenantId: string, id: string, isPublic: boolean): Promise<void>;
   findByChecksum(tenantId: string, checksumSha256: string): Promise<MediaAssetRecord | null>;
   trash(tenantId: string, id: string): Promise<void>;
   restore(tenantId: string, id: string): Promise<void>;

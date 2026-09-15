@@ -1,4 +1,4 @@
-import { hasPermission } from "@yamacommerce/auth";
+import { hasAnyPermission } from "@yamacommerce/auth";
 
 /**
  * Contrôle d'accès à l'aperçu de BROUILLON de l'éditeur visuel — voir docs/12 §12.2,
@@ -30,15 +30,18 @@ export interface PreviewAccessSubject {
   memberships: readonly PreviewAccessMembership[];
 }
 
-/** Permission requise pour prévisualiser/éditer le brouillon d'un site — voir
- *  @yamacommerce/auth `PERMISSIONS` (« settings.site_editor »). */
-const REQUIRED_PERMISSION = "settings.site_editor" as const;
+/** L'une OU l'autre suffit à voir le brouillon — voir @yamacommerce/auth
+ *  `PERMISSIONS` (22 septembre 2026, remplace l'ancienne "settings.site_editor"
+ *  unique) : un éditeur (`site.edit`) peut forcément voir ce qu'il édite, et un
+ *  simple relecteur (`site.preview`, ex. un rôle métier ne devant jamais modifier le
+ *  site) peut être habilité à le voir sans l'éditer. */
+const REQUIRED_PERMISSIONS = ["site.edit", "site.preview"] as const;
 
 /**
  * Un Super Admin peut prévisualiser n'importe quel tenant (support/diagnostic — voir
  * `ImpersonationSession` dans le schéma Prisma, le même principe que l'usurpation
  * d'identité déjà prévue). Sinon, il faut une adhésion ACTIVE (pas INVITED/SUSPENDED)
- * pour CE tenant précis, avec la permission `settings.site_editor`.
+ * pour CE tenant précis, avec au moins une des permissions requises.
  */
 export function canAccessDraftPreview(subject: PreviewAccessSubject, tenantId: string): boolean {
   if (subject.isSuperAdmin) return true;
@@ -48,5 +51,5 @@ export function canAccessDraftPreview(subject: PreviewAccessSubject, tenantId: s
   );
   if (!membership) return false;
 
-  return hasPermission(membership.permissions, REQUIRED_PERMISSION);
+  return hasAnyPermission(membership.permissions, [...REQUIRED_PERMISSIONS]);
 }

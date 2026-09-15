@@ -24,7 +24,7 @@ export const metadata: Metadata = {
  *     protection RLS que le tableau de bord (voir `app/dashboard/page.tsx`), qui ne
  *     peut de toute façon renvoyer que des lignes où cet utilisateur est membre ;
  *  3. Vérifie `canAccessDraftPreview()` (voir lib/editor/preview-access.ts) — une
- *     adhésion ACTIVE avec la permission `settings.site_editor` POUR CE TENANT
+ *     adhésion ACTIVE avec la permission `site.edit` OU `site.preview` POUR CE TENANT
  *     PRÉCIS, ou le statut Super Admin ; sinon `notFound()` (jamais un message
  *     distinguant "tenant inexistant" de "accès refusé", pour ne rien révéler à un
  *     utilisateur non autorisé) ;
