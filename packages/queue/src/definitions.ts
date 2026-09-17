@@ -11,6 +11,7 @@ export const QUEUE_NAMES = {
   webhooksPayments: "webhooks-payments",
   notifications: "notifications",
   sitePublishing: "site-publishing",
+  domainDnsCheck: "domain-dns-check",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -70,6 +71,20 @@ export interface SitePublishingJobData {
   versionId: string;
   scheduledAtIso: string;
   requestedByUserId: string;
+}
+
+/**
+ * Détection DNS d'un domaine personnalisé — voir docs/13, « DÉTECTION DNS ». Un job
+ * par TENTATIVE (jamais un seul job en boucle interne) : `attempt` sert à calculer
+ * le délai progressif côté producteur (voir apps/web/lib/domains/dns-check.ts) et à
+ * savoir, côté worker, combien de fois ce domaine a déjà été revérifié. Idempotent :
+ * le worker relit TOUJOURS l'état réel du domaine avant d'agir (jamais de confiance
+ * aveugle dans les champs de ce job).
+ */
+export interface DomainDnsCheckJobData {
+  tenantId: string;
+  domainId: string;
+  attempt: number;
 }
 
 /** Options par défaut appliquées à tous les jobs : retries avec backoff exponentiel,

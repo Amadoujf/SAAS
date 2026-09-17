@@ -46,7 +46,7 @@ export async function buildPublishReadinessInput(
     include: { template: true },
   });
   const activeVerifiedDomain = await tx.domain.findFirst({
-    where: { tenantId, verified: true, status: "active" },
+    where: { tenantId, lifecycleStatus: "ACTIVE" },
   });
 
   const mediaUrlRefs = extractMediaUrlsFromPages(draftPages);

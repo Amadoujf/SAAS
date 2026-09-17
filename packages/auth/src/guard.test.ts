@@ -8,7 +8,7 @@ describe("hasPermission", () => {
   });
 
   it("refuse une permission absente", () => {
-    expect(hasPermission(["orders.view"], "settings.domain")).toBe(false);
+    expect(hasPermission(["orders.view"], "domains.manage_billing")).toBe(false);
   });
 });
 
@@ -18,7 +18,7 @@ describe("assertPermission", () => {
   });
 
   it("lève une PermissionDeniedError si la permission est absente", () => {
-    expect(() => assertPermission([], "settings.domain")).toThrow(PermissionDeniedError);
+    expect(() => assertPermission([], "domains.manage_billing")).toThrow(PermissionDeniedError);
   });
 });
 
@@ -31,7 +31,12 @@ describe("SYSTEM_ROLE_PERMISSIONS", () => {
     expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.DELIVERY_STAFF, "payments.configure")).toBe(false);
   });
 
-  it("le rôle MANAGER n'a pas la permission settings.domain (réservée au propriétaire)", () => {
-    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.MANAGER, "settings.domain")).toBe(false);
+  it("le rôle MANAGER n'a pas la permission domains.manage_billing (réservée au propriétaire)", () => {
+    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.MANAGER, "domains.manage_billing")).toBe(false);
+  });
+
+  it("le rôle MANAGER PEUT connecter/vérifier un domaine (granularité, voir docs/13)", () => {
+    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.MANAGER, "domains.create")).toBe(true);
+    expect(hasPermission(SYSTEM_ROLE_PERMISSIONS.MANAGER, "domains.verify")).toBe(true);
   });
 });

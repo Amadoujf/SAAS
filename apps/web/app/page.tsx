@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import { permanentRedirect } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant";
 import { DEFAULT_LOCALE, t } from "@/lib/i18n";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
@@ -22,6 +23,12 @@ export default async function HomePage() {
     const resolution = await resolvePublicSite(host);
     if (resolution.status === "suspended") {
       return <PublicSiteSuspended tenantName={resolution.tenantName} />;
+    }
+    if (resolution.status === "redirect") {
+      // Redirection PERMANENTE uniquement après validation complète — voir docs/13,
+      // « DOMAINES PRINCIPAUX ET REDIRECTIONS » : ce domaine est déjà ACTIVE, la
+      // redirection est donc définitive, jamais un sondage temporaire.
+      permanentRedirect(`https://${resolution.targetDomain}/`);
     }
     if (resolution.status === "ok") {
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;

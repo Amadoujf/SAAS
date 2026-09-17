@@ -100,6 +100,36 @@ model Tenant {
   @@index([status])
 }
 
+/// Cycle de vie complet d'un domaine — voir docs/13 (assistant de domaines
+/// personnalisés, 16 septembre 2026), « STATUTS DU DOMAINE ». Remplace les trois
+/// anciens statuts épars (`verified`/`verificationStatus`/`sslStatus`/`status`) par
+/// UN SEUL champ faisant foi, pour qu'il n'existe jamais de combinaison
+/// contradictoire (ex. "verified=true" mais "sslStatus=pending" sans distinguer si
+/// c'est normal ou bloqué).
+///
+/// DRAFT : domaine saisi, pas encore de jeton généré. PENDING_DNS : jeton généré,
+/// instructions affichées, aucun enregistrement détecté. VERIFYING : au moins une
+/// tentative de détection DNS a eu lieu. VERIFIED : propriété confirmée (TXT trouvé),
+/// certificat pas encore demandé. SSL_PENDING : certificat en cours d'émission.
+/// ACTIVE : certificat émis, domaine réellement servi — voir « Ne jamais afficher un
+/// domaine comme actif avant que le HTTPS fonctionne réellement ». MISCONFIGURED :
+/// une configuration valide a été détectée puis cassée (ou n'a jamais abouti après de
+/// nombreuses tentatives). SUSPENDED : action Super Admin. EXPIRED : domaine
+/// géré par la plateforme dont l'échéance est dépassée. REMOVED : retiré par le
+/// client ou un Super Admin — la ligne est conservée pour l'audit, jamais supprimée.
+enum DomainLifecycleStatus {
+  DRAFT
+  PENDING_DNS
+  VERIFYING
+  VERIFIED
+  SSL_PENDING
+  ACTIVE
+  MISCONFIGURED
+  SUSPENDED
+  EXPIRED
+  REMOVED
+}
+
 model Domain {
   id        String  @id @default(uuid())
   tenantId  String
@@ -108,13 +138,23 @@ model Domain {
   // appartenir à deux tenants à la fois — voir docs/09, Phase 1 (« domaine personnalisé »).
   type      String // "subdomain" | "custom"
   isPrimary Boolean @default(false)
+  /// Voir @yamacommerce/domains `domain-redirect.ts` : un domaine non-principal
+  /// redirige TOUJOURS directement vers le principal du tenant, SAUF s'il porte ce
+  /// drapeau (posé sur le sous-domaine gratuit — « conserver le sous-domaine comme
+  /// adresse de secours après connexion d'un domaine personnalisé »).
+  serveDirectlyWhenNotPrimary Boolean @default(false)
 
-  // --- Vérification DNS ---------------------------------------------------
-  verified                 Boolean   @default(false)
-  verificationToken        String?
-  verificationStatus       String    @default("pending") // pending | verified | failed
+  lifecycleStatus DomainLifecycleStatus @default(DRAFT)
+
+  // --- Vérification de propriété -------------------------------------------
+  /// Voir « VÉRIFICATION DE PROPRIÉTÉ » : aléatoire, lié à ce tenant+domaine par cette
+  /// seule ligne, expirable, renouvelable (régénéré = ancien jeton immédiatement
+  /// invalide). Jamais journalisé dans un message d'erreur public.
+  verificationToken          String?
+  verificationTokenExpiresAt DateTime?
+  verificationAttempts       Int       @default(0)
   /// Enregistrements DNS attendus, affichés au commerçant dans l'assistant de
-  /// configuration : [{ type: "CNAME"|"A"|"TXT", host, value }].
+  /// configuration : [{ type: "CNAME"|"A"|"TXT", host, value, ttlSeconds }].
   expectedDnsRecords       Json?     @default("[]")
   /// Dernier relevé DNS constaté par la détection automatique périodique.
   detectedDnsRecords       Json?
@@ -122,32 +162,35 @@ model Domain {
   /// Horodatage du dernier rappel envoyé si la configuration reste incomplète.
   incompleteReminderSentAt DateTime?
 
-  // --- TLS ------------------------------------------------------------------
-  sslStatus String @default("pending") // pending | issued | failed
-
   // Abstraction du fournisseur de domaine (adjustement #5) : permet de migrer de Caddy
   // (on-demand TLS, dev/premiers déploiements) vers Cloudflare Custom Hostnames sans
   // changer le modèle de données ni le code appelant — voir packages/domains.
-  dnsProvider          String  @default("caddy") // caddy | cloudflare_custom_hostname
+  dnsProvider          String  @default("caddy") // caddy | cloudflare_custom_hostname | local
   cloudflareHostnameId String?
 
-  // --- Redirection & cycle de vie -------------------------------------------
-  /// Si vrai, le sous-domaine gratuit redirige (301) vers ce domaine personnalisé une
-  /// fois celui-ci vérifié et actif — jamais l'inverse, le sous-domaine reste toujours
-  /// fonctionnel en secours.
-  redirectSubdomainToCustom Boolean @default(false)
-  status                    String  @default("active") // active | suspended
-
-  // --- Facturation (le Super Admin peut acheter le domaine pour le client) --
-  purchasedByPlatform Boolean   @default(false)
-  priceBilledXOF      Int?
-  renewalDate         DateTime?
+  // --- Domaine géré par la plateforme (achat + registrar) --------------------
+  /// Voir « DOMAINE GÉRÉ PAR LA PLATEFORME » : le titulaire légal reste TOUJOURS le
+  /// client (`legalOwnerName`/`legalOwnerContact`), même quand la plateforme
+  /// administre techniquement le domaine.
+  managedByPlatform   Boolean   @default(false)
+  registrarProvider   String? // "opensrs" | "manual" | null — voir @yamacommerce/domains `registrar-provider.ts`.
+  externalRegistrarId String?
+  purchasedAt         DateTime?
+  expiresAt           DateTime?
+  autoRenew           Boolean   @default(false)
+  purchaseCostXOF     Int? // ce que la plateforme a payé au registrar.
+  priceBilledXOF      Int? // ce qui est facturé au client.
+  paymentStatus       String? // "paid" | "pending" | "failed" | null.
+  legalOwnerName      String?
+  legalOwnerContact   Json?
+  transferStatus      String? // "none" | "pending" | "completed" | "failed" | null.
+  isLocked            Boolean   @default(true) // verrou de transfert registrar (protection anti-vol).
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([tenantId])
-  @@index([status, verificationStatus])
+  @@index([lifecycleStatus])
 }
 
 model Plan {

@@ -31,11 +31,26 @@ export class CaddyDomainProvider implements DomainProvider {
     }
   }
 
-  async provisionDomain(_domain: string): Promise<DomainProvisioningResult> {
-    // Avec Caddy en on-demand TLS, le certificat est émis automatiquement au premier
-    // appel HTTPS reçu pour un domaine autorisé (via /api/domains/ask) — rien à
-    // déclencher explicitement ici.
-    return { sslStatus: "pending" };
+  /**
+   * Avec Caddy en on-demand TLS, il n'existe pas d'API de statut de certificat
+   * interrogeable (voir infra/Caddyfile) : le certificat est émis automatiquement
+   * au premier appel HTTPS reçu pour un domaine autorisé (via `/api/domains/ask`).
+   * Cette méthode EST donc à la fois le déclenchement ET la vérification : une
+   * requête HTTPS réelle envers le domaine sert de sonde — si elle aboutit
+   * (poignée de main TLS réussie, quel que soit le code HTTP retourné), le
+   * certificat est RÉELLEMENT émis et fonctionnel ; sinon, "pending" (voir
+   * « Ne jamais afficher un domaine comme actif avant que le HTTPS fonctionne
+   * réellement »). Rappelée à chaque tentative par le worker de détection tant que
+   * le statut reste "pending" — chaque appel a une chance de déclencher l'émission
+   * ET de la constater.
+   */
+  async provisionDomain(domain: string): Promise<DomainProvisioningResult> {
+    try {
+      await fetch(`https://${domain}`, { method: "HEAD", signal: AbortSignal.timeout(5000) });
+      return { sslStatus: "issued" };
+    } catch {
+      return { sslStatus: "pending" };
+    }
   }
 
   async revokeDomain(_domain: string): Promise<void> {

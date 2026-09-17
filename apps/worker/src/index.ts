@@ -1,7 +1,8 @@
 import { Worker } from "bullmq";
-import { redisConnection, QUEUE_NAMES } from "@yamacommerce/queue";
+import { redisConnection, QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
 import type {
   AIJobData,
+  DomainDnsCheckJobData,
   EmailJobData,
   ImportJobData,
   InvoiceJobData,
@@ -123,6 +124,49 @@ const sitePublishingWorker = new Worker<SitePublishingJobData>(
   { connection: redisConnection, concurrency },
 );
 
+/**
+ * Détection DNS des domaines personnalisés — voir docs/13, « DÉTECTION DNS ». Même
+ * pattern que `sitePublishingWorker` : aucune logique métier ici, seulement l'appel à
+ * la route interne d'`apps/web` (qui décide elle-même de reprogrammer la tentative
+ * suivante, voir app/api/internal/domains/check/route.ts).
+ */
+const domainDnsCheckWorker = new Worker<DomainDnsCheckJobData>(
+  QUEUE_NAMES.domainDnsCheck,
+  async (job) => {
+    if (job.data.domainId === "__sweep__") {
+      const response = await fetch(`${webAppInternalUrl}/api/internal/domains/sweep`, {
+        method: "POST",
+        headers: { "x-internal-secret": internalWorkerSecret },
+      });
+      if (!response.ok) throw new Error(`[domain-dns-sweep] réponse inattendue : ${response.status}`);
+      const result = (await response.json()) as { enqueued: number };
+      console.info(`[domain-dns-sweep] ${result.enqueued} domaine(s) reprogrammé(s).`);
+      return;
+    }
+
+    const response = await fetch(`${webAppInternalUrl}/api/internal/domains/check`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-internal-secret": internalWorkerSecret },
+      body: JSON.stringify(job.data),
+    });
+    if (!response.ok) {
+      throw new Error(`[domain-dns-check] réponse inattendue de la route interne : ${response.status}`);
+    }
+    const result = (await response.json()) as { outcome: string };
+    console.info(`[domain-dns-check] domaine "${job.data.domainId}" → ${result.outcome}`);
+  },
+  { connection: redisConnection, concurrency },
+);
+
+// Balayage périodique (idempotent : `upsertJobScheduler` remplace un planificateur
+// existant portant le même id plutôt que d'en empiler un nouveau à chaque redémarrage
+// du worker) — voir app/api/internal/domains/sweep/route.ts.
+await domainDnsCheckQueue.upsertJobScheduler(
+  "domain-dns-sweep",
+  { every: 15 * 60 * 1000 },
+  { name: QUEUE_NAMES.domainDnsCheck, data: { tenantId: "*", domainId: "__sweep__", attempt: 0 } },
+);
+
 const workers = [
   webhooksPaymentsWorker,
   emailsWorker,
@@ -131,6 +175,7 @@ const workers = [
   importsWorker,
   notificationsWorker,
   sitePublishingWorker,
+  domainDnsCheckWorker,
 ];
 
 for (const worker of workers) {

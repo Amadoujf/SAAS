@@ -2,6 +2,7 @@ import { Queue } from "bullmq";
 import { redisConnection } from "./connection";
 import type {
   AIJobData,
+  DomainDnsCheckJobData,
   EmailJobData,
   ImportJobData,
   InvoiceJobData,
@@ -57,4 +58,18 @@ export const sitePublishingQueue = new Queue<SitePublishingJobData>(QUEUE_NAMES.
   // avec le même id — c'est la PREMIÈRE ligne de défense contre une double
   // publication programmée, avant même le verrou distribué pris par le worker.
   defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 3, backoff: { type: "exponential", delay: 15_000 } },
+});
+
+/**
+ * Détection DNS d'un domaine personnalisé — voir docs/13, « DÉTECTION DNS » :
+ * « Utilise plusieurs tentatives », « Applique un délai progressif ». Chaque
+ * tentative est un job SÉPARÉ (voir `DomainDnsCheckJobData.attempt`) que le worker
+ * ré-enqueue lui-même avec un délai croissant tant que le domaine n'est ni vérifié
+ * ni définitivement abandonné — jamais un simple `attempts` BullMQ automatique, qui
+ * réessaierait immédiatement sur ÉCHEC (exception) plutôt que sur "pas encore prêt"
+ * (un résultat normal, pas une erreur).
+ */
+export const domainDnsCheckQueue = new Queue<DomainDnsCheckJobData>(QUEUE_NAMES.domainDnsCheck, {
+  connection: redisConnection,
+  defaultJobOptions: { ...DEFAULT_JOB_OPTIONS, attempts: 1 },
 });

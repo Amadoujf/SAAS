@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { headers } from "next/headers";
 import type { Metadata } from "next";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
@@ -45,6 +45,9 @@ export default async function TenantPage({ params }: { params: { slug: string } 
   }
   if (resolution.status === "suspended") {
     return <PublicSiteSuspended tenantName={resolution.tenantName} />;
+  }
+  if (resolution.status === "redirect") {
+    permanentRedirect(`https://${resolution.targetDomain}/${params.slug}`);
   }
 
   return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} slug={params.slug} />;

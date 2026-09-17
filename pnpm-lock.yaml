@@ -273,6 +273,9 @@ importers:
       '@yamacommerce/database':
         specifier: workspace:*
         version: link:../database
+      '@yamacommerce/queue':
+        specifier: workspace:*
+        version: link:../queue
     devDependencies:
       '@types/node':
         specifier: ^20.17.9
@@ -283,6 +286,9 @@ importers:
       '@typescript-eslint/parser':
         specifier: ^7.18.0
         version: 7.18.0(eslint@8.57.1)(typescript@5.9.3)
+      dotenv-cli:
+        specifier: ^7.4.4
+        version: 7.4.4
       eslint:
         specifier: ^8.57.1
         version: 8.57.1

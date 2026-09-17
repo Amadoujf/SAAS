@@ -17,12 +17,22 @@ export interface DomainProvisioningResult {
 }
 
 export interface DomainProvider {
-  readonly name: "caddy" | "cloudflare_custom_hostname";
+  readonly name: "caddy" | "cloudflare_custom_hostname" | "local";
 
   /** Vérifie que le domaine pointe bien vers la plateforme (DNS TXT ou CNAME attendu). */
   verifyDomain(domain: string, expectedToken: string): Promise<DomainVerificationResult>;
 
-  /** Déclenche le provisionnement TLS pour un domaine déjà vérifié. */
+  /**
+   * Déclenche (ou vérifie l'avancement d')un provisionnement TLS pour un domaine
+   * déjà vérifié — voir docs/13, « HTTPS » : « Demande de certificat », « Statut du
+   * certificat ». DOIT être IDEMPOTENT et RAPPELABLE PLUSIEURS FOIS : le worker de
+   * détection (voir apps/web/lib/domains/dns-check-pipeline.ts) l'appelle à chaque
+   * tentative tant que le statut reste "pending", jusqu'à "issued" ou "failed" — une
+   * seule et même méthode sert donc à la fois de déclenchement ET de scrutation
+   * (pas de méthode `getCertificateStatus` séparée : pour Caddy en particulier, il
+   * n'existe pas d'état "déclenché mais pas encore vérifié" distinct — chaque appel
+   * EST la vérification, voir CaddyDomainProvider).
+   */
   provisionDomain(domain: string): Promise<DomainProvisioningResult>;
 
   /** Retire un domaine (tenant supprimé/désactivé). */

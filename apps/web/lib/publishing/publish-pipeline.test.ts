@@ -126,8 +126,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
           domain: `boutique-${suffix}.yamacommerce.test`,
           type: "subdomain",
           isPrimary: true,
-          verified: true,
-          status: "active",
+          lifecycleStatus: "ACTIVE",
         },
       });
 

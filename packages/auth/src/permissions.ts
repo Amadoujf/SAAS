@@ -40,9 +40,21 @@ export const PERMISSIONS = [
   "employees.remove",
 
   "settings.branding",
-  "settings.domain",
   "settings.notifications",
   "settings.subscription",
+
+  // Assistant de domaines personnalisés (voir docs/13, 16 septembre 2026) —
+  // remplace l'ancienne "settings.domain" unique par un jeu plus granulaire : un
+  // manager peut connecter/vérifier un domaine mais jamais voir/modifier la
+  // facturation registrar (réservée à "domains.manage_billing", voir la matrice
+  // MANAGER ci-dessous, exactement comme le fut "settings.subscription").
+  "domains.view",
+  "domains.create",
+  "domains.verify",
+  "domains.configure",
+  "domains.set_primary",
+  "domains.remove",
+  "domains.manage_billing",
 
   // Éditeur visuel et publication de site (voir docs/12 §12.2 et §12.3, 22 septembre
   // 2026) — distinctes de "settings.branding" (logo/couleurs statiques) : couvrent la
@@ -93,7 +105,7 @@ const ALL: Permission[] = [...PERMISSIONS];
 /** Matrice rôle → permissions par défaut (extrait complet de docs/05-roles-permissions.md). */
 export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
   OWNER: ALL,
-  MANAGER: ALL.filter((p) => p !== "settings.domain" && p !== "settings.subscription"),
+  MANAGER: ALL.filter((p) => p !== "settings.subscription" && p !== "domains.manage_billing"),
   SALES: [
     "products.view",
     "orders.view",

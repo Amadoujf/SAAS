@@ -1,5 +1,5 @@
 import "server-only";
-import { resolveTenantByHost } from "@yamacommerce/domains";
+import { listActiveDomainsForTenant, resolveActiveDomainByHost, resolveDomainServeDecision } from "@yamacommerce/domains";
 import { cachedLiveSiteResolver } from "@/lib/publishing/cache";
 import { resolveTenantSiteForRendering, type TenantSiteRenderProps } from "./resolve-tenant-site";
 
@@ -7,9 +7,9 @@ import { resolveTenantSiteForRendering, type TenantSiteRenderProps } from "./res
  * Résolution du site PUBLIC à partir du Host — voir docs/12 §12.3, « RENDU PUBLIC » :
  * « résoudre le tenant depuis le domaine ou sous-domaine », « ne jamais servir un
  * brouillon », « retourner une page correcte si le site est suspendu », « gérer les
- * pages inexistantes ». Point d'entrée UNIQUE pour `app/page.tsx`, `app/[slug]/page.tsx`,
- * `app/sitemap.ts` et `app/robots.ts` — jamais de résolution dupliquée/divergente entre
- * ces quatre fichiers.
+ * pages inexistantes » ; et docs/13, « DOMAINES PRINCIPAUX ET REDIRECTIONS ». Point
+ * d'entrée UNIQUE pour `app/page.tsx`, `app/[slug]/page.tsx`, `app/sitemap.ts` et
+ * `app/robots.ts` — jamais de résolution dupliquée/divergente entre ces fichiers.
  *
  * `tenant.status` est vérifié ICI, explicitement — `resolveTenantSiteForRendering`
  * (voir resolve-tenant-site.ts) ne connaît que `TenantSite.isPublished` et le statut du
@@ -20,17 +20,38 @@ export type PublicSiteResolution =
   | { status: "not_found" }
   | { status: "suspended"; tenantName: string }
   | { status: "not_published" }
+  | { status: "redirect"; targetDomain: string }
   | { status: "ok"; tenantId: string; tenantName: string; site: TenantSiteRenderProps };
 
 export async function resolvePublicSite(host: string): Promise<PublicSiteResolution> {
-  const tenant = await resolveTenantByHost(host);
-  if (!tenant) return { status: "not_found" };
+  const domain = await resolveActiveDomainByHost(host);
+  if (!domain) return { status: "not_found" };
+  const tenant = domain.tenant;
   if (tenant.status === "SUSPENDED") return { status: "suspended", tenantName: tenant.name };
   if (tenant.status !== "ACTIVE") return { status: "not_found" };
 
-  const site = await cachedLiveSiteResolver(tenant.id, () =>
-    resolveTenantSiteForRendering(tenant.id, "live"),
+  const allDomains = await listActiveDomainsForTenant(tenant.id);
+  const decision = resolveDomainServeDecision(
+    {
+      id: domain.id,
+      domain: domain.domain,
+      isPrimary: domain.isPrimary,
+      isLive: true, // `listActiveDomainsForTenant`/`resolveActiveDomainByHost` ne renvoient déjà que des domaines ACTIVE.
+      serveDirectlyWhenNotPrimary: domain.serveDirectlyWhenNotPrimary,
+    },
+    allDomains.map((d) => ({
+      id: d.id,
+      domain: d.domain,
+      isPrimary: d.isPrimary,
+      isLive: true,
+      serveDirectlyWhenNotPrimary: d.serveDirectlyWhenNotPrimary,
+    })),
   );
+  if (decision.action === "redirect") {
+    return { status: "redirect", targetDomain: decision.targetDomain };
+  }
+
+  const site = await cachedLiveSiteResolver(tenant.id, () => resolveTenantSiteForRendering(tenant.id, "live"));
   if (!site) return { status: "not_published" };
 
   return { status: "ok", tenantId: tenant.id, tenantName: tenant.name, site };

@@ -588,8 +588,8 @@ async function seedDemoTenant(input: {
         domain: `${input.slug}.yamacommerce.ai`,
         type: "subdomain",
         isPrimary: true,
-        verified: true,
-        sslStatus: "issued",
+        serveDirectlyWhenNotPrimary: true,
+        lifecycleStatus: "ACTIVE",
         dnsProvider: "caddy",
       },
     });
