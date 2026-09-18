@@ -79,11 +79,36 @@ Caddy n'expose aucune API publique pour invalider immédiatement un certificat
 on-demand déjà chargé en mémoire par un processus en cours d'exécution — c'est une
 limite de Caddy lui-même, pas un oubli côté YamaCommerce. Implication opérationnelle :
 après une suspension/un retrait urgent, un redémarrage (ou redéploiement) de Caddy est
-nécessaire pour une révocation immédiate ; sans cela, l'exposition dure jusqu'au
-renouvellement naturel du certificat (des semaines avec un vrai émetteur ACME). Pistes
-pour lever cette limite plus tard : migrer vers `CloudflareCustomHostnameProvider`
-(déjà implémenté dans ce paquet) qui expose une VRAIE API de suppression de hostname,
-ou adopter des certificats à durée de vie courte.
+nécessaire pour une révocation immédiate côté TLS ; sans cela, un certificat déjà émis
+reste valide jusqu'à son renouvellement naturel (des semaines avec un vrai émetteur
+ACME). Pistes pour lever cette limite plus tard : migrer vers
+`CloudflareCustomHostnameProvider` (déjà implémenté dans ce paquet) qui expose une
+VRAIE API de suppression de hostname, ou adopter des certificats à durée de vie
+courte.
+
+### Rempart applicatif indépendant de Caddy/TLS (ajouté le 18 septembre 2026)
+
+Le certificat pouvant rester valide, la revue suivante a exigé un contrôle CÔTÉ
+APPLICATION sur chaque requête publique, vérifié SANS redémarrer Caddy et y compris
+avec des pages déjà en cache : « si le domaine ou l'entreprise est suspendu, supprimé
+ou non autorisé, aucun contenu du tenant ne doit être servi, même avec un certificat
+en cache ». `resolvePublicSite` (apps/web/lib/rendering/resolve-public-site.ts) est le
+point d'entrée UNIQUE de toutes les pages publiques (`app/page.tsx`, `app/[slug]/
+page.tsx`, sitemap, robots.txt) et vérifiait déjà le statut domaine/tenant AVANT tout
+accès au contenu mis en cache (`unstable_cache`) — mais sans aucun test le prouvant,
+et ce cache de contenu ne peut même pas être invoqué hors d'un contexte de requête
+Next.js réel (même limite que `revalidateTag`, voir plus haut).
+
+Le cache de contenu (PAS la vérification de statut) est désormais une dépendance
+injectée (`ResolvePublicSiteDeps.resolveSiteContent`, même pattern que
+`PublishSiteDeps.invalidateCache`/`DnsCheckDeps.invalidateCache`), ce qui a permis un
+test réel contre PostgreSQL (`resolve-public-site.test.ts`) : un cache de contenu
+délibérément réchauffé et JAMAIS invalidé, une suspension de domaine, une suspension
+d'entreprise, puis un retrait de domaine — chacun fait directement en base, sans
+appeler `invalidateSiteCache` ni toucher à Caddy — et dans les trois cas, plus aucun
+contenu du tenant n'est servi dès la requête suivante. Ce rempart est donc VÉRIFIÉ
+indépendamment de la limite Caddy ci-dessus : même si le certificat TLS reste valide
+et que la poignée de main réussit, l'application ne rend jamais le site suspendu.
 
 ## Vérifications qui restent ouvertes
 
