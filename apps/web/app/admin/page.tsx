@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { withSuperAdminAccess } from "@yamacommerce/database";
@@ -26,6 +27,11 @@ export default async function AdminPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
       <h1 className="text-2xl font-semibold">{t(DEFAULT_LOCALE, "admin.title")}</h1>
+      <nav>
+        <Link href="/admin/domains" className="text-brand text-sm font-medium underline">
+          Gérer les domaines
+        </Link>
+      </nav>
       <section>
         <h2 className="mb-3 text-lg font-medium">{t(DEFAULT_LOCALE, "admin.tenants")}</h2>
         <ul className="flex flex-col gap-2">

@@ -116,6 +116,10 @@ describe.skipIf(!databaseAvailable)("resolveTenantSiteForRendering", () => {
         where: { tenantId: { in: [tenantAId, tenantBId] } },
       });
       await tx.tenantSite.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
+      // `publishVersion` incrémente un `Counter` — sans ceci, la contrainte de clé
+      // étrangère bloque la suppression du tenant (trouvé en exécutant cette suite
+      // pour de vrai contre PostgreSQL, revue du 18 septembre 2026).
+      await tx.counter.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantAId, tenantBId] } } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
@@ -135,7 +139,13 @@ describe.skipIf(!databaseAvailable)("resolveTenantSiteForRendering", () => {
 
   it("mode live : renvoie le contenu une fois le template ET le site publiés", async () => {
     await withSuperAdminAccess((tx) => publishTemplate(tx, templateId));
-    await prisma.tenantSite.update({ where: { tenantId: tenantAId }, data: { isPublished: true } });
+    // `prisma.tenantSite.update` NU (sans `withTenant`/`withSuperAdminAccess`) est
+    // bloqué par la RLS — trouvé en exécutant cette suite pour de vrai contre
+    // PostgreSQL (revue du 18 septembre 2026) : "Record to update not found" alors
+    // que la ligne existe bel et bien, simplement invisible sans contexte RLS.
+    await withTenant(tenantAId, (tx) =>
+      tx.tenantSite.update({ where: { tenantId: tenantAId }, data: { isPublished: true } }),
+    );
 
     const result = await resolveTenantSiteForRendering(tenantAId, "live");
     expect(result).not.toBeNull();

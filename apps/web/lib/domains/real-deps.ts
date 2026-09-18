@@ -1,6 +1,7 @@
 import "server-only";
 import { getDomainProvider, NodeDnsResolver } from "@yamacommerce/domains";
 import { RedisRateLimiter, redisConnection } from "@yamacommerce/queue";
+import { invalidateSiteCache } from "@/lib/publishing/cache";
 import type { DnsCheckDeps } from "./dns-check-pipeline";
 
 /**
@@ -19,6 +20,7 @@ export function realDnsCheckDeps(): DnsCheckDeps {
       domainProvider: getDomainProvider(
         (process.env.DOMAIN_PROVIDER as "caddy" | "cloudflare_custom_hostname") ?? "caddy",
       ),
+      invalidateCache: invalidateSiteCache,
     };
   }
   return cached;

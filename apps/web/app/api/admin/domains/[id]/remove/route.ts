@@ -5,6 +5,7 @@ import { removeDomain, withSuperAdminAccess, writeAuditLog } from "@yamacommerce
 import { isSameOriginRequest } from "@/lib/domains/same-origin";
 import { requireSuperAdmin } from "@/lib/domains/require-super-admin";
 import { invalidateSiteCache } from "@/lib/publishing/cache";
+import { realDnsCheckDeps } from "@/lib/domains/real-deps";
 
 /** Retrait par un Super Admin — voir docs/13, « INTERFACE SUPER ADMIN » : « Retirer
  *  avec justification ». Contrairement au retrait par le client lui-même (voir
@@ -27,6 +28,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const tenantId = await withSuperAdminAccess(async (tx) => {
     const domain = await tx.domain.findUniqueOrThrow({ where: { id: params.id } });
     await removeDomain(tx, domain.tenantId, params.id);
+    // Défense en profondeur — voir docs/13, revue du 18 septembre 2026 : le statut
+    // REMOVED bloque déjà la résolution publique, mais ne révoque rien côté
+    // fournisseur réel (Caddy garde un certificat déjà émis en cache).
+    await realDnsCheckDeps().domainProvider.revokeDomain(domain.domain);
     await writeAuditLog(tx, {
       tenantId: domain.tenantId,
       actorUserId: admin.userId,

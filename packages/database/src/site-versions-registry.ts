@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import {
   pageDefinitionSchema,
-  sectionInstanceSchema,
+  validateSectionInstance,
   type SectionInstance,
 } from "@yamacommerce/templates";
 import { validateTemplateManifest } from "@yamacommerce/templates";
@@ -37,13 +37,27 @@ export interface PageInput {
   blocks: SectionInstance[];
 }
 
+/**
+ * `pageDefinitionSchema.parse` valide chaque section via le schéma STRUCTUREL
+ * seulement (`sectionInstanceSchema` — voir @yamacommerce/templates), pas la
+ * compatibilité variante/section ni les paramètres spécifiques à cette section
+ * (voir `validateSectionInstance`, plus stricte). Ce dernier verrou avant
+ * publication (voir `finalizePublish`) doit être AU MOINS aussi strict que
+ * `checkPublishReadiness` (@yamacommerce/publishing) qui, lui, appelle déjà
+ * `validateSectionInstance` — sans quoi un appelant qui court-circuiterait la
+ * vérification de préparation pourrait publier une variante invalide.
+ */
 function validatePageInput(input: PageInput) {
-  return pageDefinitionSchema.parse({
+  const page = pageDefinitionSchema.parse({
     slug: input.slug,
     title: input.title,
     isHome: input.isHome ?? false,
     sections: input.blocks,
   });
+  for (const section of page.sections) {
+    validateSectionInstance(section);
+  }
+  return page;
 }
 
 /**
@@ -64,13 +78,37 @@ export async function getOrCreateDraftVersion(
   });
   if (existingDraft) return existingDraft;
 
-  const hasAnyVersion = await tx.tenantSiteVersion.findFirst({ where: { tenantSiteId } });
+  // Le plus récent, PUBLIÉ de préférence (le site continue de fonctionner tel quel
+  // pendant que l'édition reprend) ; sinon la version la plus récente de quelque
+  // statut que ce soit — voir « BUG corrigé le 18 septembre 2026 » ci-dessous.
+  const mostRecentPublished = await tx.tenantSiteVersion.findFirst({
+    where: { tenantSiteId, status: "published" },
+    include: { pages: true },
+  });
+  const mostRecentAny =
+    mostRecentPublished ??
+    (await tx.tenantSiteVersion.findFirst({
+      where: { tenantSiteId },
+      orderBy: { createdAt: "desc" },
+      include: { pages: true },
+    }));
 
   // Premier brouillon jamais créé pour ce site : on le seed depuis le manifeste par
   // défaut du template, pour que l'entrepreneur parte de son template choisi plutôt
   // que d'une page blanche.
+  //
+  // BUG corrigé le 18 septembre 2026 (trouvé via un test réel contre PostgreSQL,
+  // voir la revue de l'assistant de domaines) : quand une version existe déjà mais
+  // qu'AUCUNE n'a le statut "draft" (ex. la seule version existante est
+  // "scheduled" — voir `publishScheduledVersion`, dont la note de tête de fichier
+  // décrit précisément ce scénario), ce brouillon devient le brouillon COURANT
+  // vu par l'éditeur : le laisser vide effacerait silencieusement tout le contenu
+  // du site aux yeux de quiconque rouvre l'éditeur pendant l'attente d'une
+  // publication programmée. Il doit toujours reprendre le contenu de la version la
+  // plus pertinente déjà connue, jamais une page blanche, une fois le tout premier
+  // brouillon déjà créé une fois pour ce site.
   let seedPages: { slug: string; title: string; isHome: boolean; blocks: SectionInstance[] }[] = [];
-  if (!hasAnyVersion) {
+  if (!mostRecentAny) {
     const tenantSite = await tx.tenantSite.findUniqueOrThrow({
       where: { id: tenantSiteId },
       include: { template: true },
@@ -81,6 +119,13 @@ export async function getOrCreateDraftVersion(
       title: page.title,
       isHome: page.isHome,
       blocks: page.sections,
+    }));
+  } else {
+    seedPages = mostRecentAny.pages.map((page) => ({
+      slug: page.slug,
+      title: page.title,
+      isHome: page.isHome,
+      blocks: page.blocks as unknown as SectionInstance[],
     }));
   }
 
@@ -141,7 +186,7 @@ export async function updatePageBlocks(
     );
   }
 
-  const validatedBlocks = blocks.map((block) => sectionInstanceSchema.parse(block));
+  const validatedBlocks = blocks.map((block) => validateSectionInstance(block));
   const blockIds = new Set<string>();
   for (const block of validatedBlocks) {
     if (blockIds.has(block.id)) {

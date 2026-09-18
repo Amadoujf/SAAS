@@ -1,4 +1,6 @@
 import { resolveTxt } from "node:dns/promises";
+import { readdir, rm } from "node:fs/promises";
+import path from "node:path";
 import type { DomainProvider, DomainProvisioningResult, DomainVerificationResult } from "../types";
 
 /**
@@ -53,8 +55,53 @@ export class CaddyDomainProvider implements DomainProvider {
     }
   }
 
-  async revokeDomain(_domain: string): Promise<void> {
-    // La révocation se traduit par le passage de `Domain.verified` à false : l'endpoint
-    // `/api/domains/ask` refusera alors tout nouveau renouvellement de certificat.
+  /**
+   * BUG DE SÉCURITÉ corrigé le 18 septembre 2026 (trouvé en testant pour de vrai un
+   * cycle activation -> suspension avec un VRAI binaire Caddy, voir la revue du même
+   * jour) : passer `Domain.verified` à false bloque bien toute NOUVELLE émission via
+   * `/api/domains/ask`, mais Caddy ne consulte `ask` QUE lors de l'émission ou du
+   * renouvellement d'un certificat — jamais à chaque connexion. Un certificat déjà
+   * émis et mis en cache continue donc de répondre en HTTPS, sans plus jamais
+   * réinterroger `ask`, jusqu'à son renouvellement naturel (des mois plus tard avec un
+   * VRAI émetteur ACME). Un domaine SUSPENDU restait donc accessible en HTTPS tant que
+   * son certificat n'expirait pas — vérifié : `curl` réussit toujours après suspension
+   * tant que ce correctif n'est pas appliqué.
+   *
+   * Caddy n'expose aucune API admin pour invalider un certificat on-demand précis
+   * (confirmé en explorant l'API admin d'un vrai processus Caddy) : le seul mécanisme
+   * réel est de supprimer les fichiers de certificat de son `FileStorage` sur disque —
+   * ce qui exige que ce processus (`apps/web`) et Caddy partagent ce volume (voir
+   * infra/docker-compose.yml, service `caddy`, volume `yamacommerce_caddy_data`).
+   * `CADDY_CERT_STORAGE_PATH` DOIT pointer vers le même chemin que le `storage` de
+   * Caddy (répertoire `data/caddy`, structure `certificates/<émetteur>/<domaine>/`).
+   * Si cette variable est absente (ex. Caddy sur un autre hôte, sans volume partagé),
+   * on l'assume PAS silencieusement corrigé : on log un avertissement explicite plutôt
+   * que de prétendre avoir révoqué un certificat qu'on n'a pas pu atteindre.
+   */
+  async revokeDomain(domain: string): Promise<void> {
+    const storagePath = process.env.CADDY_CERT_STORAGE_PATH;
+    if (!storagePath) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `CaddyDomainProvider.revokeDomain("${domain}") : CADDY_CERT_STORAGE_PATH n'est pas ` +
+          "configuré — un certificat déjà émis pour ce domaine peut rester actif en HTTPS " +
+          "jusqu'à son renouvellement naturel malgré la suspension/le retrait en base.",
+      );
+      return;
+    }
+
+    const certificatesDir = path.join(storagePath, "certificates");
+    let issuerDirs: string[];
+    try {
+      issuerDirs = await readdir(certificatesDir);
+    } catch {
+      return; // Rien n'a encore été émis sur ce stockage — rien à révoquer.
+    }
+
+    await Promise.all(
+      issuerDirs.map((issuerDir) =>
+        rm(path.join(certificatesDir, issuerDir, domain), { recursive: true, force: true }),
+      ),
+    );
   }
 }

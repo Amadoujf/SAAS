@@ -3,10 +3,15 @@
 	# N'IMPORTE QUEL domaine reçu — sous-domaine de tenant OU domaine personnalisé
 	# connecté par un commerçant. Voir packages/domains (CaddyDomainProvider) et
 	# apps/web/app/api/domains/ask/route.ts.
+	#
+	# `interval`/`burst` supprimés le 18 septembre 2026 : Caddy 2.11 refuse de démarrer
+	# avec ces options (« the on_demand_tls 'interval' option is no longer supported »)
+	# — trouvé en validant ce fichier pour de vrai avec le binaire Caddy réel (aucun
+	# `docker-compose`/CI ne l'avait jamais fait tourner jusqu'ici). `ask` reste la
+	# seule protection nécessaire : un domaine non autorisé en base est refusé à
+	# CHAQUE tentative, qu'elle soit ou non limitée en fréquence.
 	on_demand_tls {
 		ask http://web:3000/api/domains/ask
-		interval 2m
-		burst 10
 	}
 }
 

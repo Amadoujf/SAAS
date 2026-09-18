@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isSameOriginRequest } from "@/lib/domains/same-origin";
 import { requireDomainPermission } from "@/lib/domains/require-domain-permission";
 import { removeDomain } from "@/lib/domains/custom-domain-pipeline";
+import { realDnsCheckDeps } from "@/lib/domains/real-deps";
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });
 
@@ -16,6 +17,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   const actor = await requireDomainPermission(parsed.data.tenantId, "domains.remove");
   if (!actor) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 
-  await removeDomain(parsed.data.tenantId, actor.userId, params.id);
+  await removeDomain(parsed.data.tenantId, actor.userId, params.id, realDnsCheckDeps());
   return NextResponse.json({ ok: true });
 }

@@ -18,7 +18,6 @@ import {
   type ExpectedDnsRecord,
 } from "@yamacommerce/domains";
 import { QUEUE_NAMES, notificationsQueue } from "@yamacommerce/queue";
-import { invalidateSiteCache } from "@/lib/publishing/cache";
 
 /**
  * Cœur de la « DÉTECTION DNS » — voir docs/13. Point d'entrée UNIQUE utilisé à la
@@ -35,6 +34,13 @@ import { invalidateSiteCache } from "@/lib/publishing/cache";
 export interface DnsCheckDeps {
   dnsResolver: DnsResolver;
   domainProvider: DomainProvider;
+  /** Injecté plutôt qu'appelé directement (`invalidateSiteCache`, voir cache.ts) :
+   *  `revalidateTag` exige un contexte de requête/build Next.js réel et lève une
+   *  erreur (« static generation store missing ») en dehors — trouvé en exécutant
+   *  cette suite pour de vrai (revue du 18 septembre 2026), même pattern que
+   *  `PublishSiteDeps.invalidateCache` dans lib/publishing/publish-pipeline.ts. Les
+   *  VRAIS appelants (worker, routes) passent toujours `invalidateSiteCache`. */
+  invalidateCache: (tenantId: string) => void;
 }
 
 /** Jamais "verified" comme état FINAL d'un appel : une fois la propriété confirmée,
@@ -82,7 +88,7 @@ export async function checkDomainDnsAndAdvance(
     const cert = await deps.domainProvider.provisionDomain(domain.domain);
     if (cert.sslStatus === "issued") {
       await withTenant(tenantId, (tx) => markActive(tx, tenantId, domainId));
-      invalidateSiteCache(tenantId);
+      deps.invalidateCache(tenantId);
       await notify(tenantId, domainId, "https_enabled");
       return "active";
     }
@@ -109,7 +115,7 @@ export async function checkDomainDnsAndAdvance(
   const cert = await deps.domainProvider.provisionDomain(domain.domain);
   if (cert.sslStatus === "issued") {
     await withTenant(tenantId, (tx) => markActive(tx, tenantId, domainId));
-    invalidateSiteCache(tenantId);
+    deps.invalidateCache(tenantId);
     await notify(tenantId, domainId, "https_enabled");
     return "active";
   }

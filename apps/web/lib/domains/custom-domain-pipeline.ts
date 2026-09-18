@@ -19,8 +19,8 @@ import {
   normalizeDomainName,
   validateDomainFormat,
 } from "@yamacommerce/domains";
+import type { DomainProvider } from "@yamacommerce/domains";
 import { QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
-import { invalidateSiteCache } from "@/lib/publishing/cache";
 
 /**
  * Domaine personnalisé déjà possédé par le client — voir docs/13, « PARCOURS 2 ».
@@ -113,6 +113,7 @@ export async function setPrimaryDomain(
   tenantId: string,
   actorUserId: string,
   domainId: string,
+  deps: { invalidateCache: (tenantId: string) => void },
 ): Promise<SetPrimaryDomainResult> {
   try {
     await withTenant(tenantId, (tx) => setPrimaryDomainRegistry(tx, tenantId, domainId));
@@ -130,12 +131,36 @@ export async function setPrimaryDomain(
       entityId: domainId,
     }),
   );
-  invalidateSiteCache(tenantId); // invalide UNIQUEMENT ce tenant, voir cache.ts.
+  // Injecté plutôt qu'appelé directement — voir la note de `removeDomain` ci-dessous.
+  deps.invalidateCache(tenantId);
   return { outcome: "primary_set" };
 }
 
-export async function removeDomain(tenantId: string, actorUserId: string, domainId: string): Promise<void> {
+/**
+ * `deps.domainProvider.revokeDomain` — voir docs/13, « SÉCURITÉ » (revue du 18
+ * septembre 2026) : le statut `REMOVED` en base bloque déjà toute résolution
+ * publique (voir @yamacommerce/domains `resolveActiveDomainByHost`), mais ne
+ * touche à AUCUN état côté fournisseur réel (Caddy garde son certificat déjà
+ * émis en cache tant qu'il n'est pas explicitement révoqué). Défense en
+ * profondeur : révoque aussi côté fournisseur, jamais un simple changement de
+ * statut en base seul.
+ *
+ * `deps.invalidateCache` — injecté plutôt qu'appelé directement (`invalidateSiteCache`,
+ * voir cache.ts) : `revalidateTag` exige un contexte de requête/build Next.js réel et
+ * lève une erreur (« static generation store missing ») en dehors — trouvé en
+ * exécutant la suite de tests pour de vrai (revue du 18 septembre 2026), même pattern
+ * que `PublishSiteDeps.invalidateCache` dans lib/publishing/publish-pipeline.ts. Les
+ * VRAIS appelants (routes) passent toujours `invalidateSiteCache`.
+ */
+export async function removeDomain(
+  tenantId: string,
+  actorUserId: string,
+  domainId: string,
+  deps: { domainProvider: DomainProvider; invalidateCache: (tenantId: string) => void },
+): Promise<void> {
+  const domain = await withTenant(tenantId, (tx) => getDomainForTenant(tx, tenantId, domainId));
   await withTenant(tenantId, (tx) => removeDomainRegistry(tx, tenantId, domainId));
+  if (domain) await deps.domainProvider.revokeDomain(domain.domain);
   await withSuperAdminAccess((tx) =>
     writeAuditLog(tx, {
       tenantId,
@@ -146,7 +171,7 @@ export async function removeDomain(tenantId: string, actorUserId: string, domain
       entityId: domainId,
     }),
   );
-  invalidateSiteCache(tenantId);
+  deps.invalidateCache(tenantId);
 }
 
 export async function regenerateDomainVerificationToken(

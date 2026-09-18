@@ -123,6 +123,11 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
         where: { tenantId: { in: [tenantAId, tenantBId] } },
       });
       await tx.tenantSite.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
+      // `publishVersion` incrémente un `Counter` (numérotation de version, voir
+      // `nextCounterValue`) — trouvé en exécutant cette suite pour de vrai contre
+      // PostgreSQL (revue de l'assistant de domaines, 18 septembre 2026) : sans
+      // cette ligne, la contrainte de clé étrangère bloque la suppression du tenant.
+      await tx.counter.deleteMany({ where: { tenantId: { in: [tenantAId, tenantBId] } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantAId, tenantBId] } } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
@@ -233,12 +238,13 @@ describe.skipIf(!databaseAvailable)("Fondation données de l'éditeur visuel", (
     expect(published.status).toBe("published");
     expect(published.publishedAt).not.toBeNull();
     // Première publication : aucune version publiée précédente à comparer, toutes les
-    // pages du brouillon sont donc comptées comme "ajoutées".
+    // pages du brouillon sont donc comptées comme "ajoutées" — y compris
+    // "accueil-copie", dupliquée par le test précédent (voir le commentaire plus bas).
     expect(published.versionNumber).toBe(1);
     expect(published.publishMessage).toBe("Première mise en ligne");
     expect(published.domainUsed).toBe("boutique-test.yamacommerce.app");
     expect(published.wasScheduled).toBe(false);
-    expect(changesSummary.addedPageSlugs).toEqual(["accueil"]);
+    expect(changesSummary.addedPageSlugs.sort()).toEqual(["accueil", "accueil-copie"]);
     expect(newDraft.id).not.toBe(before.id);
     expect(newDraft.status).toBe("draft");
     // `before` inclut déjà la page dupliquée par le test précédent (2 pages) — le

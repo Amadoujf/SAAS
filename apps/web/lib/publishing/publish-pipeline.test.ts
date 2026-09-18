@@ -170,6 +170,10 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
       await tx.tenantSite.deleteMany({ where: { tenantId } });
       await tx.domain.deleteMany({ where: { tenantId } });
       await tx.subscription.deleteMany({ where: { tenantId } });
+      // `publishVersion` incrémente un `Counter` — sans ceci, la contrainte de clé
+      // étrangère bloque la suppression du tenant (trouvé en exécutant cette suite
+      // pour de vrai contre PostgreSQL, revue du 18 septembre 2026).
+      await tx.counter.deleteMany({ where: { tenantId } });
       await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.plan.deleteMany({ where: { id: planId } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });

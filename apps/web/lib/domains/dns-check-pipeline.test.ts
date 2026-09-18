@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma, withSuperAdminAccess, withTenant } from "@yamacommerce/database";
 import {
   InMemoryDnsResolver,
@@ -39,7 +39,13 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
   let ownerUserId: string;
 
   function deps(zone: InMemoryDnsZone): DnsCheckDeps {
-    return { dnsResolver: new InMemoryDnsResolver(zone), domainProvider: new LocalDomainProvider(zone, 2) };
+    return {
+      dnsResolver: new InMemoryDnsResolver(zone),
+      domainProvider: new LocalDomainProvider(zone, 2),
+      // `revalidateTag` exige un contexte Next.js réel, absent d'un test Vitest —
+      // voir la note de `DnsCheckDeps.invalidateCache` dans dns-check-pipeline.ts.
+      invalidateCache: () => {},
+    };
   }
 
   beforeAll(async () => {
@@ -103,8 +109,15 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
     expect(added.outcome).toBe("created");
     if (added.outcome !== "created") throw new Error("unreachable");
 
+    // Une SEULE instance de `deps` pour tout le scénario : `LocalDomainProvider`
+    // compte ses tentatives de provisionnement TLS en mémoire (simule un état
+    // persistant côté fournisseur réel) — en recréer une à chaque appel réinitialise
+    // ce compteur et empêche jamais d'atteindre "active" (bug de test trouvé en
+    // exécutant cette suite pour de vrai, revue du 18 septembre 2026).
+    const d = deps(zone);
+
     // DNS INCORRECT : rien n'est encore propagé.
-    const firstCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, deps(zone));
+    const firstCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, d);
     expect(firstCheck).toBe("pending_dns");
 
     // Propage manuellement les enregistrements attendus dans la zone simulée.
@@ -114,10 +127,10 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
       zone.setRecord(record.type, record.host === "@" ? rawDomain : record.host, record.value);
     }
 
-    const secondCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, deps(zone));
+    const secondCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, d);
     expect(secondCheck).toBe("ssl_pending");
 
-    const thirdCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, deps(zone));
+    const thirdCheck = await checkDomainDnsAndAdvance(tenantId, added.domainId, d);
     expect(thirdCheck).toBe("active");
 
     const final = await withTenant(tenantId, (tx) => tx.domain.findUniqueOrThrow({ where: { id: added.domainId } }));
@@ -153,12 +166,15 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
       zone.setRecord(record.type, record.host === "@" ? rawDomain : record.host, value);
     }
 
-    await checkDomainDnsAndAdvance(tenantId, added.domainId, deps(zone)); // -> ssl_pending
-    const outcome = await checkDomainDnsAndAdvance(tenantId, added.domainId, deps(zone)); // -> active
+    const d = deps(zone); // même instance pour tout le scénario, voir le test précédent.
+    await checkDomainDnsAndAdvance(tenantId, added.domainId, d); // -> ssl_pending
+    const outcome = await checkDomainDnsAndAdvance(tenantId, added.domainId, d); // -> active
     expect(outcome).toBe("active");
 
     const { setPrimaryDomain } = await import("./custom-domain-pipeline");
-    const primaryResult = await setPrimaryDomain(tenantId, ownerUserId, added.domainId);
+    const primaryResult = await setPrimaryDomain(tenantId, ownerUserId, added.domainId, {
+      invalidateCache: () => {},
+    });
     expect(primaryResult.outcome).toBe("primary_set");
 
     const allDomains = await withTenant(tenantId, (tx) => tx.domain.findMany({ where: { tenantId } }));
@@ -167,13 +183,19 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
     expect(primaries[0]!.id).toBe(added.domainId);
   });
 
-  it("RETRAIT : removeDomain passe le domaine à REMOVED sans supprimer la ligne", async () => {
+  it("RETRAIT : removeDomain passe le domaine à REMOVED sans supprimer la ligne, ET révoque côté fournisseur (défense en profondeur)", async () => {
     const rawDomain = `to-remove-${suffix}.example.com`;
     const added = await addCustomDomain({ tenantId, actorUserId: ownerUserId, rawDomain });
     if (added.outcome !== "created") throw new Error("unreachable");
 
     const { removeDomain } = await import("./custom-domain-pipeline");
-    await removeDomain(tenantId, ownerUserId, added.domainId);
+    const provider = new LocalDomainProvider(new InMemoryDnsZone());
+    const revokeSpy = vi.spyOn(provider, "revokeDomain");
+    await removeDomain(tenantId, ownerUserId, added.domainId, {
+      domainProvider: provider,
+      invalidateCache: () => {},
+    });
+    expect(revokeSpy).toHaveBeenCalledWith(rawDomain);
 
     const row = await withTenant(tenantId, (tx) => tx.domain.findUniqueOrThrow({ where: { id: added.domainId } }));
     expect(row.lifecycleStatus).toBe("REMOVED");
