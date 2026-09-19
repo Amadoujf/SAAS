@@ -666,6 +666,7 @@ async function seedDemoTenant(input: {
 
     const variant = await tx.productVariant.create({
       data: {
+        tenantId: tenant.id,
         productId: product.id,
         name: "Standard",
         sku: `${input.product.sku}-STD`,
@@ -675,7 +676,7 @@ async function seedDemoTenant(input: {
     });
 
     await tx.inventoryItem.create({
-      data: { productVariantId: variant.id, shopId: shop.id, quantity: 10, lowStockThreshold: 2 },
+      data: { tenantId: tenant.id, productVariantId: variant.id, shopId: shop.id, quantity: 10, lowStockThreshold: 2 },
     });
 
     const customer = await tx.customer.create({

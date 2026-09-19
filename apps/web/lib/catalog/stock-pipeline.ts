@@ -13,11 +13,14 @@ import {
   type Prisma,
 } from "@yamacommerce/database";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
+import { type CatalogCacheDeps, defaultCatalogCacheDeps } from "./product-pipeline";
 
 /** Couche métier du stock — même convention que product-pipeline.ts. La permission
  *  `inventory.manage_stock` couvre toute mutation ; `products.view` suffit pour
  *  consulter l'historique/les alertes (voir docs/05 : SALES peut voir le stock sans
- *  pouvoir l'ajuster). */
+ *  pouvoir l'ajuster). `deps.invalidateCache` : voir la note de `CatalogCacheDeps`
+ *  dans product-pipeline.ts — un changement de stock affiche/masque
+ *  potentiellement un produit comme disponible sur le site public. */
 
 async function audit(params: {
   tenantId: string;
@@ -45,16 +48,23 @@ async function audit(params: {
 export async function upsertInventoryItemAction(
   tenantId: string,
   params: { variantId: string; shopId?: string; initialQuantity?: number; lowStockThreshold?: number },
+  deps: CatalogCacheDeps = defaultCatalogCacheDeps,
 ) {
   const actor = await requireTenantPermission(tenantId, "inventory.manage_stock");
   if (!actor) return null;
-  return withTenant(tenantId, async (tx) => {
+  const item = await withTenant(tenantId, async (tx) => {
     const shopId = params.shopId ?? (await getOrCreateMainShop(tx, tenantId)).id;
     return upsertInventoryItemRegistry(tx, tenantId, { ...params, shopId });
   });
+  deps.invalidateCache(tenantId);
+  return item;
 }
 
-export async function adjustStockAction(tenantId: string, input: AdjustStockInput) {
+export async function adjustStockAction(
+  tenantId: string,
+  input: AdjustStockInput,
+  deps: CatalogCacheDeps = defaultCatalogCacheDeps,
+) {
   const actor = await requireTenantPermission(tenantId, "inventory.manage_stock");
   if (!actor) return null;
   const movement = await withTenant(tenantId, (tx) =>
@@ -67,6 +77,7 @@ export async function adjustStockAction(tenantId: string, input: AdjustStockInpu
     entityId: input.inventoryItemId,
     metadata: { type: input.type, quantity: input.quantity, reason: input.reason ?? null },
   });
+  deps.invalidateCache(tenantId);
   return movement;
 }
 

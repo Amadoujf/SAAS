@@ -356,7 +356,6 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
                     onSelect={async (asset) => {
                       await postJson(`/api/catalog/products/${productId}/images`, "POST", {
                         mediaAssetId: asset.id,
-                        url: asset.url,
                         altText: asset.altText,
                       });
                       setPickerOpen(false);

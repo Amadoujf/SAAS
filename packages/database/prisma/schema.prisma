@@ -71,6 +71,9 @@ model Tenant {
   shops          Shop[]
   categories     Category[]
   products       Product[]
+  productVariants ProductVariant[]
+  inventoryItems  InventoryItem[]
+  stockMovements  StockMovement[]
   customers      Customer[]
   orders         Order[]
   invoices       Invoice[]
@@ -693,6 +696,7 @@ model Product {
   wishlists Wishlist[]
 
   @@unique([tenantId, slug])
+  @@unique([tenantId, sku]) // NULL autorisé plusieurs fois (comportement natif Postgres) ; un SKU renseigné doit être unique PAR TENANT.
   @@index([tenantId, status])
 }
 
@@ -719,7 +723,15 @@ model ProductImage {
 }
 
 model ProductVariant {
-  id          String  @id @default(uuid())
+  id     String @id @default(uuid())
+  /// Dénormalisé depuis `Product.tenantId` (revue du 18 septembre 2026, « corrections
+  /// de sécurité ») — indispensable pour poser une policy RLS directe (Pattern A) sur
+  /// cette table : le filtrage applicatif explicite via `product: { tenantId }` reste
+  /// en place partout (défense en profondeur), mais ne doit jamais être la SEULE
+  /// protection. Renseigné à la création par `catalog-registry.ts`, jamais recalculé
+  /// après coup.
+  tenantId    String
+  tenant      Tenant  @relation(fields: [tenantId], references: [id])
   productId   String
   product     Product @relation(fields: [productId], references: [id])
   name        String // ex. "Rouge / M"
@@ -734,15 +746,22 @@ model ProductVariant {
   inventoryItems InventoryItem[]
   orderItems     OrderItem[]
 
+  @@unique([tenantId, sku]) // NULL autorisé plusieurs fois (comportement natif Postgres) ; un SKU renseigné doit être unique PAR TENANT, jamais globalement.
   @@index([productId])
+  @@index([tenantId])
 }
 
 model InventoryItem {
-  id                String         @id @default(uuid())
+  id     String @id @default(uuid())
+  /// Dénormalisé depuis `ProductVariant.tenantId` — même justification que ci-dessus.
+  tenantId          String
+  tenant            Tenant         @relation(fields: [tenantId], references: [id])
   productVariantId  String
   variant           ProductVariant @relation(fields: [productVariantId], references: [id])
   shopId            String
   shop              Shop           @relation(fields: [shopId], references: [id])
+  /// `CHECK (quantity >= 0)` posé par la migration RLS de ce module — le stock négatif
+  /// doit être impossible même via un futur code qui contournerait `adjustStock`.
   quantity          Int            @default(0)
   reservedQuantity  Int            @default(0)
   lowStockThreshold Int            @default(5)
@@ -750,10 +769,17 @@ model InventoryItem {
   movements StockMovement[]
 
   @@unique([productVariantId, shopId])
+  @@index([tenantId])
 }
 
 model StockMovement {
-  id              String        @id @default(uuid())
+  id     String @id @default(uuid())
+  /// Dénormalisé depuis `InventoryItem.tenantId` — même justification que ci-dessus.
+  /// Table rendue IMMUABLE au niveau base (REVOKE UPDATE/DELETE pour le rôle
+  /// applicatif, voir la migration) : l'historique des mouvements ne doit jamais
+  /// pouvoir être modifié ou supprimé après coup, même par un bug applicatif.
+  tenantId        String
+  tenant          Tenant        @relation(fields: [tenantId], references: [id])
   inventoryItemId String
   inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
   type            String // in | out | adjustment | transfer | return
@@ -763,6 +789,8 @@ model StockMovement {
   referenceId     String?
   performedBy     String?
   createdAt       DateTime      @default(now())
+
+  @@index([tenantId])
 }
 
 model Supplier {

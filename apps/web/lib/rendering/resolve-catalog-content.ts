@@ -61,7 +61,10 @@ export async function resolveCatalogContentForManifest(
   if (featuredSections.length > 0 || newArrivalsSections.length > 0) {
     const publishedProducts = await tx.product.findMany({
       where: { tenantId, status: "PUBLISHED", deletedAt: null },
-      include: { images: { orderBy: { position: "asc" }, take: 1 }, variants: true },
+      include: {
+        images: { orderBy: { position: "asc" }, take: 1 },
+        variants: { include: { inventoryItems: { select: { quantity: true } } } },
+      },
       orderBy: { createdAt: "desc" },
     });
     const toCard = (product: (typeof publishedProducts)[number]): ProductCardData => {
@@ -72,6 +75,11 @@ export async function resolveCatalogContentForManifest(
             .filter((s): s is string => Boolean(s)),
         ),
       );
+      // En stock si AU MOINS une variante a du stock disponible dans AU MOINS une
+      // boutique — voir la revue du 18 septembre 2026 : un ajustement de stock doit
+      // se refléter sur le site public (via l'invalidation du cache déclenchée par
+      // `adjustStockAction`, voir stock-pipeline.ts), pas seulement en base.
+      const inStock = product.variants.some((v) => v.inventoryItems.some((item) => item.quantity > 0));
       return {
         id: product.id,
         name: product.name,
@@ -80,6 +88,7 @@ export async function resolveCatalogContentForManifest(
         imageUrl: product.images[0]?.url ?? "",
         href: `/p/${product.slug}`,
         sizes: sizes.length > 0 ? sizes : undefined,
+        inStock,
       };
     };
     const byId = new Map(publishedProducts.map((p) => [p.id, p]));

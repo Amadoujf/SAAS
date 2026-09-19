@@ -7,18 +7,25 @@ import { refreshMediaAssetReferenceCount } from "./media-assets-registry";
  * `domains-registry.ts`/`media-assets-registry.ts` : chaque fonction reçoit `tx`
  * (déjà scoping-vérifié par `withTenant(tenantId, ...)`) ET `tenantId` explicitement.
  *
- * SÉCURITÉ — LIRE AVANT DE MODIFIER CE FICHIER : `Category` et `Product` ont une
- * policy RLS directe (Pattern A, voir la migration `20260912000001_enable_row_level_
- * security`), mais `ProductVariant`, `InventoryItem` et `StockMovement` n'en ont
- * AUCUNE (limite documentée dans cette même migration, lignes 158-176) — RLS ne
- * protège que `Category`/`Product` elles-mêmes, jamais leurs tables enfants. Une
- * requête sur ces trois tables qui ne filtre QUE par leur id primaire laisserait donc
- * fuiter/modifier les données d'un autre tenant, RLS ou pas. CHAQUE fonction
- * touchant ces tables filtre donc explicitement via une jointure vers `Product`
- * (`variant: { product: { tenantId } }`) — jamais un `findUnique`/`update` par id
- * brut seul. C'est le premier endroit du code qui établit ce pattern ; voir
- * `packages/database/tests/catalog-registry.test.ts`, « ISOLATION », pour la preuve
- * réelle contre PostgreSQL que ce filtrage fonctionne.
+ * SÉCURITÉ — LIRE AVANT DE MODIFIER CE FICHIER : `Category`/`Product` ET, depuis la
+ * migration `20260925000000_catalog_security_hardening`, `ProductVariant`/
+ * `InventoryItem`/`StockMovement` ont TOUTES une policy RLS directe (Pattern A) — ces
+ * trois dernières en étaient dépourvues jusqu'au 18 septembre 2026 (limite alors
+ * documentée dans `20260912000001_enable_row_level_security/migration.sql`,
+ * lignes 158-176), corrigée après la revue du même jour : « le filtrage applicatif
+ * explicite ne doit pas être l'unique protection ». `tenantId` y est désormais une
+ * colonne dénormalisée réelle (pas seulement déductible via une jointure).
+ *
+ * RLS est maintenant la protection PRIMAIRE sur ces trois tables — mais CHAQUE
+ * fonction ci-dessous continue de filtrer EXPLICITEMENT par `tenantId` (directement,
+ * ou via une jointure vers `Product` quand il faut aussi vérifier qu'un id enfant
+ * appartient bien au bon produit) : défense en profondeur, jamais une confiance
+ * aveugle en la seule RLS, exactement la même discipline que partout ailleurs dans ce
+ * projet (voir `withSuperAdminAccess`/`withTenant`). Voir
+ * `packages/database/tests/catalog-registry.test.ts`, « ISOLATION » et « RLS RÉELLE »,
+ * pour la preuve contre PostgreSQL que les DEUX couches protègent réellement : une
+ * requête sans contexte tenant, une requête avec le mauvais tenant, ET un accès
+ * direct par id échouent tous les trois.
  */
 
 // ============================================================================
@@ -219,9 +226,23 @@ export async function getProductBySlugForTenant(
 export interface AddProductImageInput {
   productId: string;
   mediaAssetId: string;
-  url: string;
   altText?: string | null;
   variantId?: string | null;
+}
+
+/** Ordre de préférence pour l'URL dénormalisée d'une image produit — la plus grande
+ *  variante disponible (jamais l'original, voir la note de sécurité de
+ *  `app/api/media/[id]/file/route.ts` : seules les variantes redimensionnées
+ *  connues sont éligibles à un accès public). Un média sans variante générée
+ *  (ex. import très ancien) retombe sur l'original en dernier recours — ce cas ne
+ *  pourra alors être servi publiquement qu'une fois republié après régénération des
+ *  variantes, jamais silencieusement cassé. */
+const IMAGE_URL_VARIANT_PREFERENCE = ["large", "medium", "small", "thumbnail"] as const;
+
+function resolveProductImageUrl(asset: { id: string; variants: unknown }): string {
+  const variants = Array.isArray(asset.variants) ? (asset.variants as { key: string }[]) : [];
+  const chosen = IMAGE_URL_VARIANT_PREFERENCE.find((key) => variants.some((v) => v.key === key));
+  return chosen ? `/api/media/${asset.id}/file?variant=${chosen}` : `/api/media/${asset.id}/file`;
 }
 
 /**
@@ -230,6 +251,11 @@ export interface AddProductImageInput {
  * de) un média d'une autre entreprise. Incrémente `MediaAsset.referenceCount` : voir
  * la règle « un média utilisé ne doit jamais être supprimé silencieusement » (même
  * politique que l'éditeur visuel, apps/web/lib/editor/media-references.ts).
+ *
+ * L'URL n'est JAMAIS fournie par l'appelant (revue du 18 septembre 2026) : elle est
+ * dérivée ici, côté serveur, à partir des variantes réellement générées pour ce
+ * média — un client ne doit pas pouvoir faire pointer `ProductImage.url` vers une
+ * ressource arbitraire.
  */
 export async function addProductImage(tx: Prisma.TransactionClient, tenantId: string, input: AddProductImageInput) {
   const product = await tx.product.findFirst({ where: { id: input.productId, tenantId } });
@@ -250,7 +276,7 @@ export async function addProductImage(tx: Prisma.TransactionClient, tenantId: st
       productId: input.productId,
       variantId: input.variantId ?? null,
       mediaAssetId: input.mediaAssetId,
-      url: input.url,
+      url: resolveProductImageUrl(asset),
       altText: input.altText ?? null,
       position,
     },
@@ -321,6 +347,7 @@ export async function createProductVariant(
 
   return tx.productVariant.create({
     data: {
+      tenantId,
       productId,
       name: input.name,
       sku: input.sku ?? null,
@@ -389,6 +416,7 @@ export async function upsertInventoryItem(
   return tx.inventoryItem.upsert({
     where: { productVariantId_shopId: { productVariantId: params.variantId, shopId: params.shopId } },
     create: {
+      tenantId,
       productVariantId: params.variantId,
       shopId: params.shopId,
       quantity: params.initialQuantity ?? 0,
@@ -467,6 +495,7 @@ export async function adjustStock(tx: Prisma.TransactionClient, tenantId: string
 
   return tx.stockMovement.create({
     data: {
+      tenantId,
       inventoryItemId: input.inventoryItemId,
       type: input.type,
       quantity: input.quantity,
@@ -515,4 +544,34 @@ export async function listAllInventoryItems(tx: Prisma.TransactionClient, tenant
 export async function listLowStockItems(tx: Prisma.TransactionClient, tenantId: string) {
   const items = await listAllInventoryItems(tx, tenantId);
   return items.filter((item) => item.quantity <= item.lowStockThreshold);
+}
+
+// ============================================================================
+// MÉDIATHÈQUE — accès public dynamique (revue du 18 septembre 2026).
+// ============================================================================
+
+/**
+ * "Ce média est-il actuellement utilisé par au moins un produit PUBLIÉ de CE
+ * tenant ?" — calculé À LA VOLÉE, jamais un drapeau à garder synchronisé. Voir
+ * `app/api/media/[id]/file/route.ts` (apps/web) : sert de base à la décision
+ * "peut-on servir une variante redimensionnée de ce média sans authentification"
+ * (jamais l'original, voir cette route pour la restriction complète). Un produit
+ * dépublié ou dont c'était la dernière image publiée cesse donc IMMÉDIATEMENT
+ * d'autoriser cet accès, à la prochaine requête, sans code de "démarquage" séparé.
+ *
+ * `tenantId` est vérifié explicitement dans la jointure (`product: { tenantId }`) —
+ * jamais supposé implicite depuis le `mediaAssetId` seul, qui pourrait en théorie
+ * appartenir à n'importe quel tenant si cette fonction était un jour appelée sans
+ * avoir d'abord confirmé la propriété du média (voir l'appelant, qui doit toujours
+ * passer le VRAI `tenantId` du média, pas celui d'un tiers).
+ */
+export async function isMediaAssetPubliclyUsedByProduct(
+  tx: Prisma.TransactionClient,
+  tenantId: string,
+  mediaAssetId: string,
+): Promise<boolean> {
+  const count = await tx.productImage.count({
+    where: { mediaAssetId, product: { tenantId, status: "PUBLISHED", deletedAt: null } },
+  });
+  return count > 0;
 }

@@ -80,7 +80,7 @@ describe.skipIf(!databaseAvailable)("resolveCatalogContentForManifest", () => {
       publishedProductId = published.id;
       await tx.productImage.create({ data: { productId: published.id, url: "https://cdn.test/robe.jpg", position: 0 } });
       await tx.productVariant.create({
-        data: { productId: published.id, name: "M", price: 20_000, attributes: { size: "M" } },
+        data: { tenantId: tenantAId, productId: published.id, name: "M", price: 20_000, attributes: { size: "M" } },
       });
 
       // Produit BROUILLON — ne doit JAMAIS apparaître dans le contenu résolu public.

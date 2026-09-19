@@ -6,7 +6,6 @@ import { addProductImageAction, reorderProductImagesAction } from "@/lib/catalog
 
 const addSchema = z.object({
   mediaAssetId: z.string().min(1),
-  url: z.string().url(),
   altText: z.string().nullable().optional(),
   variantId: z.string().nullable().optional(),
 });

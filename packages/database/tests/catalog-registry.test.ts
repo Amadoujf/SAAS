@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
+import { testOwnerClient } from "./test-owner-client";
 import {
   InsufficientStockError,
   addProductImage,
@@ -9,6 +10,7 @@ import {
   createProduct,
   createProductVariant,
   deleteCategory,
+  isMediaAssetPubliclyUsedByProduct,
   listLowStockItems,
   listProducts,
   listStockMovements,
@@ -24,9 +26,13 @@ import {
  * exigences explicites de cette revue nécessitent une preuve réelle, pas seulement
  * une lecture de code :
  *
- * - ISOLATION : `ProductVariant`/`InventoryItem`/`StockMovement` n'ont AUCUNE policy
- *   RLS (voir la note de sécurité en tête de catalog-registry.ts) — sans un test réel
- *   contre PostgreSQL, rien ne prouve que le filtrage applicatif fonctionne vraiment.
+ * - ISOLATION : `ProductVariant`/`InventoryItem`/`StockMovement` ont désormais une
+ *   VRAIE policy RLS (voir la note de sécurité en tête de catalog-registry.ts et la
+ *   migration `20260925000000_catalog_security_hardening`) EN PLUS du filtrage
+ *   applicatif explicite — sans un test réel contre PostgreSQL, rien ne prouve que ni
+ *   l'une ni l'autre couche ne fonctionne vraiment. Voir aussi
+ *   `catalog-rls.test.ts` pour la preuve dédiée à la policy RLS elle-même (requête
+ *   sans contexte, mauvais tenant, accès direct par id).
  * - CONCURRENCE : la protection contre la survente doit être vérifiée avec de VRAIS
  *   appels parallèles, pas un mock qui ne peut par construction jamais représenter
  *   une vraie course entre deux transactions PostgreSQL.
@@ -113,11 +119,22 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
   });
 
   afterAll(async () => {
-    await prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
-      await tx.stockMovement.deleteMany({
+    // `StockMovement` a perdu UPDATE/DELETE pour le rôle applicatif (immutabilité de
+    // l'historique, voir la migration `20260925000000_catalog_security_hardening`) :
+    // sa suppression exige donc le client de test élevé (rôle propriétaire), jamais
+    // le client habituel même en mode `withSuperAdminAccess` (qui ne lève que la RLS,
+    // pas les droits du rôle Postgres).
+    const owner = testOwnerClient();
+    try {
+      await owner.stockMovement.deleteMany({
         where: { inventoryItem: { variant: { product: { tenantId: { in: [tenantAId, tenantBId] } } } } },
       });
+    } finally {
+      await owner.$disconnect();
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
       await tx.inventoryItem.deleteMany({
         where: { variant: { product: { tenantId: { in: [tenantAId, tenantBId] } } } },
       });
@@ -180,10 +197,14 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
       addProductImage(tx, tenantAId, {
         productId: product.id,
         mediaAssetId: mediaAssetAId,
-        url: "https://cdn.test/produit.jpg",
       }),
     );
     expect(image.mediaAssetId).toBe(mediaAssetAId);
+    // L'URL est dérivée côté serveur (jamais fournie par l'appelant) — voir la revue
+    // du 18 septembre 2026. Ce média de test n'a aucune variante générée, d'où le
+    // repli sur l'original (voir le test dédié ci-dessous pour la sélection de
+    // variante quand des tailles existent réellement).
+    expect(image.url).toBe(`/api/media/${mediaAssetAId}/file`);
 
     const afterAdd = await withSuperAdminAccess((tx) => tx.mediaAsset.findUniqueOrThrow({ where: { id: mediaAssetAId } }));
     expect(afterAdd.referenceCount).toBe(1);
@@ -205,10 +226,91 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
         addProductImage(tx, tenantBId, {
           productId: productB.id,
           mediaAssetId: mediaAssetAId, // appartient au tenant A.
-          url: "https://cdn.test/vole.jpg",
         }),
       ),
     ).rejects.toThrow(/introuvable/);
+  });
+
+  it("IMAGES : l'URL dérivée choisit la plus grande variante disponible, jamais l'original", async () => {
+    const productWithVariants = await withTenant(tenantAId, (tx) =>
+      createProduct(tx, tenantAId, { name: "Sac à variantes", slug: `sac-variantes-${suffix}`, basePrice: 12_000 }),
+    );
+    const assetWithVariants = await withSuperAdminAccess((tx) =>
+      tx.mediaAsset.create({
+        data: {
+          tenantId: tenantAId,
+          ownerId: ownerUserId,
+          originalName: "sac.jpg",
+          storageKey: `test/${suffix}/sac-variants.jpg`,
+          type: "IMAGE",
+          mimeType: "image/jpeg",
+          sizeBytes: 2048,
+          status: "READY",
+          checksumSha256: "cafef00d",
+          variants: [
+            { key: "thumbnail", format: "webp", storageKey: "x", width: 200, height: 200, sizeBytes: 10 },
+            { key: "medium", format: "webp", storageKey: "y", width: 960, height: 960, sizeBytes: 100 },
+          ],
+        },
+      }),
+    );
+
+    const image = await withTenant(tenantAId, (tx) =>
+      addProductImage(tx, tenantAId, { productId: productWithVariants.id, mediaAssetId: assetWithVariants.id }),
+    );
+    // "medium" est la plus grande variante DISPONIBLE ici ("large" n'existe pas pour
+    // ce média) — jamais l'original malgré sa disponibilité.
+    expect(image.url).toBe(`/api/media/${assetWithVariants.id}/file?variant=medium`);
+  });
+
+  describe("MÉDIATHÈQUE — accès public dynamique (isMediaAssetPubliclyUsedByProduct)", () => {
+    it("faux pour un produit BROUILLON, vrai une fois PUBLIÉ, faux à nouveau après dépublication", async () => {
+      const product = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Robe dynamique", slug: `robe-dynamique-${suffix}`, basePrice: 18_000 }),
+      );
+      const image = await withTenant(tenantAId, (tx) =>
+        addProductImage(tx, tenantAId, { productId: product.id, mediaAssetId: mediaAssetAId }),
+      );
+
+      const whileDraft = await withTenant(tenantAId, (tx) =>
+        isMediaAssetPubliclyUsedByProduct(tx, tenantAId, mediaAssetAId),
+      );
+      expect(whileDraft).toBe(false);
+
+      await withTenant(tenantAId, (tx) => setProductStatus(tx, tenantAId, product.id, "PUBLISHED"));
+      const whilePublished = await withTenant(tenantAId, (tx) =>
+        isMediaAssetPubliclyUsedByProduct(tx, tenantAId, mediaAssetAId),
+      );
+      expect(whilePublished).toBe(true);
+
+      await withTenant(tenantAId, (tx) => setProductStatus(tx, tenantAId, product.id, "ARCHIVED"));
+      const afterUnpublish = await withTenant(tenantAId, (tx) =>
+        isMediaAssetPubliclyUsedByProduct(tx, tenantAId, mediaAssetAId),
+      );
+      expect(afterUnpublish).toBe(false);
+
+      // Nettoyage : retire l'image pour ne pas fausser le compteur de références
+      // vérifié par un autre test de cette suite.
+      await withTenant(tenantAId, (tx) => removeProductImage(tx, tenantAId, image.id));
+    });
+
+    it("faux une fois republié SANS l'image (dernière utilisation publique retirée)", async () => {
+      const product = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Robe sans image", slug: `robe-sans-image-${suffix}`, basePrice: 18_000 }),
+      );
+      const image = await withTenant(tenantAId, (tx) =>
+        addProductImage(tx, tenantAId, { productId: product.id, mediaAssetId: mediaAssetAId }),
+      );
+      await withTenant(tenantAId, (tx) => setProductStatus(tx, tenantAId, product.id, "PUBLISHED"));
+      expect(await withTenant(tenantAId, (tx) => isMediaAssetPubliclyUsedByProduct(tx, tenantAId, mediaAssetAId))).toBe(
+        true,
+      );
+
+      await withTenant(tenantAId, (tx) => removeProductImage(tx, tenantAId, image.id));
+      expect(await withTenant(tenantAId, (tx) => isMediaAssetPubliclyUsedByProduct(tx, tenantAId, mediaAssetAId))).toBe(
+        false,
+      );
+    });
   });
 
   describe("Variantes et stock", () => {
@@ -341,5 +443,74 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
     await expect(
       withTenant(tenantAId, (tx) => updateProduct(tx, tenantAId, productB.id, { name: "Piraté" })),
     ).rejects.toThrow(/introuvable/);
+  });
+
+  describe("CONTRAINTES — voir la revue du 18 septembre 2026", () => {
+    it("SKU : unique PAR TENANT (Product ET ProductVariant), mais réutilisable d'un tenant à l'autre", async () => {
+      const sku = `SKU-UNIQUE-${suffix}`;
+      await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Premier", slug: `premier-sku-${suffix}`, basePrice: 1_000, sku }),
+      );
+
+      await expect(
+        withTenant(tenantAId, (tx) =>
+          createProduct(tx, tenantAId, { name: "Doublon", slug: `doublon-sku-${suffix}`, basePrice: 1_000, sku }),
+        ),
+      ).rejects.toThrow();
+
+      // Le MÊME sku reste utilisable par un AUTRE tenant — l'unicité est scoping,
+      // jamais globale.
+      await expect(
+        withTenant(tenantBId, (tx) =>
+          createProduct(tx, tenantBId, { name: "Chez B", slug: `chez-b-sku-${suffix}`, basePrice: 1_000, sku }),
+        ),
+      ).resolves.toMatchObject({ sku });
+
+      const variantSku = `VARIANT-SKU-${suffix}`;
+      const product = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Porteur de variantes", slug: `porteur-${suffix}`, basePrice: 2_000 }),
+      );
+      const otherProduct = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Autre porteur", slug: `autre-porteur-${suffix}`, basePrice: 2_000 }),
+      );
+      await withTenant(tenantAId, (tx) =>
+        createProductVariant(tx, tenantAId, product.id, { name: "V1", sku: variantSku, price: 2_000 }),
+      );
+      await expect(
+        withTenant(tenantAId, (tx) =>
+          createProductVariant(tx, tenantAId, otherProduct.id, { name: "V2", sku: variantSku, price: 2_000 }),
+        ),
+      ).rejects.toThrow();
+    });
+
+    it("SKU absent (NULL) : jamais en conflit, même en répétition — plusieurs produits sans SKU coexistent", async () => {
+      const first = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Sans SKU 1", slug: `sans-sku-1-${suffix}`, basePrice: 1_000 }),
+      );
+      const second = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Sans SKU 2", slug: `sans-sku-2-${suffix}`, basePrice: 1_000 }),
+      );
+      expect(first.sku).toBeNull();
+      expect(second.sku).toBeNull();
+    });
+
+    it("STOCK NÉGATIF : structurellement impossible même en contournant adjustStock (CHECK contraint réel)", async () => {
+      const product = await withTenant(tenantAId, (tx) =>
+        createProduct(tx, tenantAId, { name: "Produit CHECK", slug: `produit-check-${suffix}`, basePrice: 1_000 }),
+      );
+      const variant = await withTenant(tenantAId, (tx) =>
+        createProductVariant(tx, tenantAId, product.id, { name: "Unique", price: 1_000 }),
+      );
+      const item = await withTenant(tenantAId, (tx) =>
+        upsertInventoryItem(tx, tenantAId, { variantId: variant.id, shopId: shopAId, initialQuantity: 5 }),
+      );
+
+      // Contourne délibérément `adjustStock` — un `update` direct, comme le ferait un
+      // futur bug applicatif — pour prouver que c'est la CONTRAINTE elle-même, pas
+      // seulement la discipline du code, qui empêche un stock négatif.
+      await expect(
+        withTenant(tenantAId, (tx) => tx.inventoryItem.update({ where: { id: item.id }, data: { quantity: -1 } })),
+      ).rejects.toThrow(/constraint|check/i);
+    });
   });
 });
