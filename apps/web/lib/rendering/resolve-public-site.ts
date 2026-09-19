@@ -47,10 +47,23 @@ export const defaultResolvePublicSiteDeps: ResolvePublicSiteDeps = {
     cachedLiveSiteResolver(tenantId, () => resolveTenantSiteForRendering(tenantId, "live")),
 };
 
-export async function resolvePublicSite(
-  host: string,
-  deps: ResolvePublicSiteDeps = defaultResolvePublicSiteDeps,
-): Promise<PublicSiteResolution> {
+export type ActiveTenantResolution =
+  | { status: "not_found" }
+  | { status: "suspended"; tenantName: string }
+  | { status: "redirect"; targetDomain: string }
+  | { status: "ok"; tenantId: string; tenantName: string };
+
+/**
+ * Partie « domaine/tenant autorisé ? » de `resolvePublicSite`, extraite pour être
+ * réutilisée par toute page publique qui ne dépend PAS du manifeste de l'éditeur
+ * (voir `app/catalogue/page.tsx`, `app/p/[slug]/page.tsx` — le catalogue réel n'est
+ * pas une page de section éditée, mais doit hériter des MÊMES protections
+ * domaine/tenant suspendu que le reste du site, jamais une seconde résolution
+ * divergente). `resolvePublicSite` reste le SEUL point d'entrée pour les pages liées
+ * au manifeste (accueil/pages statiques) ; cette fonction est le SEUL point d'entrée
+ * pour tout le reste.
+ */
+export async function resolveActiveTenant(host: string): Promise<ActiveTenantResolution> {
   const domain = await resolveActiveDomainByHost(host);
   if (!domain) return { status: "not_found" };
   const tenant = domain.tenant;
@@ -78,8 +91,18 @@ export async function resolvePublicSite(
     return { status: "redirect", targetDomain: decision.targetDomain };
   }
 
-  const site = await deps.resolveSiteContent(tenant.id);
+  return { status: "ok", tenantId: tenant.id, tenantName: tenant.name };
+}
+
+export async function resolvePublicSite(
+  host: string,
+  deps: ResolvePublicSiteDeps = defaultResolvePublicSiteDeps,
+): Promise<PublicSiteResolution> {
+  const active = await resolveActiveTenant(host);
+  if (active.status !== "ok") return active;
+
+  const site = await deps.resolveSiteContent(active.tenantId);
   if (!site) return { status: "not_published" };
 
-  return { status: "ok", tenantId: tenant.id, tenantName: tenant.name, site };
+  return { status: "ok", tenantId: active.tenantId, tenantName: active.tenantName, site };
 }

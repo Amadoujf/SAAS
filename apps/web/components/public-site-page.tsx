@@ -11,11 +11,12 @@ import type { TenantSiteRenderProps } from "@/lib/rendering/resolve-tenant-site"
  * d'accueil) et `app/[slug]/page.tsx` (toute autre page) pour ne jamais dupliquer/faire
  * diverger cette composition entre les deux.
  *
- * Ne résout AUCUNE donnée catalogue dynamique (produits, etc.) pour les sections qui
- * en dépendraient : `resolvedContent` reste vide — la résolution du contenu catalogue
- * par tenant est hors périmètre de cette étape (publication de la STRUCTURE du site,
- * pas encore l'intégration catalogue par section), voir le point d'arrêt explicite de
- * cette phase avant l'assistant de domaines personnalisés.
+ * `site.resolvedContent` (voir `resolve-tenant-site.ts` ->
+ * `resolve-catalog-content.ts`) porte désormais le VRAI contenu catalogue du tenant
+ * (revue du 18 septembre 2026, « produits réels par entreprise ») — refermant le
+ * point d'arrêt explicite laissé par la phase de publication de la STRUCTURE du site
+ * (avant l'assistant de domaines personnalisés), qui ne résolvait encore aucune
+ * donnée catalogue dynamique.
  */
 export function PublicSitePage({
   tenantName,
@@ -45,6 +46,7 @@ export function PublicSitePage({
           page={page}
           tokens={site.tokens}
           animationLevel={site.animationLevel}
+          resolvedContent={site.resolvedContent}
           locale="fr"
         />
       </main>

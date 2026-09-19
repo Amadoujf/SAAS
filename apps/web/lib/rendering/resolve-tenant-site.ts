@@ -8,11 +8,14 @@ import {
   withTenant,
 } from "@yamacommerce/database";
 import { validateTemplateManifest, type TemplateManifest } from "@yamacommerce/templates";
+import type { ResolvedContentBySectionId } from "@/components/sections/section-renderer";
+import { resolveCatalogContentForManifest } from "./resolve-catalog-content";
 
 export interface TenantSiteRenderProps {
   manifest: TemplateManifest;
   tokens: DesignTokens;
   animationLevel: AnimationLevel;
+  resolvedContent: ResolvedContentBySectionId;
 }
 
 export type RenderMode = "live" | "preview";
@@ -86,7 +89,8 @@ export async function resolveTenantSiteForRendering(
 
     const tokens = await resolveEffectiveDesignTokens(tx, tenantId);
     const animationLevel = await resolveEffectiveAnimationLevel(tx, tenantId);
+    const resolvedContent = await resolveCatalogContentForManifest(tx, tenantId, manifest);
 
-    return { manifest, tokens, animationLevel };
+    return { manifest, tokens, animationLevel, resolvedContent };
   });
 }

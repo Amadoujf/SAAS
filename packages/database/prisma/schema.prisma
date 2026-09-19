@@ -521,6 +521,8 @@ model MediaAsset {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
+  productImages ProductImage[]
+
   @@index([tenantId, status])
   @@index([tenantId, folder])
   @@index([tenantId, checksumSha256])
@@ -699,9 +701,21 @@ model ProductImage {
   productId String
   product   Product @relation(fields: [productId], references: [id])
   variantId String?
-  url       String
-  altText   String?
-  position  Int     @default(0)
+  /// Référence la médiathèque réelle (voir MediaAsset.referenceCount) — jamais une simple
+  /// URL en dur : ajoutée le 18 septembre 2026 (revue « catalogue réel ») pour qu'une image
+  /// produit ne puisse jamais pointer vers un média déjà supprimé/étranger au tenant, et
+  /// pour que la suppression d'un média encore utilisé par un produit soit détectée (même
+  /// règle que l'éditeur visuel, voir apps/web/lib/editor/media-references.ts).
+  mediaAssetId String?
+  mediaAsset   MediaAsset? @relation(fields: [mediaAssetId], references: [id])
+  /// Dénormalisée au moment de la liaison (jamais recalculée à la volée) : l'URL publique
+  /// vient du fournisseur de stockage (@yamacommerce/storage), pas de ce modèle — voir
+  /// `addProductImage` dans catalog-registry.ts.
+  url      String
+  altText  String?
+  position Int     @default(0)
+
+  @@index([mediaAssetId])
 }
 
 model ProductVariant {
