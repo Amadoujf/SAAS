@@ -80,7 +80,7 @@ describe.skipIf(!databaseAvailable)("RLS réelle — ProductVariant / InventoryI
       });
       variantAId = variant.id;
       const item = await tx.inventoryItem.create({
-        data: { tenantId: tenantAId, productVariantId: variant.id, shopId: shop.id, quantity: 10 },
+        data: { tenantId: tenantAId, productVariantId: variant.id, shopId: shop.id, availableQuantity: 10 },
       });
       inventoryItemAId = item.id;
       const movement = await tx.stockMovement.create({
@@ -147,13 +147,13 @@ describe.skipIf(!databaseAvailable)("RLS réelle — ProductVariant / InventoryI
 
     it("InventoryItem : MODIFICATION (ex. vider le stock) par id exact n'affecte aucune ligne", async () => {
       const result = await withTenant(tenantBId, (tx) =>
-        tx.inventoryItem.updateMany({ where: { id: inventoryItemAId }, data: { quantity: 0 } }),
+        tx.inventoryItem.updateMany({ where: { id: inventoryItemAId }, data: { availableQuantity: 0 } }),
       );
       expect(result.count).toBe(0);
       const stillIntact = await withTenant(tenantAId, (tx) =>
         tx.inventoryItem.findUnique({ where: { id: inventoryItemAId } }),
       );
-      expect(stillIntact?.quantity).toBe(10);
+      expect(stillIntact?.availableQuantity).toBe(10);
     });
 
     it("InventoryItem : SUPPRESSION par id exact n'affecte aucune ligne", async () => {

@@ -96,7 +96,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
       });
       tenantId = tenant.id;
 
-      const plan = await tx.plan.create({
+      const plan = await tx.subscriptionPlan.create({
         data: {
           name: `Plan test publication ${suffix}`,
           priceMonthly: 10_000,
@@ -111,7 +111,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
         },
       });
       planId = plan.id;
-      await tx.subscription.create({
+      await tx.tenantSubscription.create({
         data: {
           tenantId,
           planId,
@@ -169,13 +169,13 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
       await tx.tenantSiteVersion.deleteMany({ where: { tenantId } });
       await tx.tenantSite.deleteMany({ where: { tenantId } });
       await tx.domain.deleteMany({ where: { tenantId } });
-      await tx.subscription.deleteMany({ where: { tenantId } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
       // `publishVersion` incrémente un `Counter` — sans ceci, la contrainte de clé
       // étrangère bloque la suppression du tenant (trouvé en exécutant cette suite
       // pour de vrai contre PostgreSQL, revue du 18 septembre 2026).
       await tx.counter.deleteMany({ where: { tenantId } });
       await tx.tenant.deleteMany({ where: { id: tenantId } });
-      await tx.plan.deleteMany({ where: { id: planId } });
+      await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });
@@ -275,12 +275,12 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
   });
 
   it("ABONNEMENT EXPIRÉ : bloque la publication", async () => {
-    await withSuperAdminAccess((tx) => tx.subscription.update({ where: { tenantId }, data: { status: "CANCELED" } }));
+    await withSuperAdminAccess((tx) => tx.tenantSubscription.update({ where: { tenantId }, data: { status: "CANCELED" } }));
     const result = await publishSite({ tenantId, tenantSiteId, actorUserId: ownerUserId }, deps());
     expect(result.outcome).toBe("blocked");
     if (result.outcome !== "blocked") throw new Error("unreachable");
     expect(result.report.issues.map((i) => i.code)).toContain("subscription_disallows_publish");
-    await withSuperAdminAccess((tx) => tx.subscription.update({ where: { tenantId }, data: { status: "ACTIVE" } }));
+    await withSuperAdminAccess((tx) => tx.tenantSubscription.update({ where: { tenantId }, data: { status: "ACTIVE" } }));
   });
 
   it("MÉDIA MANQUANT/PRIVÉ : un document sensible référencé bloque, et n'est jamais promu public", async () => {

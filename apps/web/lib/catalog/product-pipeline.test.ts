@@ -315,7 +315,7 @@ describe.skipIf(!databaseAvailable)("Invalidation du cache — pipeline catalogu
       const stillFive = await withSuperAdminAccess((tx) =>
         tx.inventoryItem.findUniqueOrThrow({ where: { id: item!.id } }),
       );
-      expect(stillFive.quantity).toBe(5); // inchangé — la tentative refusée n'a rien modifié.
+      expect(stillFive.availableQuantity).toBe(5); // inchangé — la tentative refusée n'a rien modifié.
 
       await withSuperAdminAccess((tx) => tx.tenantUser.deleteMany({ where: { userId: viewOnlyUserId } }));
       await withSuperAdminAccess((tx) => tx.role.deleteMany({ where: { name: `Vue seule ${suffix}` } }));

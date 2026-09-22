@@ -8,6 +8,8 @@ import {
   withSuperAdminAccess,
   withTenant,
   writeAuditLog,
+  assertQuotaAvailable,
+  QuotaExceededError,
 } from "@yamacommerce/database";
 import {
   computeExpectedDnsRecords,
@@ -30,7 +32,8 @@ import { QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
 export type AddCustomDomainResult =
   | { outcome: "created"; domainId: string; domain: string; homographWarning?: string }
   | { outcome: "invalid"; issues: string[] }
-  | { outcome: "taken" };
+  | { outcome: "taken" }
+  | { outcome: "quota_exceeded"; limit: number; current: number };
 
 export interface AddCustomDomainInput {
   tenantId: string;
@@ -61,16 +64,22 @@ export async function addCustomDomain(input: AddCustomDomainInput): Promise<AddC
   const expectedDnsRecords = computeExpectedDnsRecords(normalized, token);
 
   try {
-    const domain = await withTenant(input.tenantId, (tx) =>
-      createCustomDomain(tx, input.tenantId, {
+    const domain = await withTenant(input.tenantId, async (tx) => {
+      // Quota SERVEUR — voir docs/14-facturation-saas-abonnements.md, décision #5 :
+      // `maxCustomDomains` de la formule (ou une dérogation Super Admin), vérifié
+      // dans la MÊME transaction que la création (best-effort sous concurrence
+      // extrême, voir subscription-usage.ts).
+      await assertQuotaAvailable(tx, input.tenantId, "domains");
+
+      return createCustomDomain(tx, input.tenantId, {
         domain: normalized,
         type: "custom",
         verificationToken: token,
         verificationTokenExpiresAt: expiresAt,
         expectedDnsRecords,
         dnsProvider: input.dnsProvider ?? "caddy",
-      }),
-    );
+      });
+    });
     await withSuperAdminAccess((tx) =>
       writeAuditLog(tx, {
         tenantId: input.tenantId,
@@ -96,7 +105,10 @@ export async function addCustomDomain(input: AddCustomDomainInput): Promise<AddC
       domain: normalized,
       homographWarning: homograph.risky ? homograph.reason : undefined,
     };
-  } catch {
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return { outcome: "quota_exceeded", limit: error.limit, current: error.current };
+    }
     return { outcome: "taken" }; // course entre deux créations simultanées.
   }
 }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
+import { QuotaExceededError } from "@yamacommerce/database";
 import { isSameOriginRequest } from "@/lib/domains/same-origin";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { createProductAction, listProductsForTenant } from "@/lib/catalog/product-pipeline";
@@ -45,7 +46,14 @@ export async function POST(request: NextRequest) {
   const parsed = productSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Corps de requête invalide." }, { status: 400 });
 
-  const product = await createProductAction(membership.tenantId, parsed.data);
-  if (product === null) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
-  return NextResponse.json({ product });
+  try {
+    const product = await createProductAction(membership.tenantId, parsed.data);
+    if (product === null) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
+    return NextResponse.json({ product });
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json({ error: error.message, code: "quota_exceeded" }, { status: 403 });
+    }
+    throw error;
+  }
 }

@@ -21,11 +21,12 @@ async function main() {
   // 1. Formules d'abonnement
   // ---------------------------------------------------------------------
   const plans = await Promise.all([
-    prisma.plan.upsert({
+    prisma.subscriptionPlan.upsert({
       where: { name: "Essentiel" },
       update: {},
       create: {
         name: "Essentiel",
+        status: "PUBLISHED",
         priceMonthly: 15_000,
         priceYearly: 150_000,
         trialDays: 14,
@@ -51,11 +52,12 @@ async function main() {
         features: ["catalog", "orders", "invoices", "cod_payment"],
       },
     }),
-    prisma.plan.upsert({
+    prisma.subscriptionPlan.upsert({
       where: { name: "Business" },
       update: {},
       create: {
         name: "Business",
+        status: "PUBLISHED",
         priceMonthly: 35_000,
         priceYearly: 350_000,
         trialDays: 14,
@@ -79,11 +81,12 @@ async function main() {
         features: ["catalog", "orders", "invoices", "cod_payment", "online_payment", "whatsapp"],
       },
     }),
-    prisma.plan.upsert({
+    prisma.subscriptionPlan.upsert({
       where: { name: "Premium" },
       update: {},
       create: {
         name: "Premium",
+        status: "PUBLISHED",
         priceMonthly: 75_000,
         priceYearly: 750_000,
         trialDays: 14,
@@ -116,11 +119,12 @@ async function main() {
         ],
       },
     }),
-    prisma.plan.upsert({
+    prisma.subscriptionPlan.upsert({
       where: { name: "Entreprise" },
       update: {},
       create: {
         name: "Entreprise",
+        status: "PUBLISHED",
         priceMonthly: 150_000,
         priceYearly: 1_500_000,
         trialDays: 30,
@@ -594,14 +598,14 @@ async function seedDemoTenant(input: {
       },
     });
 
-    await tx.subscription.upsert({
+    await tx.tenantSubscription.upsert({
       where: { tenantId: createdTenant.id },
       update: {},
       create: {
         tenantId: createdTenant.id,
         planId: input.planId,
         status: "TRIALING",
-        billingCycle: "monthly",
+        billingCycle: "MONTHLY",
         currentPeriodStart: new Date(),
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
@@ -676,7 +680,13 @@ async function seedDemoTenant(input: {
     });
 
     await tx.inventoryItem.create({
-      data: { tenantId: tenant.id, productVariantId: variant.id, shopId: shop.id, quantity: 10, lowStockThreshold: 2 },
+      data: {
+        tenantId: tenant.id,
+        productVariantId: variant.id,
+        shopId: shop.id,
+        availableQuantity: 10,
+        lowStockThreshold: 2,
+      },
     });
 
     const customer = await tx.customer.create({
@@ -704,6 +714,7 @@ async function seedDemoTenant(input: {
         total: input.product.price,
         items: {
           create: {
+            tenantId: tenant.id,
             productVariantId: variant.id,
             productNameSnapshot: input.product.name,
             unitPrice: input.product.price,
@@ -713,6 +724,7 @@ async function seedDemoTenant(input: {
         },
         statusHistory: {
           create: {
+            tenantId: tenant.id,
             toStatus: "DELIVERED",
             changedByType: "system",
             note: "Commande de démonstration",

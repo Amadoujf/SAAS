@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
+import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
 /**
  * Toute page NON-accueil d'un site tenant publié — voir docs/12 §12.3, « RENDU
@@ -45,6 +46,9 @@ export default async function TenantPage({ params }: { params: { slug: string } 
   }
   if (resolution.status === "suspended") {
     return <PublicSiteSuspended tenantName={resolution.tenantName} />;
+  }
+  if (resolution.status === "billing_suspended") {
+    return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;
   }
   if (resolution.status === "redirect") {
     permanentRedirect(`https://${resolution.targetDomain}/${params.slug}`);

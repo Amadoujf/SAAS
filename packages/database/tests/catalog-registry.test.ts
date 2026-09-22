@@ -372,7 +372,7 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
       );
 
       const item = await withSuperAdminAccess((tx) => tx.inventoryItem.findUniqueOrThrow({ where: { id: inventoryItemId } }));
-      expect(item.quantity).toBe(12); // 10 + 5 - 3.
+      expect(item.availableQuantity).toBe(12); // 10 + 5 - 3.
 
       const movements = await withTenant(tenantAId, (tx) => listStockMovements(tx, tenantAId, inventoryItemId));
       expect(movements).toHaveLength(2);
@@ -387,7 +387,7 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
       ).rejects.toThrow(InsufficientStockError);
 
       const item = await withSuperAdminAccess((tx) => tx.inventoryItem.findUniqueOrThrow({ where: { id: inventoryItemId } }));
-      expect(item.quantity).toBe(12); // inchangé — jamais de décrément partiel.
+      expect(item.availableQuantity).toBe(12); // inchangé — jamais de décrément partiel.
     });
 
     it(
@@ -398,7 +398,7 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
         const before = await withSuperAdminAccess((tx) =>
           tx.inventoryItem.findUniqueOrThrow({ where: { id: inventoryItemId } }),
         );
-        expect(before.quantity).toBe(12);
+        expect(before.availableQuantity).toBe(12);
 
         // 5 tentatives réelles et concurrentes de sortir 5 unités chacune (25 au total)
         // pour un stock de 12 : au plus 2 doivent réussir (10 unités), le reste doit
@@ -419,8 +419,8 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
         const after = await withSuperAdminAccess((tx) =>
           tx.inventoryItem.findUniqueOrThrow({ where: { id: inventoryItemId } }),
         );
-        expect(after.quantity).toBe(2); // 12 - (2 * 5) — jamais négatif, jamais < 0.
-        expect(after.quantity).toBeGreaterThanOrEqual(0);
+        expect(after.availableQuantity).toBe(2); // 12 - (2 * 5) — jamais négatif, jamais < 0.
+        expect(after.availableQuantity).toBeGreaterThanOrEqual(0);
       },
     );
 
@@ -509,7 +509,7 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
       // futur bug applicatif — pour prouver que c'est la CONTRAINTE elle-même, pas
       // seulement la discipline du code, qui empêche un stock négatif.
       await expect(
-        withTenant(tenantAId, (tx) => tx.inventoryItem.update({ where: { id: item.id }, data: { quantity: -1 } })),
+        withTenant(tenantAId, (tx) => tx.inventoryItem.update({ where: { id: item.id }, data: { availableQuantity: -1 } })),
       ).rejects.toThrow(/constraint|check/i);
     });
   });

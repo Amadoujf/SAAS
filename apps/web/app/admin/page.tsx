@@ -27,9 +27,15 @@ export default async function AdminPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 px-4 py-12">
       <h1 className="text-2xl font-semibold">{t(DEFAULT_LOCALE, "admin.title")}</h1>
-      <nav>
+      <nav className="flex flex-col gap-2">
         <Link href="/admin/domains" className="text-brand text-sm font-medium underline">
           Gérer les domaines
+        </Link>
+        <Link href="/admin/plans" className="text-brand text-sm font-medium underline">
+          Gérer les formules SaaS
+        </Link>
+        <Link href="/admin/subscriptions" className="text-brand text-sm font-medium underline">
+          Gérer les abonnements SaaS
         </Link>
       </nav>
       <section>

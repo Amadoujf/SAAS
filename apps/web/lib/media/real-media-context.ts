@@ -23,9 +23,9 @@ const repository = new PrismaMediaRepository();
  *  ("Essentiel") plutôt que de bloquer l'import avec une erreur peu claire. */
 export async function realMediaDeps(tenantId: string): Promise<UploadPipelineDeps> {
   const plan = await withTenant(tenantId, async (tx) => {
-    const subscription = await tx.subscription.findUnique({ where: { tenantId }, include: { plan: true } });
+    const subscription = await tx.tenantSubscription.findUnique({ where: { tenantId }, include: { plan: true } });
     if (subscription) return subscription.plan;
-    return tx.plan.findFirst({ where: { name: "Essentiel" } });
+    return tx.subscriptionPlan.findFirst({ where: { name: "Essentiel" } });
   });
 
   const quotaConfig = plan

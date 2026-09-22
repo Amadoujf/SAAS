@@ -12,6 +12,9 @@ export const QUEUE_NAMES = {
   notifications: "notifications",
   sitePublishing: "site-publishing",
   domainDnsCheck: "domain-dns-check",
+  stockReservationExpiry: "stock-reservation-expiry",
+  saasBillingWebhooks: "saas-billing-webhooks",
+  subscriptionLifecycleSweep: "subscription-lifecycle-sweep",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -86,6 +89,49 @@ export interface DomainDnsCheckJobData {
   domainId: string;
   attempt: number;
 }
+
+/**
+ * Expiration d'une réservation de stock — étape 2 (clients/panier/commandes/
+ * livraison, 19 septembre 2026). Un job par COMMANDE, planifié avec `jobId: orderId`
+ * (dédoublonnage + poignée d'annulation, voir `checkout-pipeline.ts` et
+ * `webhook-processor.ts`) et un `delay` = fenêtre de réservation
+ * (`RESERVATION_WINDOW_MINUTES`, voir `@yamacommerce/database` `order-registry.ts`).
+ * `orderId: "__sweep__"` est le sentinel du balayage périodique de RÉCUPÉRATION
+ * (même convention que `DomainDnsCheckJobData`/`domainId: "__sweep__"`) — retrouve les
+ * réservations expirées dont le job individuel aurait été perdu (interruption du
+ * worker, purge Redis). Le worker relit TOUJOURS l'état réel en base (heure
+ * PostgreSQL faisant foi) avant d'agir — jamais de confiance aveugle dans ce payload.
+ */
+export interface StockReservationExpiryJobData {
+  tenantId: string;
+  orderId: string;
+}
+
+/**
+ * Notification Pulse de facturation SaaS reçue — voir docs/14-facturation-saas-
+ * abonnements.md et `packages/billing/src/webhook-processor.ts`. Traitement
+ * ASYNCHRONE (même raison que `WebhookPaymentJobData`) : un accusé de réception rapide
+ * à Chariow, jamais le temps complet de vérification. Contrairement à
+ * `WebhookPaymentJobData`, AUCUN `tenantId` connu à la réception (un seul compte
+ * Chariow pour toute la plateforme, jamais un tenant dans l'URL) — le tenant est
+ * retrouvé PLUS TARD par `processSaasBillingWebhook` via `internalReference`.
+ */
+export interface SaasBillingWebhookJobData {
+  headers: Record<string, string | string[] | undefined>;
+  rawBody: string;
+}
+
+/**
+ * Balayage périodique de décroissance des abonnements (ACTIVE -> GRACE_PERIOD ->
+ * SUSPENDED, voir `@yamacommerce/database` `subscription-lifecycle.ts`) — même
+ * principe que `StockReservationExpiryJobData`/`orderId: "__sweep__"` : la base de
+ * données reste la SEULE source de vérité (heure PostgreSQL faisant foi), ce job ne
+ * fait que déclencher périodiquement une relecture réelle. Sentinel unique, jamais un
+ * job par abonnement pour cette première version (voir docs/14, limites restantes) —
+ * un futur job individuel planifié exactement à `currentPeriodEnd` ne ferait
+ * qu'ACCÉLÉRER la détection, jamais remplacer ce balayage.
+ */
+export type SubscriptionLifecycleSweepJobData = Record<string, never>;
 
 /** Options par défaut appliquées à tous les jobs : retries avec backoff exponentiel,
  *  conservation limitée de l'historique pour ne pas saturer Redis. */

@@ -2,7 +2,12 @@
   "$schema": "https://json.schemastore.org/tsconfig",
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    // "DOM" ajouté pour les types globaux `fetch`/`Response`/`Headers` (adaptateurs
+    // PayDunya/Chariow, `packages/payments`/`packages/billing`) — `@types/node@20.x`
+    // installé dans ce projet ne fournit pas ces déclarations globalement (constaté en
+    // corrigeant l'environnement de vérification, 20 septembre 2026). N'affecte aucun
+    // comportement runtime, uniquement la vérification de types.
+    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "esModuleInterop": true,

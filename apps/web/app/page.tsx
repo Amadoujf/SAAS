@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, t } from "@/lib/i18n";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
+import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
 /**
  * Page d'accueil publique — voir docs/12 §12.3, « RENDU PUBLIC ». Si le Host résout à
@@ -23,6 +24,9 @@ export default async function HomePage() {
     const resolution = await resolvePublicSite(host);
     if (resolution.status === "suspended") {
       return <PublicSiteSuspended tenantName={resolution.tenantName} />;
+    }
+    if (resolution.status === "billing_suspended") {
+      return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;
     }
     if (resolution.status === "redirect") {
       // Redirection PERMANENTE uniquement après validation complète — voir docs/13,

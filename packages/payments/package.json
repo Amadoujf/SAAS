@@ -11,7 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@yamacommerce/database": "workspace:*"
+    "@yamacommerce/database": "workspace:*",
+    "@yamacommerce/queue": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^20.17.9",

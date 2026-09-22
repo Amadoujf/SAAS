@@ -419,7 +419,7 @@ export async function upsertInventoryItem(
       tenantId,
       productVariantId: params.variantId,
       shopId: params.shopId,
-      quantity: params.initialQuantity ?? 0,
+      availableQuantity: params.initialQuantity ?? 0,
       lowStockThreshold: params.lowStockThreshold ?? 5,
     },
     update: {
@@ -440,7 +440,7 @@ export class InsufficientStockError extends Error {
 export interface AdjustStockInput {
   inventoryItemId: string;
   type: StockMovementType;
-  /** Toujours positif : seul `type: "out"` décrémente `quantity` ; `in`/`return`/
+  /** Toujours positif : seul `type: "out"` décrémente `availableQuantity` ; `in`/`return`/
    *  `adjustment`/`transfer` l'incrémentent tous. Une transformation vers/depuis une
    *  autre boutique se modélise donc comme un "out" sur la source PUIS un "in" sur la
    *  destination (deux appels, deux lignes d'historique) — jamais une seule opération
@@ -453,10 +453,10 @@ export interface AdjustStockInput {
 }
 
 /**
- * Fonction CRITIQUE — seul point d'entrée pour modifier `InventoryItem.quantity`.
+ * Fonction CRITIQUE — seul point d'entrée pour modifier `InventoryItem.availableQuantity`.
  * Atomique et sûre sous concurrence par construction : la condition de stock
- * suffisant (`quantity: { gte: amount }` pour une sortie) fait partie de la MÊME
- * clause `WHERE` que le `UPDATE` qui décrémente, dans une seule instruction SQL —
+ * suffisant (`availableQuantity: { gte: amount }` pour une sortie) fait partie de la
+ * MÊME clause `WHERE` que le `UPDATE` qui décrémente, dans une seule instruction SQL —
  * exactement le pattern déjà établi par `nextCounterValue` (counters.ts), jamais un
  * verrou distribué ni un `SELECT ... FOR UPDATE` séparé (inutile : PostgreSQL
  * sérialise déjà les `UPDATE` concurrents sur la même ligne). Si `updateMany` ne
@@ -466,7 +466,11 @@ export interface AdjustStockInput {
  * pour la preuve réelle (appels parallèles contre PostgreSQL).
  *
  * Écrit TOUJOURS une ligne `StockMovement` (historique), y compris pour un
- * ajustement manuel — jamais une modification de `quantity` sans trace.
+ * ajustement manuel — jamais une modification de `availableQuantity` sans trace.
+ * Ne touche jamais `reservedQuantity` — cette fonction reste réservée aux mouvements
+ * de stock physiques (réception, ajustement manuel, transfert, retour) ; la réservation
+ * à la commande passe par `order-registry.ts`, qui transfère un delta littéral entre
+ * les deux colonnes sans jamais appeler `adjustStock`.
  */
 export async function adjustStock(tx: Prisma.TransactionClient, tenantId: string, input: AdjustStockInput) {
   const item = await tx.inventoryItem.findFirst({
@@ -481,15 +485,15 @@ export async function adjustStock(tx: Prisma.TransactionClient, tenantId: string
       where: {
         id: input.inventoryItemId,
         variant: { product: { tenantId } },
-        quantity: { gte: input.quantity },
+        availableQuantity: { gte: input.quantity },
       },
-      data: { quantity: { decrement: input.quantity } },
+      data: { availableQuantity: { decrement: input.quantity } },
     });
     if (count === 0) throw new InsufficientStockError(input.inventoryItemId, input.quantity);
   } else {
     await tx.inventoryItem.updateMany({
       where: { id: input.inventoryItemId, variant: { product: { tenantId } } },
-      data: { quantity: { increment: input.quantity } },
+      data: { availableQuantity: { increment: input.quantity } },
     });
   }
 
@@ -531,19 +535,20 @@ export async function listAllInventoryItems(tx: Prisma.TransactionClient, tenant
   return tx.inventoryItem.findMany({
     where: { variant: { product: { tenantId } } },
     include: { variant: { include: { product: true } }, shop: true },
-    orderBy: { quantity: "asc" },
+    orderBy: { availableQuantity: "asc" },
   });
 }
 
 /** Alertes de stock bas — calculées à la volée (pas de modèle "Alert" séparé : la
- *  vérité est toujours `quantity <= lowStockThreshold`, jamais un état à resynchroniser).
- *  Filtre en mémoire plutôt qu'en SQL : Prisma ne permet pas de comparer deux colonnes
- *  entre elles dans un `where` sans SQL brut, qu'on préfère éviter ici (aucun autre
- *  fichier de ce projet n'en utilise) — acceptable tant que le catalogue d'un tenant
- *  reste de taille raisonnable (des milliers d'items, pas des millions). */
+ *  vérité est toujours `availableQuantity <= lowStockThreshold`, jamais un état à
+ *  resynchroniser). Filtre en mémoire plutôt qu'en SQL : Prisma ne permet pas de
+ *  comparer deux colonnes entre elles dans un `where` sans SQL brut, qu'on préfère
+ *  éviter ici (aucun autre fichier de ce projet n'en utilise) — acceptable tant que le
+ *  catalogue d'un tenant reste de taille raisonnable (des milliers d'items, pas des
+ *  millions). */
 export async function listLowStockItems(tx: Prisma.TransactionClient, tenantId: string) {
   const items = await listAllInventoryItems(tx, tenantId);
-  return items.filter((item) => item.quantity <= item.lowStockThreshold);
+  return items.filter((item) => item.availableQuantity <= item.lowStockThreshold);
 }
 
 // ============================================================================

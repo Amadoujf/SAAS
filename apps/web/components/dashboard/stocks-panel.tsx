@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 
 interface InventoryRow {
   id: string;
-  quantity: number;
+  availableQuantity: number;
   lowStockThreshold: number;
   shop: { id: string; name: string };
   variant: { id: string; name: string; product: { id: string; name: string } };
@@ -86,7 +86,7 @@ export function StocksPanel() {
         <ul className="divide-y divide-gray-200">
           {items.length === 0 && <li className="p-4 text-sm text-gray-500">Aucun stock enregistré pour le moment.</li>}
           {items.map((item) => {
-            const low = item.quantity <= item.lowStockThreshold;
+            const low = item.availableQuantity <= item.lowStockThreshold;
             return (
               <li key={item.id}>
                 <button
@@ -107,7 +107,7 @@ export function StocksPanel() {
                       low ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-700"
                     }`}
                   >
-                    {item.quantity} en stock
+                    {item.availableQuantity} en stock
                   </span>
                 </button>
               </li>

@@ -24,6 +24,7 @@ import {
   createProductVariant as createProductVariantRegistry,
   updateProductVariant as updateProductVariantRegistry,
   deleteProductVariant as deleteProductVariantRegistry,
+  assertQuotaAvailable,
   type ListProductsFilter,
 } from "@yamacommerce/database";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
@@ -135,9 +136,15 @@ export async function createProductAction(
 ) {
   const actor = await requireTenantPermission(tenantId, "products.create");
   if (!actor) return null;
-  const product = await withTenant(tenantId, (tx) =>
-    createProductRegistry(tx, tenantId, { ...input, createdBy: actor.userId }),
-  );
+  // Quota SERVEUR — voir docs/14-facturation-saas-abonnements.md, décision #5 : un
+  // appel direct à cette action sans passer par l'UI doit échouer tout autant que
+  // l'UI elle-même le refuserait. Vérifié dans la MÊME transaction que la création
+  // pour rester le plus proche possible d'une garde atomique (best-effort — voir
+  // `subscription-usage.ts` pour la limite documentée sous concurrence extrême).
+  const product = await withTenant(tenantId, async (tx) => {
+    await assertQuotaAvailable(tx, tenantId, "products");
+    return createProductRegistry(tx, tenantId, { ...input, createdBy: actor.userId });
+  });
   await audit({ tenantId, actorUserId: actor.userId, action: "catalog.product_created", entityType: "Product", entityId: product.id });
   deps.invalidateCache(tenantId);
   return product;

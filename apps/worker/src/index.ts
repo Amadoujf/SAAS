@@ -1,5 +1,12 @@
 import { Worker } from "bullmq";
-import { redisConnection, QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
+import {
+  redisConnection,
+  QUEUE_NAMES,
+  domainDnsCheckQueue,
+  stockReservationExpiryQueue,
+  subscriptionLifecycleSweepQueue,
+  notificationsQueue,
+} from "@yamacommerce/queue";
 import type {
   AIJobData,
   DomainDnsCheckJobData,
@@ -7,10 +14,24 @@ import type {
   ImportJobData,
   InvoiceJobData,
   NotificationJobData,
+  SaasBillingWebhookJobData,
   SitePublishingJobData,
+  StockReservationExpiryJobData,
+  SubscriptionLifecycleSweepJobData,
   WebhookPaymentJobData,
 } from "@yamacommerce/queue";
 import { processPaymentWebhook } from "@yamacommerce/payments";
+import { processSaasBillingWebhook } from "@yamacommerce/billing";
+import {
+  releaseExpiredReservation,
+  sweepExpiredReservations,
+  sweepSubscriptionLifecycle,
+  sweepExpiredCheckoutSessions,
+  findDueBillingReminders,
+  markBillingReminderSentForTenant,
+  findDueStatusChangeNotifications,
+  markStatusChangeNotificationSent,
+} from "@yamacommerce/database";
 
 /**
  * Worker BullMQ — voir docs/03-architecture-technique.md §3.5.
@@ -167,6 +188,159 @@ await domainDnsCheckQueue.upsertJobScheduler(
   { name: QUEUE_NAMES.domainDnsCheck, data: { tenantId: "*", domainId: "__sweep__", attempt: 0 } },
 );
 
+/**
+ * Expiration des réservations de stock — étape 2 (clients/panier/commandes/
+ * livraison, 19 septembre 2026). Contrairement à `domainDnsCheckWorker`, appelle
+ * `releaseExpiredReservation`/`sweepExpiredReservations` (@yamacommerce/database)
+ * DIRECTEMENT, même pattern que `webhooksPaymentsWorker` : aucun contexte Next.js
+ * (`revalidateTag`) n'est nécessaire ici, contrairement à la publication de site — voir
+ * `order-reservation.ts` pour toutes les garanties d'idempotence/traçabilité/course.
+ *
+ * `orderId === "__sweep__"` (même sentinel que le balayage DNS) déclenche le job de
+ * RÉCUPÉRATION : retrouve, indépendamment de tout job individuel, les réservations
+ * expirées qui auraient été manquées (interruption du worker, purge Redis) — voir la
+ * revue de l'étape 2. Journalise des compteurs structurés (released/skipped/failed) à
+ * chaque passage — la seule forme de "métriques" que ce projet expose aujourd'hui
+ * (aucune infrastructure Prometheus/statsd existante à brancher ici).
+ */
+const stockReservationExpiryWorker = new Worker<StockReservationExpiryJobData>(
+  QUEUE_NAMES.stockReservationExpiry,
+  async (job) => {
+    if (job.data.orderId === "__sweep__") {
+      const result = await sweepExpiredReservations(100);
+      console.info(
+        `[stock-reservation-sweep] libérées=${result.released} ignorées=${result.skipped} échecs=${result.failed}`,
+      );
+      for (const error of result.errors) {
+        console.error(
+          `[stock-reservation-sweep] échec commande "${error.orderId}" (tenant "${error.tenantId}") :`,
+          error.message,
+        );
+      }
+      return;
+    }
+
+    const { tenantId, orderId } = job.data;
+    const outcome = await releaseExpiredReservation(tenantId, orderId);
+    console.info(`[stock-reservation-expiry] commande "${orderId}" → ${outcome.outcome}`);
+  },
+  { connection: redisConnection, concurrency },
+);
+
+// Balayage de RÉCUPÉRATION périodique — plus fréquent que le balayage DNS (5 min,
+// pas 15) : une réservation dure ~30 min (voir `RESERVATION_WINDOW_MINUTES`), il faut
+// la retrouver bien avant qu'un job individuel perdu ne laisse un stock immobilisé
+// trop longtemps.
+await stockReservationExpiryQueue.upsertJobScheduler(
+  "stock-reservation-sweep",
+  { every: 5 * 60 * 1000 },
+  { name: QUEUE_NAMES.stockReservationExpiry, data: { tenantId: "*", orderId: "__sweep__" } },
+);
+
+/**
+ * Facturation SaaS — voir docs/14-facturation-saas-abonnements.md. Contrairement à
+ * `webhooksPaymentsWorker`, aucun `tenantId` connu à la réception (un seul compte
+ * Chariow pour toute la plateforme) : `processSaasBillingWebhook` le retrouve lui-même
+ * via `internalReference` -> `BillingCheckoutSession`.
+ */
+const saasBillingWebhooksWorker = new Worker<SaasBillingWebhookJobData>(
+  QUEUE_NAMES.saasBillingWebhooks,
+  async (job) => {
+    const result = await processSaasBillingWebhook({ headers: job.data.headers, rawBody: job.data.rawBody });
+    if (result.status === "error") {
+      throw new Error(`Échec de traitement du webhook de facturation : ${result.reason}`);
+    }
+    return result;
+  },
+  { connection: redisConnection, concurrency },
+);
+
+/**
+ * Décroissance automatique des abonnements (ACTIVE -> GRACE_PERIOD -> SUSPENDED) —
+ * même principe que `stockReservationExpiryWorker` : la base de données (heure
+ * PostgreSQL faisant foi dans `subscription-lifecycle.ts`) reste la SEULE source de
+ * vérité, ce balayage périodique est le mécanisme de RÉCUPÉRATION, jamais dépendant
+ * d'un job individuel qui pourrait être perdu.
+ */
+const subscriptionLifecycleSweepWorker = new Worker<SubscriptionLifecycleSweepJobData>(
+  QUEUE_NAMES.subscriptionLifecycleSweep,
+  async () => {
+    const result = await sweepSubscriptionLifecycle(100);
+    console.info(
+      `[subscription-lifecycle-sweep] grâce=${result.gracePeriodStarted} suspendus=${result.suspended} inchangés=${result.noChange} échecs=${result.failed}`,
+    );
+    for (const error of result.errors) {
+      console.error(
+        `[subscription-lifecycle-sweep] échec abonnement "${error.subscriptionId}" (tenant "${error.tenantId}") :`,
+        error.message,
+      );
+    }
+
+    // Même passage périodique, même cadence : sessions de checkout PENDING
+    // abandonnées au-delà de leur échéance — voir `sweepExpiredCheckoutSessions`.
+    const expiredSessions = await sweepExpiredCheckoutSessions(100);
+    if (expiredSessions > 0) console.info(`[subscription-lifecycle-sweep] sessions de checkout expirées=${expiredSessions}`);
+
+    // Rappels d'échéance J-7/J-3/J-1/jour J — voir docs/14, M8. `packages/database`
+    // ne fait QUE découvrir les rappels dus (aucune dépendance vers la file) ; c'est
+    // ICI, côté worker, que le job réel est empilé sur `notifications` — cette étape
+    // n'affirme JAMAIS qu'un e-mail/WhatsApp a été envoyé, seulement qu'un événement
+    // réel a été mis en file (le worker `notifications` reste un TODO Phase 2).
+    const dueReminders = await findDueBillingReminders(200);
+    for (const reminder of dueReminders) {
+      if (!reminder.ownerEmail && !reminder.ownerPhone) {
+        console.error(
+          `[billing-reminders] tenant "${reminder.tenantId}" sans propriétaire actif contactable — rappel "${reminder.milestone}" ignoré.`,
+        );
+        continue;
+      }
+      await notificationsQueue.add(QUEUE_NAMES.notifications, {
+        tenantId: reminder.tenantId,
+        channel: reminder.ownerEmail ? "email" : "whatsapp",
+        templateType: `billing_reminder_${reminder.milestone.toLowerCase().replace("-", "_")}`,
+        recipient: reminder.ownerEmail ?? reminder.ownerPhone ?? "",
+        variables: { tenantName: reminder.tenantName, milestone: reminder.milestone, subscriptionId: reminder.subscriptionId },
+      });
+      await markBillingReminderSentForTenant(reminder.tenantId, reminder.subscriptionId, reminder.milestone);
+    }
+    if (dueReminders.length > 0) console.info(`[billing-reminders] ${dueReminders.length} rappel(s) mis en file.`);
+
+    // Confirmations immédiates (début de grâce/suspension/renouvellement) — voir
+    // docs/14, M8. Même garde destinataire, même politique "jamais prétendre qu'un
+    // envoi a eu lieu" que ci-dessus.
+    const dueStatusNotifications = await findDueStatusChangeNotifications(200);
+    for (const notification of dueStatusNotifications) {
+      if (!notification.ownerEmail && !notification.ownerPhone) {
+        console.error(
+          `[billing-status-notifications] tenant "${notification.tenantId}" sans propriétaire actif contactable — notification "${notification.eventType}" ignorée.`,
+        );
+        continue;
+      }
+      await notificationsQueue.add(QUEUE_NAMES.notifications, {
+        tenantId: notification.tenantId,
+        channel: notification.ownerEmail ? "email" : "whatsapp",
+        templateType: `billing_${notification.eventType}`,
+        recipient: notification.ownerEmail ?? notification.ownerPhone ?? "",
+        variables: { tenantName: notification.tenantName, subscriptionId: notification.subscriptionId },
+      });
+      await markStatusChangeNotificationSent(notification.tenantId, notification.subscriptionId, notification.eventId);
+    }
+    if (dueStatusNotifications.length > 0) {
+      console.info(`[billing-status-notifications] ${dueStatusNotifications.length} confirmation(s) mise(s) en file.`);
+    }
+  },
+  { connection: redisConnection, concurrency },
+);
+
+// Même fréquence que le balayage de réservation de stock (5 min) — voir docs/14 :
+// aucun tenant ne doit rester en GRACE_PERIOD/ACTIVE expiré plus de quelques minutes
+// au-delà de l'échéance réelle avant que le statut affiché ne reflète la réalité.
+await subscriptionLifecycleSweepQueue.upsertJobScheduler(
+  "subscription-lifecycle-sweep",
+  { every: 5 * 60 * 1000 },
+  { name: QUEUE_NAMES.subscriptionLifecycleSweep, data: {} },
+);
+
 const workers = [
   webhooksPaymentsWorker,
   emailsWorker,
@@ -176,6 +350,9 @@ const workers = [
   notificationsWorker,
   sitePublishingWorker,
   domainDnsCheckWorker,
+  stockReservationExpiryWorker,
+  saasBillingWebhooksWorker,
+  subscriptionLifecycleSweepWorker,
 ];
 
 for (const worker of workers) {

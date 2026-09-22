@@ -12,9 +12,11 @@
   },
   "dependencies": {
     "@yamacommerce/auth": "workspace:*",
+    "@yamacommerce/billing": "workspace:*",
     "@yamacommerce/database": "workspace:*",
     "@yamacommerce/design-tokens": "workspace:*",
     "@yamacommerce/domains": "workspace:*",
+    "@yamacommerce/payments": "workspace:*",
     "@yamacommerce/publishing": "workspace:*",
     "@yamacommerce/queue": "workspace:*",
     "@yamacommerce/storage": "workspace:*",

@@ -36,6 +36,16 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <Link href="/dashboard" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
               Accueil
             </Link>
+            {membership && (
+              <Link href="/dashboard/clients" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
+                Clients
+              </Link>
+            )}
+            {membership && (
+              <Link href="/dashboard/facturation" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
+                Facturation
+              </Link>
+            )}
             {catalogEnabled && (
               <>
                 <Link href="/dashboard/produits" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">

@@ -1,4 +1,4 @@
-import { decryptSecret, prisma } from "@yamacommerce/database";
+import { decryptSecret, withTenant } from "@yamacommerce/database";
 import { CashOnDeliveryAdapter } from "./adapters/cod.adapter";
 import { PayDunyaAdapter, type PayDunyaCredentials } from "./adapters/paydunya.adapter";
 import type { PaymentProviderAdapter, PaymentProviderName } from "./types";
@@ -18,9 +18,15 @@ export async function resolveProviderForTenant(
     return new CashOnDeliveryAdapter();
   }
 
-  const config = await prisma.paymentProviderConfig.findUnique({
-    where: { tenantId_provider: { tenantId, provider } },
-  });
+  // `PaymentProviderConfig` a une policy RLS Pattern A (voir la migration RLS
+  // initiale) — le client Prisma NU (sans contexte tenant) ne peut RIEN y lire,
+  // même le propriétaire d'un tenant réel. Corrigé à l'étape 2 (clients/panier/
+  // commandes/livraison) : c'était un bug latent jamais exercé avant que
+  // `processPaymentWebhook` ne soit réellement invoqué de bout en bout (voir
+  // `webhook-processor.test.ts`, qui l'a révélé).
+  const config = await withTenant(tenantId, (tx) =>
+    tx.paymentProviderConfig.findUnique({ where: { tenantId_provider: { tenantId, provider } } }),
+  );
 
   if (!config || !config.isEnabled) {
     throw new Error(`Le moyen de paiement "${provider}" n'est pas activé pour ce tenant.`);
@@ -38,6 +44,21 @@ export async function resolveProviderForTenant(
   throw new Error(
     `Prestataire "${provider}" pas encore câblé (voir docs/09-plan-developpement.md, Phase 2).`,
   );
+}
+
+/**
+ * Résout le SEUL prestataire en ligne activé pour ce tenant (jamais "cod", qui n'a
+ * pas de ligne `PaymentProviderConfig`) — voir `apps/web/lib/storefront/
+ * checkout-pipeline.ts`, étape 2 : le checkout ne doit jamais deviner/forcer un
+ * prestataire, ni simuler un succès s'il n'y en a aucun de configuré. La sélection
+ * entre PLUSIEURS prestataires en ligne actifs à la fois (ex. PayDunya ET PayTech)
+ * est hors périmètre de cette étape — le premier trouvé est utilisé.
+ */
+export async function resolveEnabledOnlineProvider(tenantId: string): Promise<PaymentProviderName | null> {
+  const config = await withTenant(tenantId, (tx) =>
+    tx.paymentProviderConfig.findFirst({ where: { tenantId, isEnabled: true, provider: { not: "cod" } } }),
+  );
+  return (config?.provider as PaymentProviderName | undefined) ?? null;
 }
 
 function decryptCredentials<T extends Record<string, string>>(config: {

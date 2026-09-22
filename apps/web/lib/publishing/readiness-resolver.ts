@@ -40,7 +40,7 @@ export async function buildPublishReadinessInput(
   deps: ReadinessResolverDeps,
 ): Promise<PublishReadinessInput> {
   const tenant = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-  const subscription = await tx.subscription.findUnique({ where: { tenantId } });
+  const subscription = await tx.tenantSubscription.findUnique({ where: { tenantId } });
   const tenantSite = await tx.tenantSite.findUniqueOrThrow({
     where: { id: tenantSiteId },
     include: { template: true },

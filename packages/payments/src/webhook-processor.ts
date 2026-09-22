@@ -1,4 +1,5 @@
-import { prisma, withSuperAdminAccess, withTenant } from "@yamacommerce/database";
+import { confirmOrderPaymentSuccess, withSuperAdminAccess, withTenant } from "@yamacommerce/database";
+import { stockReservationExpiryQueue } from "@yamacommerce/queue";
 import { resolveProviderForTenant } from "./registry";
 import type { PaymentProviderName, VerifyWebhookInput } from "./types";
 
@@ -42,35 +43,43 @@ export async function processPaymentWebhook(params: {
   try {
     verified = await adapter.verifyWebhook(input);
   } catch (error) {
-    await prisma.paymentWebhookEvent.create({
-      data: {
-        provider: adapter.name,
-        eventId: `invalid:${Date.now()}:${Math.random().toString(36).slice(2)}`,
-        payload: { rawBody: input.rawBody },
-        status: "error",
-        lastError: error instanceof Error ? error.message : String(error),
-      },
-    });
+    await withTenant(tenant.id, (tx) =>
+      tx.paymentWebhookEvent.create({
+        data: {
+          tenantId: tenant.id,
+          provider: adapter.name,
+          eventId: `invalid:${Date.now()}:${Math.random().toString(36).slice(2)}`,
+          payload: { rawBody: input.rawBody },
+          status: "error",
+          lastError: error instanceof Error ? error.message : String(error),
+        },
+      }),
+    );
     return { status: "error", reason: "signature_or_verification_failed" };
   }
 
-  const existingEvent = await prisma.paymentWebhookEvent.findUnique({
-    where: { provider_eventId: { provider: adapter.name, eventId: verified.eventId } },
-  });
+  const existingEvent = await withTenant(tenant.id, (tx) =>
+    tx.paymentWebhookEvent.findUnique({
+      where: { provider_eventId: { provider: adapter.name, eventId: verified.eventId } },
+    }),
+  );
   if (existingEvent?.status === "processed") {
     return { status: "ignored_duplicate" };
   }
 
-  const webhookEvent = await prisma.paymentWebhookEvent.upsert({
-    where: { provider_eventId: { provider: adapter.name, eventId: verified.eventId } },
-    create: {
-      provider: adapter.name,
-      eventId: verified.eventId,
-      payload: verified.raw as object,
-      status: "received",
-    },
-    update: { payload: verified.raw as object },
-  });
+  const webhookEvent = await withTenant(tenant.id, (tx) =>
+    tx.paymentWebhookEvent.upsert({
+      where: { provider_eventId: { provider: adapter.name, eventId: verified.eventId } },
+      create: {
+        tenantId: tenant.id,
+        provider: adapter.name,
+        eventId: verified.eventId,
+        payload: verified.raw as object,
+        status: "received",
+      },
+      update: { payload: verified.raw as object },
+    }),
+  );
 
   // Le tenant est déjà connu (résolu depuis l'URL de callback) : la recherche du
   // paiement reste dans son contexte RLS normal, aucun accès élevé nécessaire ici.
@@ -79,17 +88,40 @@ export async function processPaymentWebhook(params: {
   );
 
   if (!payment) {
-    await prisma.paymentWebhookEvent.update({
-      where: { id: webhookEvent.id },
-      data: {
-        status: "error",
-        lastError: "Aucun paiement local ne correspond à ce providerTransactionId pour ce tenant.",
-        retryCount: { increment: 1 },
-        nextRetryAt: nextRetryDelay(1),
-      },
-    });
+    await withTenant(tenant.id, (tx) =>
+      tx.paymentWebhookEvent.update({
+        where: { id: webhookEvent.id },
+        data: {
+          status: "error",
+          lastError: "Aucun paiement local ne correspond à ce providerTransactionId pour ce tenant.",
+          retryCount: { increment: 1 },
+          nextRetryAt: nextRetryDelay(1),
+        },
+      }),
+    );
     return { status: "error", reason: "payment_not_found" };
   }
+
+  // Défense en profondeur : `params.tenantId` (URL de callback) ne doit JAMAIS, à lui
+  // seul, suffire à faire confiance à la requête — voir la revue de l'étape 2. La
+  // chaîne réelle de confiance est : (1) le prestataire est résolu avec les
+  // identifiants PROPRES de CE tenant (`resolveProviderForTenant`), (2)
+  // `verifyWebhook` revérifie activement AUPRÈS DU PRESTATATAIRE avec ces mêmes
+  // identifiants (jamais le contenu déclaré de la notification seule), (3) le
+  // `Payment` retrouvé est déjà scoping-vérifié par RLS via `withTenant(tenant.id)` —
+  // cette assertion explicite documente et verrouille l'invariant plutôt que de
+  // dépendre implicitement de la RLS seule.
+  if (payment.tenantId !== tenant.id) {
+    await withTenant(tenant.id, (tx) =>
+      tx.paymentWebhookEvent.update({
+        where: { id: webhookEvent.id },
+        data: { status: "error", lastError: "Incohérence tenant : paiement retrouvé n'appartenant pas à ce tenant." },
+      }),
+    );
+    return { status: "error", reason: "tenant_mismatch" };
+  }
+
+  let confirmationOutcome: "confirmed" | "already_confirmed" | "flagged_for_manual_reconciliation" | null = null;
 
   await withTenant(tenant.id, async (tx) => {
     await tx.payment.update({
@@ -107,29 +139,52 @@ export async function processPaymentWebhook(params: {
     });
 
     if (verified.status === "succeeded") {
-      await tx.order.update({
-        where: { id: payment.orderId },
-        data: { paymentStatus: "PAID", status: "PAID" },
-      });
-      await tx.orderStatusHistory.create({
-        data: {
-          orderId: payment.orderId,
-          toStatus: "PAID",
-          changedByType: "system",
-          note: `Paiement confirmé via ${adapter.name} (webhook vérifié serveur à serveur)`,
-        },
-      });
+      // `confirmOrderPaymentSuccess` (packages/database, order-registry.ts) est le SEUL
+      // effet de bord autorisé d'un paiement réussi : passe par la machine à états
+      // gardée (`transitionOrderStatus`, jamais un `tx.order.update` direct comme
+      // avant l'étape 2), enchaîne AWAITING_PAYMENT -> PAID -> CONFIRMED, commet
+      // réellement le stock réservé. TROIS issues possibles, TOUTES définitives (donc
+      // TOUJOURS "processed", jamais "error" — voir la revue : un conflit métier gagné
+      // par une expiration concurrente n'est pas un échec technique à rejouer) :
+      // rejeu (`already_confirmed`), confirmation normale (`confirmed`), ou paiement
+      // arrivé après l'expiration de la réservation (`flagged_for_manual_reconciliation`
+      // — jamais un succès automatique sans stock réel, voir `Payment.reconciliationStatus`).
+      const result = await confirmOrderPaymentSuccess(
+        tx,
+        tenant.id,
+        payment.orderId,
+        `Paiement confirmé via ${adapter.name} (webhook vérifié serveur à serveur)`,
+      );
+      confirmationOutcome = result.outcome;
       // La génération de facture (Counter séquentiel + PDF + QR code) est déclenchée par
       // la file "invoices" à partir de cet événement — voir apps/worker, câblage en Phase 1.
     }
   });
 
-  await prisma.paymentWebhookEvent.update({
-    where: { id: webhookEvent.id },
-    data: { status: "processed", processedAt: new Date() },
-  });
+  if (confirmationOutcome === "confirmed" || confirmationOutcome === "already_confirmed") {
+    // La commande a atteint CONFIRMED (ou l'avait déjà atteint) : le job d'expiration
+    // de réservation planifié à l'achat (voir checkout-pipeline.ts, `jobId:
+    // order.id`) n'a plus lieu d'être — annulé hors transaction, comme toute
+    // opération de file d'attente (voir `withTenant`, jamais de Redis à l'intérieur
+    // d'une transaction PostgreSQL). Silencieux si déjà absent (job déjà exécuté,
+    // déjà annulé, ou jamais planifié — commande COD par exemple).
+    const job = await stockReservationExpiryQueue.getJob(payment.orderId);
+    await job?.remove();
+  }
 
-  return { status: "processed" };
+  await withTenant(tenant.id, (tx) =>
+    tx.paymentWebhookEvent.update({
+      where: { id: webhookEvent.id },
+      data: { status: "processed", processedAt: new Date() },
+    }),
+  );
+
+  return {
+    status: "processed",
+    ...(confirmationOutcome === "flagged_for_manual_reconciliation"
+      ? { reason: "payment_succeeded_after_reservation_expired_manual_review_required" }
+      : {}),
+  };
 }
 
 /** Backoff exponentiel plafonné à 60 minutes — relance automatique des échecs (adjustement #3). */

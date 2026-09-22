@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { withTenant, getProductBySlugForTenant } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
+import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
 /**
  * Fiche produit publique RÉELLE — voir docs/08 §8.1, `/p/[slug]`. Même garde
@@ -33,6 +34,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
 
   if (active.status === "not_found") notFound();
   if (active.status === "suspended") return <PublicSiteSuspended tenantName={active.tenantName} />;
+  if (active.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={active.tenantName} />;
   if (active.status === "redirect") {
     permanentRedirect(`https://${active.targetDomain}/p/${params.slug}`);
   }
@@ -90,7 +92,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
             <h2 className="text-sm font-medium">Options disponibles</h2>
             <ul className="flex flex-wrap gap-2">
               {product.variants.map((variant) => {
-                const inStock = variant.inventoryItems.some((item) => item.quantity > 0);
+                const inStock = variant.inventoryItems.some((item) => item.availableQuantity > 0);
                 return (
                   <li
                     key={variant.id}

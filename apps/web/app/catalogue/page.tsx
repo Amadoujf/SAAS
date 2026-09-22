@@ -5,6 +5,7 @@ import Link from "next/link";
 import { withTenant, listProducts, listCategories } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
+import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
 export const metadata: Metadata = { title: "Catalogue" };
 
@@ -33,6 +34,7 @@ export default async function CataloguePage({
 
   if (active.status === "not_found") notFound();
   if (active.status === "suspended") return <PublicSiteSuspended tenantName={active.tenantName} />;
+  if (active.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={active.tenantName} />;
   if (active.status === "redirect") {
     permanentRedirect(`https://${active.targetDomain}/catalogue`);
   }

@@ -1,5 +1,6 @@
 import "server-only";
 import { listActiveDomainsForTenant, resolveActiveDomainByHost, resolveDomainServeDecision } from "@yamacommerce/domains";
+import { withSuperAdminAccess } from "@yamacommerce/database";
 import { cachedLiveSiteResolver } from "@/lib/publishing/cache";
 import { resolveTenantSiteForRendering, type TenantSiteRenderProps } from "./resolve-tenant-site";
 
@@ -28,6 +29,7 @@ import { resolveTenantSiteForRendering, type TenantSiteRenderProps } from "./res
 export type PublicSiteResolution =
   | { status: "not_found" }
   | { status: "suspended"; tenantName: string }
+  | { status: "billing_suspended"; tenantName: string }
   | { status: "not_published" }
   | { status: "redirect"; targetDomain: string }
   | { status: "ok"; tenantId: string; tenantName: string; site: TenantSiteRenderProps };
@@ -50,6 +52,7 @@ export const defaultResolvePublicSiteDeps: ResolvePublicSiteDeps = {
 export type ActiveTenantResolution =
   | { status: "not_found" }
   | { status: "suspended"; tenantName: string }
+  | { status: "billing_suspended"; tenantName: string }
   | { status: "redirect"; targetDomain: string }
   | { status: "ok"; tenantId: string; tenantName: string };
 
@@ -69,6 +72,20 @@ export async function resolveActiveTenant(host: string): Promise<ActiveTenantRes
   const tenant = domain.tenant;
   if (tenant.status === "SUSPENDED") return { status: "suspended", tenantName: tenant.name };
   if (tenant.status !== "ACTIVE") return { status: "not_found" };
+
+  // Distinct de `tenant.status === "SUSPENDED"` (décision Super Admin sur le TENANT
+  // entier) — voir docs/14-facturation-saas-abonnements.md, « politique de
+  // disponibilité du site ». GRACE_PERIOD n'affecte JAMAIS le site public (aucune
+  // pénalité avant la fin de la grâce, voir readiness.ts `ALLOWED_SUBSCRIPTION_STATUSES`).
+  // L'ABSENCE de ligne `TenantSubscription` (tenants créés avant cette étape, jamais
+  // rétro-remplie) n'est PAS traitée comme une suspension — seul un statut EXPLICITE
+  // SUSPENDED/EXPIRED bloque le site.
+  const subscription = await withSuperAdminAccess((tx) =>
+    tx.tenantSubscription.findUnique({ where: { tenantId: tenant.id }, select: { status: true } }),
+  );
+  if (subscription?.status === "SUSPENDED" || subscription?.status === "EXPIRED") {
+    return { status: "billing_suspended", tenantName: tenant.name };
+  }
 
   const allDomains = await listActiveDomainsForTenant(tenant.id);
   const decision = resolveDomainServeDecision(

@@ -69,7 +69,20 @@ export interface MediaReferenceCheckInput {
 
 export interface PublishReadinessInput {
   tenantStatus: "PENDING" | "ACTIVE" | "SUSPENDED" | "DELETED";
-  subscriptionStatus: "TRIALING" | "ACTIVE" | "PAST_DUE" | "CANCELED" | null;
+  /// Étendu le 20 septembre 2026 (facturation SaaS) — voir
+  /// `packages/database/prisma/schema.prisma`, enum `SubscriptionStatus`. `GRACE_PERIOD`
+  /// autorise ENCORE la publication (aucune pénalité avant la fin de la grâce) ;
+  /// `PENDING`/`PAST_DUE`/`SUSPENDED`/`EXPIRED` la bloquent, comme `CANCELED` déjà.
+  subscriptionStatus:
+    | "PENDING"
+    | "TRIALING"
+    | "ACTIVE"
+    | "GRACE_PERIOD"
+    | "PAST_DUE"
+    | "SUSPENDED"
+    | "CANCELED"
+    | "EXPIRED"
+    | null;
   templateStatus: "draft" | "published" | "archived";
   hasActiveVerifiedDomain: boolean;
   /** Id du tenant propriétaire du domaine demandé, si celui-ci existe déjà pour un
@@ -81,7 +94,7 @@ export interface PublishReadinessInput {
   mediaReferences: MediaReferenceCheckInput[];
 }
 
-const ALLOWED_SUBSCRIPTION_STATUSES = new Set(["TRIALING", "ACTIVE"]);
+const ALLOWED_SUBSCRIPTION_STATUSES = new Set(["TRIALING", "ACTIVE", "GRACE_PERIOD"]);
 
 /**
  * Calcule le rapport de préparation à la publication — jamais d'exception : chaque

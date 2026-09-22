@@ -154,6 +154,26 @@ describe("checkPublishReadiness — blocages", () => {
     expect(report.canPublish).toBe(true);
   });
 
+  it("autorise ENCORE la publication pendant la période de grâce (GRACE_PERIOD) — voir docs/14, facturation SaaS", () => {
+    const report = checkPublishReadiness(baseInput({ subscriptionStatus: "GRACE_PERIOD" }));
+    expect(report.canPublish).toBe(true);
+  });
+
+  it("bloque si l'abonnement est SUSPENDED (grâce dépassée)", () => {
+    const report = checkPublishReadiness(baseInput({ subscriptionStatus: "SUSPENDED" }));
+    expect(report.issues.map((i) => i.code)).toContain("subscription_disallows_publish");
+  });
+
+  it("bloque si l'abonnement est EXPIRED", () => {
+    const report = checkPublishReadiness(baseInput({ subscriptionStatus: "EXPIRED" }));
+    expect(report.issues.map((i) => i.code)).toContain("subscription_disallows_publish");
+  });
+
+  it("bloque si l'abonnement est encore PENDING (aucun paiement confirmé)", () => {
+    const report = checkPublishReadiness(baseInput({ subscriptionStatus: "PENDING" }));
+    expect(report.issues.map((i) => i.code)).toContain("subscription_disallows_publish");
+  });
+
   it("bloque si aucun domaine actif/vérifié n'existe", () => {
     const report = checkPublishReadiness(baseInput({ hasActiveVerifiedDomain: false }));
     expect(report.issues.map((i) => i.code)).toContain("domain_invalid_or_unverified");

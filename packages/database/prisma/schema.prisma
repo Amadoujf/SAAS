@@ -65,40 +65,52 @@ model Tenant {
   updatedAt        DateTime     @updatedAt
   deletedAt        DateTime?
 
-  domains        Domain[]
-  users          TenantUser[]
-  roles          Role[]
-  shops          Shop[]
-  categories     Category[]
-  products       Product[]
-  productVariants ProductVariant[]
-  inventoryItems  InventoryItem[]
-  stockMovements  StockMovement[]
-  customers      Customer[]
-  orders         Order[]
-  invoices       Invoice[]
-  quotes         Quote[]
-  subscription   Subscription?
-  auditLogs      AuditLog[]
-  paymentConfigs PaymentProviderConfig[]
-  whatsappConfig WhatsAppConfig?
-  deliveryZones  DeliveryZone[]
-  deliverers     Deliverer[]
-  counters       Counter[]
-  aiJobs         AIGenerationJob[]
-  aiUsageRecords AIUsageRecord[]
-  importJobs     ImportJob[]
-  notifTemplates NotificationTemplate[]
-  suppliers      Supplier[]
-  expenses       Expense[]
-  promoCodes     PromoCode[]
-  giftCards      GiftCard[]
-  impersonated   ImpersonationSession[]
-  tenantModules  TenantModule[]
-  tenantSite     TenantSite?
-  siteVersions   TenantSiteVersion[]
-  pages          Page[]
-  mediaAssets    MediaAsset[]
+  domains                  Domain[]
+  users                    TenantUser[]
+  roles                    Role[]
+  shops                    Shop[]
+  categories               Category[]
+  products                 Product[]
+  productVariants          ProductVariant[]
+  inventoryItems           InventoryItem[]
+  stockMovements           StockMovement[]
+  customers                Customer[]
+  customerAddresses        CustomerAddress[]
+  carts                    Cart[]
+  cartItems                CartItem[]
+  orders                   Order[]
+  orderItems               OrderItem[]
+  orderStatusHistory       OrderStatusHistory[]
+  paymentWebhookEvents     PaymentWebhookEvent[]
+  deliveries               Delivery[]
+  invoices                 Invoice[]
+  quotes                   Quote[]
+  subscription             TenantSubscription?
+  subscriptionPayments     SubscriptionPayment[]
+  subscriptionEvents       SubscriptionEvent[]
+  subscriptionEntitlements SubscriptionEntitlement[]
+  subscriptionUsages       SubscriptionUsage[]
+  billingCheckoutSessions  BillingCheckoutSession[]
+  auditLogs                AuditLog[]
+  paymentConfigs           PaymentProviderConfig[]
+  whatsappConfig           WhatsAppConfig?
+  deliveryZones            DeliveryZone[]
+  deliverers               Deliverer[]
+  counters                 Counter[]
+  aiJobs                   AIGenerationJob[]
+  aiUsageRecords           AIUsageRecord[]
+  importJobs               ImportJob[]
+  notifTemplates           NotificationTemplate[]
+  suppliers                Supplier[]
+  expenses                 Expense[]
+  promoCodes               PromoCode[]
+  giftCards                GiftCard[]
+  impersonated             ImpersonationSession[]
+  tenantModules            TenantModule[]
+  tenantSite               TenantSite?
+  siteVersions             TenantSiteVersion[]
+  pages                    Page[]
+  mediaAssets              MediaAsset[]
 
   @@index([status])
 }
@@ -134,13 +146,13 @@ enum DomainLifecycleStatus {
 }
 
 model Domain {
-  id        String  @id @default(uuid())
-  tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id])
-  domain    String  @unique // contrainte d'unicité globale : un domaine ne peut jamais
+  id                          String  @id @default(uuid())
+  tenantId                    String
+  tenant                      Tenant  @relation(fields: [tenantId], references: [id])
+  domain                      String  @unique // contrainte d'unicité globale : un domaine ne peut jamais
   // appartenir à deux tenants à la fois — voir docs/09, Phase 1 (« domaine personnalisé »).
-  type      String // "subdomain" | "custom"
-  isPrimary Boolean @default(false)
+  type                        String // "subdomain" | "custom"
+  isPrimary                   Boolean @default(false)
   /// Voir @yamacommerce/domains `domain-redirect.ts` : un domaine non-principal
   /// redirige TOUJOURS directement vers le principal du tenant, SAUF s'il porte ce
   /// drapeau (posé sur le sous-domaine gratuit — « conserver le sous-domaine comme
@@ -158,12 +170,12 @@ model Domain {
   verificationAttempts       Int       @default(0)
   /// Enregistrements DNS attendus, affichés au commerçant dans l'assistant de
   /// configuration : [{ type: "CNAME"|"A"|"TXT", host, value, ttlSeconds }].
-  expectedDnsRecords       Json?     @default("[]")
+  expectedDnsRecords         Json?     @default("[]")
   /// Dernier relevé DNS constaté par la détection automatique périodique.
-  detectedDnsRecords       Json?
-  lastCheckedAt            DateTime?
+  detectedDnsRecords         Json?
+  lastCheckedAt              DateTime?
   /// Horodatage du dernier rappel envoyé si la configuration reste incomplète.
-  incompleteReminderSentAt DateTime?
+  incompleteReminderSentAt   DateTime?
 
   // Abstraction du fournisseur de domaine (adjustement #5) : permet de migrer de Caddy
   // (on-demand TLS, dev/premiers déploiements) vers Cloudflare Custom Hostnames sans
@@ -196,32 +208,86 @@ model Domain {
   @@index([lifecycleStatus])
 }
 
-model Plan {
-  id           String @id @default(uuid())
-  name         String @unique // Essentiel, Business, Premium, Entreprise
-  priceMonthly Int
-  priceYearly  Int
-  trialDays    Int    @default(14)
+// ============================================================================
+// FACTURATION SAAS — abonnements des ENTREPRISES à la plateforme (19 septembre 2026).
+// Entièrement distinct des paiements des CLIENTS FINAUX sur le site d'une entreprise
+// (voir packages/payments, modèles Payment/PaymentProviderConfig/PaymentWebhookEvent,
+// jamais touchés ici). `SubscriptionPlan`/`TenantSubscription` renommés depuis
+// `Plan`/`Subscription` (Phase 0) — additif, jamais un modèle parallèle : ces deux
+// modèles sont déjà utilisés en production par `real-media-context.ts` (quota
+// médiathèque) et `readiness-resolver.ts`/`@yamacommerce/publishing` `readiness.ts`
+// (blocage de publication) — voir ces fichiers pour la mise à jour de concert.
+// ============================================================================
 
-  maxProducts         Int
-  maxEmployees        Int
-  maxShops            Int
-  storageMB           Int
-  customDomainAllowed Boolean @default(false)
+enum PlanStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+/// `AUTOMATIC` reste RÉSERVÉ au schéma mais structurellement impossible à activer :
+/// aucun adaptateur de `packages/billing` n'implémente aujourd'hui un mandat de
+/// paiement récurrent conforme (Chariow ne prélève jamais sans confirmation explicite
+/// du client à chaque paiement) — voir docs/14-facturation-saas-abonnements.md.
+enum RenewalMode {
+  MANUAL
+  AUTOMATIC
+}
+
+model SubscriptionPlan {
+  id                  String     @id @default(uuid())
+  name                String     @unique // Essentiel, Business, Premium, Entreprise
+  status              PlanStatus @default(DRAFT)
+  currency            String     @default("XOF")
+  priceMonthly        Int
+  priceYearly         Int
+  trialDays           Int        @default(14)
+  /// Durée en JOURS entiers (pas d'arithmétique calendaire mois/année — aucune
+  /// librairie de dates dans ce projet, cohérent avec le reste du schéma qui utilise
+  /// déjà des jours entiers partout ailleurs).
+  monthlyDurationDays Int        @default(30)
+  yearlyDurationDays  Int        @default(365)
+  /// Jours de grâce après `currentPeriodEnd` avant suspension — voir
+  /// `subscription-status.ts`, transition ACTIVE -> GRACE_PERIOD -> SUSPENDED.
+  gracePeriodDays     Int        @default(3)
+  /// Frais de mise en service ponctuel, facturé une seule fois à la première
+  /// souscription — `null` = aucun frais.
+  setupFeeXOF         Int?
+
+  maxProducts                 Int
+  maxEmployees                Int
+  maxShops                    Int
+  storageMB                   Int
+  customDomainAllowed         Boolean @default(false)
+  /// Quota par NOMBRE de domaines personnalisés — conservé EN PLUS de
+  /// `customDomainAllowed` (compat) : ce dernier reste un simple interrupteur,
+  /// celui-ci une vraie limite dénombrable.
+  maxCustomDomains            Int     @default(1)
+  /// Quotas mensuels e-mail/WhatsApp — `null` = illimité. Suivis via
+  /// `SubscriptionUsage` (resourceKey "emails"/"whatsapp_messages"), voir
+  /// subscription-usage.ts : ce sont les SEULES ressources sans table source propre
+  /// à compter en direct (contrairement aux produits/employés/domaines).
+  maxEmailsPerMonth           Int?
+  maxWhatsAppMessagesPerMonth Int?
   // Limites de la médiathèque (voir docs/12 §12.2, « médiathèque R2 », 21 septembre
   // 2026) — `storageMB` ci-dessus reste le quota TOTAL de stockage ; ces 4 champs
   // couvrent les limites complémentaires explicitement demandées : taille maximale
   // par image/vidéo/document, nombre maximal de fichiers, quota mensuel d'importation.
   // "Entreprise" reste une valeur par défaut généreuse, ajustable au cas par cas
   // (même convention que `maxProducts`/`maxEmployees` pour cette formule).
-  maxImageFileMB    Int @default(10)
-  maxVideoFileMB    Int @default(200)
-  maxDocumentFileMB Int @default(10)
-  maxMediaFileCount Int @default(2000)
-  monthlyUploadMB   Int @default(2048)
-  advancedReports     Boolean @default(false)
-  whatsappAutomation  Boolean @default(false)
-  commissionRate      Decimal @default(0) @db.Decimal(5, 2) // % prélevé sur les ventes
+  maxImageFileMB              Int     @default(10)
+  maxVideoFileMB              Int     @default(200)
+  maxDocumentFileMB           Int     @default(10)
+  maxMediaFileCount           Int     @default(2000)
+  monthlyUploadMB             Int     @default(2048)
+  advancedReports             Boolean @default(false)
+  whatsappAutomation          Boolean @default(false)
+  commissionRate              Decimal @default(0) @db.Decimal(5, 2) // % prélevé sur les ventes
 
   // Limites IA par formule (adjustement #8)
   maxAIGenerationsPerMonth      Int
@@ -236,28 +302,194 @@ model Plan {
   features Json    @default("[]")
   isActive Boolean @default(true)
 
-  subscriptions Subscription[]
+  /// Mode de renouvellement par défaut des abonnements souscrits à cette formule —
+  /// copié sur `TenantSubscription.renewalMode` à la souscription (voir RenewalMode).
+  renewalMode             RenewalMode @default(MANUAL)
+  /// Identifiants produit Chariow correspondants — PAS un secret (juste une
+  /// référence), administrable par le Super Admin, jamais codé en dur.
+  chariowMonthlyProductId String?
+  chariowYearlyProductId  String?
+
+  subscriptions TenantSubscription[]
 }
 
+/// PENDING : abonnement créé, aucun paiement confirmé pour l'instant (avant la
+/// première session Chariow). TRIALING : essai gratuit à l'inscription (conservé tel
+/// quel, RÉEL et déjà utilisé par le parcours d'inscription — voir seed.ts).
+/// ACTIVE : payé et à jour. GRACE_PERIOD : `currentPeriodEnd` dépassé mais dans la
+/// fenêtre de grâce de la formule — service inchangé. PAST_DUE : réservé à un futur
+/// signal "tentative de paiement échouée" (aucun événement Chariow ne le déclenche
+/// pour l'instant — jamais atteint par le flux normal de cette étape, seulement par
+/// une future extension ou une action Super Admin manuelle). SUSPENDED : grâce
+/// dépassée, site public en page de suspension facturation (jamais de suppression de
+/// données). CANCELED : annulation explicite (tenant ou Super Admin). EXPIRED :
+/// suspendu depuis longtemps sans réactivation (voir docs/14 pour le seuil exact).
 enum SubscriptionStatus {
+  PENDING
   TRIALING
   ACTIVE
+  GRACE_PERIOD
   PAST_DUE
+  SUSPENDED
   CANCELED
+  EXPIRED
 }
 
-model Subscription {
+model TenantSubscription {
   id                 String             @id @default(uuid())
   tenantId           String             @unique
   tenant             Tenant             @relation(fields: [tenantId], references: [id])
   planId             String
-  plan               Plan               @relation(fields: [planId], references: [id])
+  plan               SubscriptionPlan   @relation(fields: [planId], references: [id])
   status             SubscriptionStatus @default(TRIALING)
-  billingCycle       String             @default("monthly") // monthly | yearly
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
+  billingCycle       BillingCycle       @default(MONTHLY)
+  /// Copié depuis `SubscriptionPlan.renewalMode` à la souscription — voir RenewalMode.
+  renewalMode        RenewalMode        @default(MANUAL)
+  /// `@db.Timestamptz(3)` DÉLIBÉRÉMENT explicite sur les 4 champs temporels
+  /// ci-dessous : ce sont ceux comparés à `NOW()`/entre eux par la formule de
+  /// renouvellement et la machine à états (voir `subscription-registry.ts`,
+  /// `subscription-status.ts`) — même leçon que `Order.reservationExpiresAt`
+  /// (migration `20260927000000_reservation_expiry_timestamptz`) : un `timestamp`
+  /// sans fuseau aurait réintroduit exactement le même bug de comparaison
+  /// dépendante du fuseau de session Postgres. `createdAt`/`canceledAt` restent de
+  /// simples horodatages d'audit, jamais comparés — pas besoin du même traitement.
+  currentPeriodStart DateTime           @db.Timestamptz(3)
+  currentPeriodEnd   DateTime           @db.Timestamptz(3)
   cancelAtPeriodEnd  Boolean            @default(false)
+  graceEndsAt        DateTime?          @db.Timestamptz(3)
+  suspendedAt        DateTime?          @db.Timestamptz(3)
+  canceledAt         DateTime?
+  /// Pointeur dénormalisé vers le DERNIER paiement ayant confirmé/prolongé la
+  /// période courante — confort de lecture dashboard, jamais la source de vérité
+  /// (celle-ci reste `SubscriptionPayment`/`SubscriptionEvent`).
+  lastPaymentId      String?
   createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  payments SubscriptionPayment[]
+  events   SubscriptionEvent[]
+
+  @@index([tenantId])
+  @@index([status])
+}
+
+model SubscriptionPayment {
+  id                  String             @id @default(uuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id])
+  subscriptionId      String
+  subscription        TenantSubscription @relation(fields: [subscriptionId], references: [id])
+  planId              String
+  checkoutSessionId   String?
+  provider            String // "chariow" | "manual"
+  /// Unique PAR PRESTATAIRE — un webhook Chariow rejoué (même vente) ne crée jamais
+  /// un second paiement ni ne prolonge deux fois l'abonnement (voir
+  /// subscription-registry.ts, `confirmSubscriptionPaymentSuccess`).
+  providerSaleId      String?
+  amountXOF           Int
+  currency            String             @default("XOF")
+  status              String             @default("PENDING") // PENDING | SUCCEEDED | FAILED
+  /// Nombre de jours dont la période a été prolongée par CE paiement — calculé au
+  /// moment de la confirmation, jamais recalculé après coup (immuable dans les faits,
+  /// bien que la table reste mutable pour la transition de statut PENDING -> autre,
+  /// même précédent que `Payment` côté commerce, PAS un REVOKE ici).
+  periodExtensionDays Int?
+  rawPayload          Json?
+  createdAt           DateTime           @default(now())
+  confirmedAt         DateTime?
+
+  @@unique([provider, providerSaleId])
+  @@index([tenantId])
+  @@index([subscriptionId])
+}
+
+/// Journal d'audit APPEND-ONLY — REVOKE UPDATE/DELETE en migration (même précédent
+/// que StockMovement/OrderStatusHistory) : chaque événement de facturation SaaS doit
+/// rester consultable et non falsifiable, y compris les événements INVALIDES/rejetés
+/// (webhook mal signé, montant incohérent, tentative cross-tenant).
+model SubscriptionEvent {
+  id              String              @id @default(uuid())
+  tenantId        String
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  subscriptionId  String?
+  subscription    TenantSubscription? @relation(fields: [subscriptionId], references: [id])
+  type            String // ex. "checkout_created" | "payment_succeeded" | "renewed" | "suspended" | "manual_extension" | "webhook_rejected_invalid_signature" | "webhook_rejected_cross_tenant"
+  actorType       String // "system" | "webhook" | "super_admin" | "tenant_owner"
+  actorUserId     String?
+  /// Obligatoire en couche APPLICATIVE (pas une contrainte schéma) pour toute action
+  /// Super Admin manuelle — voir docs/14, « prolongation manuelle avec justification
+  /// obligatoire ».
+  justification   String?
+  payloadSnapshot Json?
+  createdAt       DateTime            @default(now())
+
+  @@index([tenantId])
+  @@index([subscriptionId])
+}
+
+/// Dérogations/overrides Super Admin par rapport aux quotas de la formule — JAMAIS
+/// une copie redondante des quotas de `SubscriptionPlan` (leçon de cette session :
+/// jamais un état à resynchroniser). Absence de ligne = aucune dérogation, le quota
+/// effectif est celui de la formule seule.
+model SubscriptionEntitlement {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  resourceKey String // "products" | "employees" | "domains" | "emails" | "whatsapp_messages" | ...
+  limitValue  Int? // null = illimité pour cette dérogation
+  resetPeriod String    @default("none") // "monthly" | "none"
+  reason      String?
+  grantedBy   String?
+  expiresAt   DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([tenantId, resourceKey])
+  @@index([tenantId])
+}
+
+/// Compteurs d'usage CUMULATIFS sans table source propre à compter en direct — voir
+/// `subscription-usage.ts` : les ressources dénombrables via une vraie table
+/// (produits, employés, domaines) sont comptées EN DIRECT (`tx.product.count(...)`),
+/// jamais dupliquées ici. Même forme que `AIUsageRecord` déjà existant, généralisée
+/// par `resourceKey` plutôt qu'une colonne dédiée par dimension.
+model SubscriptionUsage {
+  id          String   @id @default(uuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  resourceKey String // "emails" | "whatsapp_messages"
+  periodKey   String // "2026-09"
+  usedValue   Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, resourceKey, periodKey])
+  @@index([tenantId])
+}
+
+/// Corrélation checkout Chariow <-> webhook Pulse — voir docs/14, « jamais d'accès
+/// accordé depuis la redirection navigateur » : `internalReference` est le jeton
+/// aléatoire non devinable transmis via `custom_metadata`, retrouvé par le webhook
+/// pour confirmer QUELLE session a réellement été payée.
+model BillingCheckoutSession {
+  id                 String       @id @default(uuid())
+  tenantId           String
+  tenant             Tenant       @relation(fields: [tenantId], references: [id])
+  subscriptionId     String?
+  planId             String
+  billingCycle       BillingCycle
+  provider           String // "chariow" | "manual"
+  providerCheckoutId String?
+  /// Jeton aléatoire non devinable — voir la note de tête de modèle.
+  internalReference  String       @unique
+  status             String       @default("PENDING") // PENDING | CONFIRMED | EXPIRED | CANCELED
+  amountXOF          Int
+  currency           String       @default("XOF")
+  /// `@db.Timestamptz(3)` : comparé à `NOW()` par le balayage de rapprochement
+  /// (sessions restées PENDING au-delà de leur échéance) — même précédent que
+  /// `TenantSubscription`, voir la note ci-dessus.
+  expiresAt          DateTime     @db.Timestamptz(3)
+  createdAt          DateTime     @default(now())
+
+  @@index([tenantId])
 }
 
 // ============================================================================
@@ -407,7 +639,7 @@ model TenantSiteVersion {
   /// scope `site-version-{tenantSiteId}`) — attribué UNIQUEMENT au moment de la
   /// publication effective (`publishVersion`), jamais sur un simple brouillon : c'est
   /// le numéro affiché dans l'historique ("Version 12"), pas un id de ligne.
-  versionNumber Int?
+  versionNumber  Int?
   /// Message facultatif saisi par le publieur — voir docs/12 §12.3, "message facultatif".
   publishMessage String?
   /// Figé au moment de la publication par `computeChangesSummary`
@@ -416,10 +648,10 @@ model TenantSiteVersion {
   changesSummary Json?
   /// Domaine/sous-domaine effectivement servi par CETTE version au moment de sa
   /// publication (peut différer d'une version à l'autre si le domaine a changé depuis).
-  domainUsed String?
+  domainUsed     String?
   /// Vrai si cette version a été publiée via une publication PROGRAMMÉE (le job
   /// `site-publishing`) plutôt qu'un clic direct sur "Publier maintenant".
-  wasScheduled Boolean @default(false)
+  wasScheduled   Boolean @default(false)
 
   /// Restauration : voir docs/12 §12.3, "Une restauration doit créer une nouvelle
   /// version. Elle ne doit jamais modifier l'ancienne." — trace UNIQUEMENT quelle
@@ -430,7 +662,7 @@ model TenantSiteVersion {
   /// Justification obligatoire uniquement quand la restauration est effectuée par un
   /// Super Admin (voir docs/12 §12.3, "SUPER ADMIN" : "restaurer une version avec
   /// justification obligatoire") — null pour une restauration normale par le tenant.
-  restoreJustification String?
+  restoreJustification  String?
 
   pages Page[]
 
@@ -685,6 +917,13 @@ model Product {
   tags              String[]      @default([])
   aiGenerated       Boolean       @default(false)
   aiGenerationJobId String?
+  /// Faux = uniquement "retrait en boutique" possible pour cet article — voir étape 2,
+  /// règle "panier mixte" : un seul article non livrable dans le panier force le mode
+  /// pickup pour TOUTE la commande (pas de livraison scindée dans cette étape).
+  isDeliverable     Boolean       @default(true)
+  /// Vrai = ajoute `DeliveryZone.bulkySurcharge` au montant de livraison si présent
+  /// dans le panier au moment du checkout.
+  isBulky           Boolean       @default(false)
   createdBy         String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -701,10 +940,10 @@ model Product {
 }
 
 model ProductImage {
-  id        String  @id @default(uuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  variantId String?
+  id           String      @id @default(uuid())
+  productId    String
+  product      Product     @relation(fields: [productId], references: [id])
+  variantId    String?
   /// Référence la médiathèque réelle (voir MediaAsset.referenceCount) — jamais une simple
   /// URL en dur : ajoutée le 18 septembre 2026 (revue « catalogue réel ») pour qu'une image
   /// produit ne puisse jamais pointer vers un média déjà supprimé/étranger au tenant, et
@@ -715,15 +954,15 @@ model ProductImage {
   /// Dénormalisée au moment de la liaison (jamais recalculée à la volée) : l'URL publique
   /// vient du fournisseur de stockage (@yamacommerce/storage), pas de ce modèle — voir
   /// `addProductImage` dans catalog-registry.ts.
-  url      String
-  altText  String?
-  position Int     @default(0)
+  url          String
+  altText      String?
+  position     Int         @default(0)
 
   @@index([mediaAssetId])
 }
 
 model ProductVariant {
-  id     String @id @default(uuid())
+  id          String  @id @default(uuid())
   /// Dénormalisé depuis `Product.tenantId` (revue du 18 septembre 2026, « corrections
   /// de sécurité ») — indispensable pour poser une policy RLS directe (Pattern A) sur
   /// cette table : le filtrage applicatif explicite via `product: { tenantId }` reste
@@ -745,6 +984,7 @@ model ProductVariant {
 
   inventoryItems InventoryItem[]
   orderItems     OrderItem[]
+  cartItems      CartItem[]
 
   @@unique([tenantId, sku]) // NULL autorisé plusieurs fois (comportement natif Postgres) ; un SKU renseigné doit être unique PAR TENANT, jamais globalement.
   @@index([productId])
@@ -752,7 +992,7 @@ model ProductVariant {
 }
 
 model InventoryItem {
-  id     String @id @default(uuid())
+  id                String         @id @default(uuid())
   /// Dénormalisé depuis `ProductVariant.tenantId` — même justification que ci-dessus.
   tenantId          String
   tenant            Tenant         @relation(fields: [tenantId], references: [id])
@@ -760,9 +1000,14 @@ model InventoryItem {
   variant           ProductVariant @relation(fields: [productVariantId], references: [id])
   shopId            String
   shop              Shop           @relation(fields: [shopId], references: [id])
-  /// `CHECK (quantity >= 0)` posé par la migration RLS de ce module — le stock négatif
-  /// doit être impossible même via un futur code qui contournerait `adjustStock`.
-  quantity          Int            @default(0)
+  /// Quantité VENDABLE, déjà nette des réservations — `CHECK (availableQuantity >= 0)`
+  /// posé par la migration. Renommé depuis `quantity` à l'étape 2 (clients/panier/
+  /// commandes/livraison) pour porter la réservation atomique de commande : réserver
+  /// transfère un delta LITTÉRAL vers `reservedQuantity` (jamais une comparaison de
+  /// deux colonnes dans un WHERE, que Prisma ne permet pas nativement — voir
+  /// order-registry.ts). Le stock physique total affiché est calculé à la volée
+  /// (`availableQuantity + reservedQuantity`), jamais stocké séparément.
+  availableQuantity Int            @default(0)
   reservedQuantity  Int            @default(0)
   lowStockThreshold Int            @default(5)
 
@@ -773,7 +1018,7 @@ model InventoryItem {
 }
 
 model StockMovement {
-  id     String @id @default(uuid())
+  id              String        @id @default(uuid())
   /// Dénormalisé depuis `InventoryItem.tenantId` — même justification que ci-dessus.
   /// Table rendue IMMUABLE au niveau base (REVOKE UPDATE/DELETE pour le rôle
   /// applicatif, voir la migration) : l'historique des mouvements ne doit jamais
@@ -833,12 +1078,16 @@ model Customer {
   referredById  String?
   totalSpent    Int      @default(0)
   ordersCount   Int      @default(0)
+  /// Notes internes visibles uniquement par l'équipe du tenant, jamais exposées au
+  /// client — voir étape 2 (clients/panier/commandes/livraison), "fiche client".
+  internalNotes String?
   createdAt     DateTime @default(now())
 
   addresses CustomerAddress[]
   orders    Order[]
   wishlists Wishlist[]
   reviews   Review[]
+  carts     Cart[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -846,6 +1095,12 @@ model Customer {
 
 model CustomerAddress {
   id           String   @id @default(uuid())
+  /// Dénormalisé depuis `Customer.tenantId` — RLS Pattern A posée à l'étape 2
+  /// (durcissement des tables enfants existantes, même précédent que
+  /// ProductVariant/InventoryItem/StockMovement : le filtrage applicatif via le parent
+  /// reste en place en plus, défense en profondeur).
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
   customerId   String
   customer     Customer @relation(fields: [customerId], references: [id])
   label        String?
@@ -857,6 +1112,8 @@ model CustomerAddress {
   geoLat       Float?
   geoLng       Float?
   isDefault    Boolean  @default(false)
+
+  @@index([tenantId])
 }
 
 model Wishlist {
@@ -909,6 +1166,63 @@ model GiftCard {
 }
 
 // ============================================================================
+// PANIER (étape 2 — clients/panier/commandes/livraison, 19 septembre 2026)
+// ============================================================================
+
+/// Contrairement à `ProductVariant`/`InventoryItem`/`StockMovement` à leur création
+/// initiale, cette table reçoit une VRAIE policy RLS Pattern A dès le départ — voir la
+/// revue qui a exigé la correction de cet écart sur le catalogue : ne jamais livrer une
+/// nouvelle table enfant sans isolation directe.
+model Cart {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  customerId       String?
+  customer         Customer? @relation(fields: [customerId], references: [id])
+  /// Jeton opaque posé dans un cookie httpOnly côté visiteur non connecté (voir
+  /// apps/web/lib/storefront/visitor-session.ts) tant qu'aucun client n'est résolu.
+  /// Un même visiteur peut avoir plusieurs paniers dans le temps (un par session
+  /// d'achat), mais au plus UN panier "active" à la fois — voir l'index unique partiel
+  /// posé par la migration (non déclarable via `@@unique` : n'est valable QUE pour les
+  /// lignes `status = 'active'`).
+  visitorToken     String?
+  status           String    @default("active") // active | converted | abandoned
+  currency         String    @default("XOF")
+  /// Renseigné UNIQUEMENT au moment de la conversion en commande — voir
+  /// `order-registry.ts` `convertCartToOrder`. Combiné à la garde `status: "active"`
+  /// sur l'UPDATE de conversion, c'est ce qui rend la création de commande idempotente
+  /// face à une double soumission (rejeu → panier déjà "converted" → on renvoie la
+  /// commande déjà créée au lieu d'en créer une seconde).
+  convertedOrderId String?   @unique
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  items CartItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, customerId])
+  @@index([tenantId, visitorToken])
+}
+
+model CartItem {
+  id               String         @id @default(uuid())
+  /// Dénormalisé depuis `Cart.tenantId` — même précédent que ProductVariant/
+  /// InventoryItem/StockMovement (RLS Pattern A directe, filtrage applicatif via le
+  /// parent conservé en plus, défense en profondeur).
+  tenantId         String
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  cartId           String
+  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productVariantId String
+  variant          ProductVariant @relation(fields: [productVariantId], references: [id])
+  quantity         Int
+  addedAt          DateTime       @default(now())
+
+  @@unique([cartId, productVariantId])
+  @@index([tenantId])
+}
+
+// ============================================================================
 // COMMANDES
 // ============================================================================
 
@@ -935,27 +1249,50 @@ enum PaymentStatus {
 }
 
 model Order {
-  id                String        @id @default(uuid())
-  tenantId          String
-  tenant            Tenant        @relation(fields: [tenantId], references: [id])
-  shopId            String?
-  customerId        String
-  customer          Customer      @relation(fields: [customerId], references: [id])
-  orderNumber       String // séquentiel par tenant, ex. CMD-2026-000123
-  status            OrderStatus   @default(NEW)
-  channel           String        @default("web") // web | whatsapp | instore | phone
-  paymentStatus     PaymentStatus @default(UNPAID)
-  subtotal          Int
-  discountTotal     Int           @default(0)
-  shippingTotal     Int           @default(0)
-  taxTotal          Int           @default(0)
-  total             Int
-  currency          String        @default("XOF")
-  deliveryZoneId    String?
-  deliveryAddressId String?
-  notes             String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id                   String        @id @default(uuid())
+  tenantId             String
+  tenant               Tenant        @relation(fields: [tenantId], references: [id])
+  shopId               String?
+  customerId           String
+  customer             Customer      @relation(fields: [customerId], references: [id])
+  orderNumber          String // séquentiel par tenant, ex. CMD-2026-000123
+  status               OrderStatus   @default(NEW)
+  channel              String        @default("web") // web | whatsapp | instore | phone
+  paymentStatus        PaymentStatus @default(UNPAID)
+  subtotal             Int
+  discountTotal        Int           @default(0)
+  shippingTotal        Int           @default(0)
+  taxTotal             Int           @default(0)
+  total                Int
+  currency             String        @default("XOF")
+  deliveryZoneId       String?
+  deliveryAddressId    String?
+  /// "delivery" (livraison à domicile/zone) | "pickup" (retrait en boutique) — voir
+  /// étape 2, règle "panier mixte" : au moins un article `Product.isDeliverable = false`
+  /// dans le panier force "pickup" pour toute la commande (pas de livraison scindée).
+  deliveryMethod       String        @default("delivery")
+  /// Renseigné UNIQUEMENT pour le chemin paiement en ligne (`AWAITING_PAYMENT`) — voir
+  /// `order-reservation.ts`. Null pour une commande à la livraison (engagement ferme
+  /// dès `CONFIRMED`, jamais auto-libérée) et remis à null dès que la commande quitte
+  /// `AWAITING_PAYMENT` (payée ou annulée).
+  ///
+  /// `@db.Timestamptz(3)` DÉLIBÉRÉMENT explicite (le défaut Prisma/Postgres pour
+  /// `DateTime` est `timestamp` SANS fuseau) : cette colonne est comparée à `NOW()` en
+  /// SQL brut (voir order-reservation.ts, `releaseExpiredReservationTx`) — un
+  /// `timestamp` sans fuseau aurait fait réinterpréter ses chiffres nus dans le
+  /// fuseau de LA SESSION Postgres à chaque comparaison (ex. America/New_York sur
+  /// l'instance de test), rendant une réservation réellement expirée invisible
+  /// pendant des heures. `timestamptz` stocke un instant ABSOLU : la comparaison
+  /// contre `NOW()` (également `timestamptz`) est alors correcte quel que soit le
+  /// fuseau de session — voir `order-reservation.test.ts`, « MULTI-FUSEAUX », pour la
+  /// preuve réelle avec plusieurs `SET TIME ZONE` différents.
+  reservationExpiresAt DateTime?     @db.Timestamptz(3)
+  /// Jeton opaque permettant à un visiteur invité (sans compte client) de revoir sa
+  /// propre confirmation de commande sans authentification — voir le storefront.
+  accessToken          String        @unique @default(uuid())
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   items         OrderItem[]
   statusHistory OrderStatusHistory[]
@@ -970,6 +1307,10 @@ model Order {
 
 model OrderItem {
   id                  String         @id @default(uuid())
+  /// Dénormalisé depuis `Order.tenantId` — RLS Pattern A posée à l'étape 2, même
+  /// précédent que ProductVariant/InventoryItem/StockMovement.
+  tenantId            String
+  tenant              Tenant         @relation(fields: [tenantId], references: [id])
   orderId             String
   order               Order          @relation(fields: [orderId], references: [id])
   productVariantId    String
@@ -980,10 +1321,19 @@ model OrderItem {
   discount            Int            @default(0)
   taxRate             Decimal        @default(0) @db.Decimal(5, 2)
   total               Int
+
+  @@index([tenantId])
 }
 
 model OrderStatusHistory {
   id            String       @id @default(uuid())
+  /// Dénormalisé depuis `Order.tenantId` — RLS Pattern A. Table rendue IMMUABLE au
+  /// niveau base (REVOKE UPDATE/DELETE, voir la migration) : une transition de statut
+  /// ne doit jamais pouvoir être réécrite après coup, même par un bug applicatif —
+  /// même garantie que `StockMovement`. Seul `transitionOrderStatus` (order-status.ts)
+  /// écrit dans cette table, toujours par `create`.
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
   orderId       String
   order         Order        @relation(fields: [orderId], references: [id])
   fromStatus    OrderStatus?
@@ -992,6 +1342,8 @@ model OrderStatusHistory {
   changedByType String // owner | employee | system | customer
   note          String?
   createdAt     DateTime     @default(now())
+
+  @@index([tenantId])
 }
 
 // ============================================================================
@@ -1051,6 +1403,14 @@ model Payment {
 
 model PaymentWebhookEvent {
   id          String    @id @default(uuid())
+  /// Ajouté à l'étape 2 (clients/panier/commandes/livraison) : jusque-là cette table
+  /// n'avait aucun `tenantId` (le tenant était résolu via l'URL de callback, jamais
+  /// stocké) et aucune route HTTP ne l'atteignait réellement — cette étape construit la
+  /// première (`/api/webhooks/[provider]/[tenantId]`), donc la table est prouvée vide
+  /// et le NOT NULL ne nécessite aucun backfill. RLS Pattern A comme le reste des
+  /// tables paiement.
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
   provider    String
   eventId     String // identifiant fourni par le prestataire — clé d'idempotence
   payload     Json
@@ -1064,6 +1424,7 @@ model PaymentWebhookEvent {
 
   @@unique([provider, eventId])
   @@index([status, nextRetryAt])
+  @@index([tenantId])
 }
 
 model InstallmentPlan {
@@ -1183,16 +1544,19 @@ model Refund {
 // ============================================================================
 
 model DeliveryZone {
-  id            String  @id @default(uuid())
-  tenantId      String
-  tenant        Tenant  @relation(fields: [tenantId], references: [id])
-  region        String
-  department    String?
-  commune       String?
-  neighborhood  String?
-  fee           Int
-  freeThreshold Int?
-  estimatedDays Int?
+  id             String  @id @default(uuid())
+  tenantId       String
+  tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  region         String
+  department     String?
+  commune        String?
+  neighborhood   String?
+  fee            Int
+  freeThreshold  Int?
+  /// Supplément ajouté au montant de livraison si le panier contient au moins un
+  /// article `Product.isBulky` — voir étape 2.
+  bulkySurcharge Int     @default(0)
+  estimatedDays  Int?
 }
 
 model Deliverer {
@@ -1209,6 +1573,10 @@ model Deliverer {
 
 model Delivery {
   id                 String     @id @default(uuid())
+  /// Dénormalisé depuis `Order.tenantId` — RLS Pattern A posée à l'étape 2, même
+  /// précédent que ProductVariant/InventoryItem/StockMovement.
+  tenantId           String
+  tenant             Tenant     @relation(fields: [tenantId], references: [id])
   orderId            String     @unique
   order              Order      @relation(fields: [orderId], references: [id])
   delivererId        String?
@@ -1219,6 +1587,8 @@ model Delivery {
   codAmountCollected Int?
   codRemittedAt      DateTime?
   createdAt          DateTime   @default(now())
+
+  @@index([tenantId])
 }
 
 model DelivererRemittance {

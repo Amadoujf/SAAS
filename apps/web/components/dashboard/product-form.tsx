@@ -25,7 +25,7 @@ interface ProductImage {
 
 interface InventoryItem {
   id: string;
-  quantity: number;
+  availableQuantity: number;
   lowStockThreshold: number;
   shop: { id: string; name: string };
 }
@@ -383,7 +383,7 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
                           .map(([k, v]) => `${k}: ${v}`)
                           .join(" · ")}{" "}
                         · {variant.price.toLocaleString("fr-FR")} FCFA
-                        {inventory ? ` · Stock: ${inventory.quantity}` : ""}
+                        {inventory ? ` · Stock: ${inventory.availableQuantity}` : ""}
                       </p>
                     </div>
                     <button

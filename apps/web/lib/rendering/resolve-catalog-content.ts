@@ -63,7 +63,7 @@ export async function resolveCatalogContentForManifest(
       where: { tenantId, status: "PUBLISHED", deletedAt: null },
       include: {
         images: { orderBy: { position: "asc" }, take: 1 },
-        variants: { include: { inventoryItems: { select: { quantity: true } } } },
+        variants: { include: { inventoryItems: { select: { availableQuantity: true } } } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -79,7 +79,7 @@ export async function resolveCatalogContentForManifest(
       // boutique — voir la revue du 18 septembre 2026 : un ajustement de stock doit
       // se refléter sur le site public (via l'invalidation du cache déclenchée par
       // `adjustStockAction`, voir stock-pipeline.ts), pas seulement en base.
-      const inStock = product.variants.some((v) => v.inventoryItems.some((item) => item.quantity > 0));
+      const inStock = product.variants.some((v) => v.inventoryItems.some((item) => item.availableQuantity > 0));
       return {
         id: product.id,
         name: product.name,
