@@ -36,7 +36,6 @@ describe.skipIf(!databaseAvailable)("RLS réelle — Cart / CartItem", () => {
   const sectorKey = `test-sector-cart-rls-${suffix}`;
   let tenantAId: string;
   let tenantBId: string;
-  let variantAId: string;
   let cartAId: string;
   let cartItemAId: string;
 
@@ -74,7 +73,6 @@ describe.skipIf(!databaseAvailable)("RLS réelle — Cart / CartItem", () => {
       const variant = await tx.productVariant.create({
         data: { tenantId: tenantAId, productId: product.id, name: "Unique", price: 5_000, attributes: {} },
       });
-      variantAId = variant.id;
       const cart = await tx.cart.create({
         data: { tenantId: tenantAId, visitorToken: `visiteur-a-${suffix}`, status: "active" },
       });

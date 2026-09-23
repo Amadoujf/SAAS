@@ -57,6 +57,7 @@ describe.skipIf(!databaseAvailable)("Invalidation du cache — pipeline catalogu
   const sectorKey = `test-sector-cache-${suffix}`;
   let tenantId: string;
   let otherTenantId: string;
+  let planId: string;
 
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
@@ -83,6 +84,40 @@ describe.skipIf(!databaseAvailable)("Invalidation du cache — pipeline catalogu
       });
       tenantId = tenant.id;
       otherTenantId = other.id;
+
+      // Abonnement ACTIF requis depuis la correction de stabilisation du 22 septembre
+      // 2026 (voir docs/14) : l'ABSENCE de `TenantSubscription` bloque désormais la
+      // création de produits par défaut (quota = 0) — ce fixture teste l'invalidation
+      // du cache catalogue, pas la facturation, donc des tenants normalement abonnés
+      // avec des quotas généreux sont le fixture réaliste.
+      const plan = await tx.subscriptionPlan.create({
+        data: {
+          name: `Formule Test Cache ${suffix}`,
+          status: "PUBLISHED",
+          priceMonthly: 15_000,
+          priceYearly: 150_000,
+          maxProducts: 1000,
+          maxEmployees: 50,
+          maxShops: 10,
+          storageMB: 10_240,
+          maxAIGenerationsPerMonth: 1000,
+          maxAIImagesAnalyzedPerMonth: 1000,
+          maxAIProductsImportedPerMonth: 1000,
+        },
+      });
+      planId = plan.id;
+      for (const id of [tenantId, otherTenantId]) {
+        await tx.tenantSubscription.create({
+          data: {
+            tenantId: id,
+            planId,
+            status: "ACTIVE",
+            billingCycle: "MONTHLY",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+          },
+        });
+      }
     });
   });
 
@@ -103,6 +138,8 @@ describe.skipIf(!databaseAvailable)("Invalidation du cache — pipeline catalogu
       await tx.category.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
       await tx.mediaAsset.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
       await tx.shop.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: [tenantId, otherTenantId] } } });
+      await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
       await tx.user.deleteMany({ where: { email: { contains: `owner-cache-${suffix}` } } });
       await tx.tenant.deleteMany({ where: { id: { in: [tenantId, otherTenantId] } } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });

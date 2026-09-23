@@ -424,6 +424,11 @@ export function AdminSubscriptionsPanel() {
                     <li key={event.id} className="rounded bg-gray-50 px-2 py-1">
                       <span className="font-mono">{formatDate(event.createdAt)}</span> — {event.type} ({event.actorType})
                       {event.justification && <span className="block italic text-gray-500">{event.justification}</span>}
+                      {(event.type === "reminder_sent" || event.type === "notification_sent") && (
+                        <span className="block text-amber-600">
+                          Notification mise en file d&apos;attente — livraison réelle (e-mail/WhatsApp) non testée.
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>

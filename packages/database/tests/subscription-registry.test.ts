@@ -11,6 +11,14 @@ import { confirmSubscriptionPaymentSuccess, cancelSubscription } from "../src/su
  * "Renouveler", renouvellement anticipé (jours prépayés conservés), paiement après
  * expiration, renouvellements concurrents.
  *
+ * CORRECTION DE STABILISATION (22 septembre 2026) — trouvé en exécutant réellement
+ * cette suite pour la première fois (voir la demande de stabilisation) : chaque test
+ * créait un "nouvel" abonnement pour le MÊME tenant partagé, ce qui viole
+ * `TenantSubscription.tenantId @unique` dès le second test (P2002). Corrigé en créant
+ * un TENANT DÉDIÉ par test (la formule, elle, reste partagée — aucune contrainte
+ * d'unicité ne l'en empêche) : chaque scénario est ainsi réellement indépendant,
+ * comme il l'aurait toujours dû être vu la contrainte réelle du schéma.
+ *
  * Même politique que les autres suites DB : ignorée en local sans PostgreSQL,
  * obligatoire en CI via REQUIRE_DB_TESTS.
  */
@@ -32,16 +40,40 @@ try {
 describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, PostgreSQL)", () => {
   const suffix = Date.now();
   const sectorKey = `test-sector-subscription-registry-${suffix}`;
-  let tenantId: string;
   let planId: string;
   let saleCounter = 0;
+  let tenantCounter = 0;
+  const createdTenantIds: string[] = [];
 
   function nextSaleId() {
     saleCounter += 1;
     return `sale_${suffix}_${saleCounter}`;
   }
 
-  async function createSubscription(overrides: Partial<{ status: "PENDING" | "ACTIVE" | "SUSPENDED" | "CANCELED" | "EXPIRED"; currentPeriodEnd: Date }> = {}) {
+  /** Un tenant DÉDIÉ par appel — voir la note de tête de fichier : `tenantId` est
+   *  `@unique` sur `TenantSubscription`, jamais un état partageable entre tests
+   *  voulant chacun "un abonnement fraîchement créé". */
+  async function createTestTenant() {
+    tenantCounter += 1;
+    const tenant = await withSuperAdminAccess((tx) =>
+      tx.tenant.create({
+        data: {
+          slug: `test-sub-registry-${suffix}-${tenantCounter}`,
+          name: `Boutique Renouvellement ${tenantCounter}`,
+          businessType: "ECOMMERCE",
+          sectorKey,
+          status: "ACTIVE",
+        },
+      }),
+    );
+    createdTenantIds.push(tenant.id);
+    return tenant.id;
+  }
+
+  async function createSubscription(
+    tenantId: string,
+    overrides: Partial<{ status: "PENDING" | "ACTIVE" | "SUSPENDED" | "CANCELED" | "EXPIRED"; currentPeriodEnd: Date }> = {},
+  ) {
     return withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -59,10 +91,6 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
       await tx.sector.create({ data: { key: sectorKey, name: "Secteur de test", defaultModuleKeys: [], isSystem: false } });
-      const tenant = await tx.tenant.create({
-        data: { slug: `test-sub-registry-${suffix}`, name: "Boutique Renouvellement", businessType: "ECOMMERCE", sectorKey, status: "ACTIVE" },
-      });
-      tenantId = tenant.id;
       const plan = await tx.subscriptionPlan.create({
         data: {
           name: `Formule Test Renouvellement ${suffix}`,
@@ -86,22 +114,23 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   afterAll(async () => {
     const owner = testOwnerClient();
     try {
-      await owner.subscriptionEvent.deleteMany({ where: { tenantId } });
+      await owner.subscriptionEvent.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
     } finally {
       await owner.$disconnect();
     }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
-      await tx.subscriptionPayment.deleteMany({ where: { tenantId } });
-      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
+      await tx.subscriptionPayment.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenant.deleteMany({ where: { id: { in: createdTenantIds } } });
       await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
-      await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });
   });
 
   it("premier paiement : PENDING -> ACTIVE, période posée à ~30 jours à partir de maintenant", async () => {
-    const subscription = await createSubscription({ status: "PENDING", currentPeriodEnd: new Date() });
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, { status: "PENDING", currentPeriodEnd: new Date() });
     const saleId = nextSaleId();
 
     const result = await withTenant(tenantId, (tx) =>
@@ -126,8 +155,9 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   });
 
   it("RENOUVELLEMENT ANTICIPÉ : encore ACTIVE et loin de l'échéance — les jours prépayés ne sont JAMAIS perdus", async () => {
+    const tenantId = await createTestTenant();
     const farFutureEnd = new Date(Date.now() + 20 * 86_400_000); // encore 20 jours payés d'avance.
-    const subscription = await createSubscription({ status: "ACTIVE", currentPeriodEnd: farFutureEnd });
+    const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: farFutureEnd });
 
     const result = await withTenant(tenantId, (tx) =>
       confirmSubscriptionPaymentSuccess(tx, tenantId, {
@@ -149,8 +179,9 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   });
 
   it("PAIEMENT APRÈS EXPIRATION (abonnement SUSPENDU) : réactive, mais ne compte JAMAIS le temps déjà écoulé impayé comme payé", async () => {
+    const tenantId = await createTestTenant();
     const longPastEnd = new Date(Date.now() - 60 * 86_400_000); // suspendu depuis longtemps.
-    const subscription = await createSubscription({ status: "SUSPENDED", currentPeriodEnd: longPastEnd });
+    const subscription = await createSubscription(tenantId, { status: "SUSPENDED", currentPeriodEnd: longPastEnd });
 
     const result = await withTenant(tenantId, (tx) =>
       confirmSubscriptionPaymentSuccess(tx, tenantId, {
@@ -175,7 +206,8 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   });
 
   it("ANNULATION PUIS RÉACTIVATION : un tenant annulé peut toujours se réabonner (TenantSubscription.tenantId est @unique)", async () => {
-    const subscription = await createSubscription({ status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 10 * 86_400_000) });
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 10 * 86_400_000) });
     await withTenant(tenantId, (tx) => cancelSubscription(tx, tenantId, subscription.id, { actorType: "tenant_owner" }));
 
     const canceled = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscription.id } }));
@@ -198,7 +230,8 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   });
 
   it("DOUBLE CLIC (même providerSaleId rejoué) : already_confirmed, jamais une double extension", async () => {
-    const subscription = await createSubscription({ status: "PENDING", currentPeriodEnd: new Date() });
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, { status: "PENDING", currentPeriodEnd: new Date() });
     const saleId = nextSaleId();
 
     const input = {
@@ -223,7 +256,8 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
   });
 
   it("RENOUVELLEMENTS CONCURRENTS : deux ventes RÉELLES et DISTINCTES arrivant en même temps DOIVENT TOUTES LES DEUX prolonger la période — aucune n'est traitée comme un rejeu de l'autre", async () => {
-    const subscription = await createSubscription({ status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 5 * 86_400_000) });
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 5 * 86_400_000) });
     const saleA = nextSaleId();
     const saleB = nextSaleId();
 

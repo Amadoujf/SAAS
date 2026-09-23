@@ -61,7 +61,6 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
   let tenantAId: string;
   let tenantBId: string;
   let shopAId: string;
-  let shopBId: string;
   let ownerUserId: string;
   let mediaAssetAId: string;
 
@@ -92,9 +91,8 @@ describe.skipIf(!databaseAvailable)("Registre du catalogue", () => {
       tenantBId = tenantB.id;
 
       const shopA = await tx.shop.create({ data: { tenantId: tenantAId, name: "Boutique A", isMain: true } });
-      const shopB = await tx.shop.create({ data: { tenantId: tenantBId, name: "Boutique B", isMain: true } });
+      await tx.shop.create({ data: { tenantId: tenantBId, name: "Boutique B", isMain: true } });
       shopAId = shopA.id;
-      shopBId = shopB.id;
 
       const owner = await tx.user.create({
         data: { email: `owner-catalog-${suffix}@test.local`, passwordHash: "x", fullName: "Owner Test" },

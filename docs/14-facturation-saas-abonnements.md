@@ -79,6 +79,33 @@ confondues :
 publication pour `PENDING... non` — précisément `TRIALING`, `ACTIVE`, `GRACE_PERIOD`
 uniquement ; `PENDING`, `PAST_DUE`, `SUSPENDED`, `CANCELED`, `EXPIRED` la bloquent.
 
+## Blocage par défaut en l'absence d'abonnement (correction de stabilisation, 22 septembre 2026)
+
+Avant cette correction, un tenant SANS `TenantSubscription` (jamais créé, ou
+supprimé/perdu) était traité comme illimité — un contournement réel de la facturation.
+Ce n'est plus le cas :
+
+- `subscription-usage.ts` (`resolveEffectiveLimit`) : aucun abonnement → limite = `0`
+  (bloqué), jamais `null` (illimité).
+- `resolve-public-site.ts` (`resolveActiveTenant`) : aucun abonnement → `"billing_suspended"`,
+  exactement comme `SUSPENDED`/`EXPIRED`.
+
+La SEULE échappatoire est `Tenant.billingExemptedAt` (`DateTime?`), une dérogation
+Super Admin explicite et tracée (`AuditLog`, voir
+`/api/admin/tenants/[id]/billing-exemption`) — réservée aux tenants antérieurs à cette
+étape. Un nouveau tenant standard ne doit JAMAIS recevoir cette dérogation : il obtient
+soit un essai (`TRIALING`, voir `seed.ts`), soit un abonnement payé, soit reste bloqué
+jusqu'à son premier checkout (`getOrCreateSubscription` crée alors une ligne `PENDING`,
+qui reste bloquante tant que le paiement n'est pas confirmé).
+
+## Absence de prélèvement automatique — obligation d'affichage
+
+`renewalMode: AUTOMATIC` reste structurellement inerte (voir ci-dessus). Le dashboard
+(`billing-panel.tsx`) affiche donc en permanence : « Votre abonnement n'est pas débité
+automatiquement. Nous vous préviendrons avant son expiration afin que vous puissiez le
+renouveler. » — ne jamais présenter l'abonnement comme un prélèvement automatique tant
+que cette phrase reste vraie.
+
 ## Séparation stricte des deux domaines de paiement
 
 | | Paiements des CLIENTS FINAUX | Facturation SaaS (cette étape) |
@@ -109,3 +136,13 @@ Ne jamais faire dépendre l'un de l'autre, ne jamais partager un modèle entre l
   services, éducation) : le cadre (`subscription-usage.ts`) est extensible mais ne
   contient aujourd'hui que les ressources réellement dénombrables (produits, employés,
   domaines) — aucune fausse entrée pour des entités métier qui n'existent pas encore.
+- **Rappels J-7/J-3/J-1/J0 et confirmations de statut (grâce/suspension/renouvellement)
+  sont réellement mis en file sur `notifications`** (voir `subscription-reminders.ts`,
+  déduplication par `SubscriptionEvent` "reminder_sent"/"notification_sent") mais leur
+  LIVRAISON réelle (e-mail/WhatsApp) n'est PAS construite — le worker `notifications`
+  reste un TODO Phase 2. Ne jamais présenter un événement mis en file comme un message
+  réellement reçu par le destinataire ; l'admin voit cette distinction explicitement
+  dans `/admin/subscriptions` (« notification mise en file d'attente, livraison réelle
+  non testée »).
+- **Test Chariow réel** : voir la section correspondante du rapport de stabilisation —
+  dépend d'un compte sandbox fourni séparément, jamais simulé.

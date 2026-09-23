@@ -17,6 +17,13 @@ import {
  * que la période ne change pas), résolution du contact propriétaire, et les
  * confirmations immédiates de changement de statut.
  *
+ * CORRECTION DE STABILISATION (22 septembre 2026) — trouvé en exécutant réellement
+ * cette suite pour la première fois : un tenant partagé + suppression manuelle en fin
+ * de test pour libérer `TenantSubscription.tenantId @unique` est fragile (un test qui
+ * échoue avant sa ligne de nettoyage casse tous les suivants). Corrigé en donnant à
+ * CHAQUE test son propre tenant dédié (le propriétaire/rôle/formule restent partagés,
+ * aucune contrainte d'unicité ne s'y oppose).
+ *
  * Même politique que les autres suites DB : ignorée en local sans PostgreSQL,
  * obligatoire en CI via REQUIRE_DB_TESTS.
  */
@@ -38,17 +45,39 @@ try {
 describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de statut (réel, PostgreSQL)", () => {
   const suffix = Date.now();
   const sectorKey = `test-sector-subscription-reminders-${suffix}`;
-  let tenantId: string;
-  let ownerUserId: string;
   let planId: string;
+  let ownerUserId: string;
+  let tenantCounter = 0;
+  const createdTenantIds: string[] = [];
+
+  /** Un tenant DÉDIÉ par test, avec SON PROPRE rôle "OWNER" (nom exact, requis par le
+   *  filtre `r.name = 'OWNER'` de `findDueBillingReminders`/`findDueStatusChangeNotifications`)
+   *  — voir la note de tête de fichier. `Role.@@unique([tenantId, name])` autorise un
+   *  "OWNER" par tenant sans jamais entrer en collision avec le rôle système global
+   *  "OWNER" (`tenantId: null`) déjà seedé par `seed.ts` dans cette même base de test. */
+  async function createTestTenant() {
+    tenantCounter += 1;
+    const tenant = await withSuperAdminAccess(async (tx) => {
+      const created = await tx.tenant.create({
+        data: {
+          slug: `test-sub-reminders-${suffix}-${tenantCounter}`,
+          name: "Boutique Rappels",
+          businessType: "ECOMMERCE",
+          sectorKey,
+          status: "ACTIVE",
+        },
+      });
+      const ownerRole = await tx.role.create({ data: { tenantId: created.id, name: "OWNER", isSystem: false, permissions: [] } });
+      await tx.tenantUser.create({ data: { tenantId: created.id, userId: ownerUserId, roleId: ownerRole.id, status: "ACTIVE" } });
+      return created;
+    });
+    createdTenantIds.push(tenant.id);
+    return tenant.id;
+  }
 
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
       await tx.sector.create({ data: { key: sectorKey, name: "Secteur de test", defaultModuleKeys: [], isSystem: false } });
-      const tenant = await tx.tenant.create({
-        data: { slug: `test-sub-reminders-${suffix}`, name: "Boutique Rappels", businessType: "ECOMMERCE", sectorKey, status: "ACTIVE" },
-      });
-      tenantId = tenant.id;
 
       const plan = await tx.subscriptionPlan.create({
         data: {
@@ -67,41 +96,34 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
       });
       planId = plan.id;
 
-      // Rôle OWNER scopé à CE tenant de test — jamais une dépendance au rôle système
-      // global (`SYSTEM_ROLES`, seedé séparément par `seed.ts`, pas garanti présent
-      // dans une base de test isolée) : même discipline d'isolation que le reste des
-      // fixtures de ce fichier.
-      const ownerRole = await tx.role.create({
-        data: { tenantId, name: "OWNER", isSystem: false, permissions: [] },
-      });
       const owner = await tx.user.create({
         data: { email: `owner-reminders-${suffix}@test.local`, passwordHash: "test", fullName: "Propriétaire Test" },
       });
       ownerUserId = owner.id;
-      await tx.tenantUser.create({ data: { tenantId, userId: owner.id, roleId: ownerRole.id, status: "ACTIVE" } });
     });
   });
 
   afterAll(async () => {
     const owner = testOwnerClient();
     try {
-      await owner.subscriptionEvent.deleteMany({ where: { tenantId } });
+      await owner.subscriptionEvent.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
     } finally {
       await owner.$disconnect();
     }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
-      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
-      await tx.tenantUser.deleteMany({ where: { tenantId } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenantUser.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.role.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenant.deleteMany({ where: { id: { in: createdTenantIds } } });
       await tx.user.deleteMany({ where: { id: ownerUserId } });
-      await tx.role.deleteMany({ where: { tenantId } });
       await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
-      await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });
   });
 
   it("détecte le palier J-3 pour un abonnement ACTIVE dont l'échéance est dans 2 jours, et résout le contact du propriétaire", async () => {
+    const tenantId = await createTestTenant();
     const subscription = await withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -124,6 +146,7 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
   });
 
   it("ne redécouvre jamais le même palier une fois marqué comme envoyé", async () => {
+    const tenantId = await createTestTenant();
     const subscription = await withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -131,8 +154,12 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
           planId,
           status: "ACTIVE",
           billingCycle: "MONTHLY",
-          currentPeriodStart: new Date(Date.now() - 29 * 86_400_000),
-          currentPeriodEnd: new Date(Date.now() + 60_000), // dans 1 minute -> palier J0.
+          currentPeriodStart: new Date(Date.now() - 30 * 86_400_000),
+          // Échéance déjà dépassée d'1 minute -> `currentPeriodEnd <= NOW()` -> palier
+          // J0 sans ambiguïté (contrairement à une échéance encore future de peu, qui
+          // tomberait dans le palier J-1 — trouvé en exécutant réellement ce test pour
+          // la première fois, correction de stabilisation du 22 septembre 2026).
+          currentPeriodEnd: new Date(Date.now() - 60_000),
         },
       }),
     );
@@ -144,11 +171,10 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
 
     const after = await findDueBillingReminders(500);
     expect(after.some((r) => r.subscriptionId === subscription.id)).toBe(false);
-
-    await withSuperAdminAccess((tx) => tx.tenantSubscription.deleteMany({ where: { id: subscription.id } }));
   });
 
   it("découvre une confirmation immédiate de suspension et ne la redécouvre jamais après notification", async () => {
+    const tenantId = await createTestTenant();
     const subscription = await withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -176,11 +202,10 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
 
     const after = await findDueStatusChangeNotifications(500);
     expect(after.some((n) => n.eventId === mine!.eventId)).toBe(false);
-
-    await withSuperAdminAccess((tx) => tx.tenantSubscription.deleteMany({ where: { id: subscription.id } }));
   });
 
   it("ne détecte aucun palier pour un abonnement dont l'échéance est encore loin (> 7 jours)", async () => {
+    const tenantId = await createTestTenant();
     const subscription = await withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -196,7 +221,5 @@ describe.skipIf(!databaseAvailable)("Rappels d'échéance et confirmations de st
 
     const due = await findDueBillingReminders(500);
     expect(due.some((r) => r.subscriptionId === subscription.id)).toBe(false);
-
-    await withSuperAdminAccess((tx) => tx.tenantSubscription.deleteMany({ where: { id: subscription.id } }));
   });
 });

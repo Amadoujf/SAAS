@@ -20,6 +20,19 @@ import { scheduleSitePublish, promoteScheduledPublish } from "./schedule-pipelin
 import { restoreAndPublishVersion } from "./restore-pipeline";
 
 /**
+ * CORRECTION DE STABILISATION (22 septembre 2026) — trouvé en exécutant réellement
+ * cette suite pour la première fois : une date absolue codée en dur ("2026-09-22...")
+ * finit TOUJOURS par se retrouver dans le passé une fois que l'horloge réelle la
+ * dépasse (`scheduleVersionPublish` refuse alors toute date passée), rendant le test
+ * inévitablement fragile avec le temps. `Africa/Dakar` est UTC+0 toute l'année (jamais
+ * d'heure d'été) : les chiffres de l'heure UTC SONT les chiffres de l'heure locale de
+ * Dakar, d'où ce calcul direct sans bibliothèque de fuseaux.
+ */
+function localDakarDateTimeInFuture(hoursFromNow: number): string {
+  return new Date(Date.now() + hoursFromNow * 3_600_000).toISOString().slice(0, 16);
+}
+
+/**
  * Vérifie le pipeline de publication de bout en bout — voir docs/12 §12.3,
  * « TESTS OBLIGATOIRES ». Utilise `InMemoryDistributedLock` et `InMemoryMediaRepository`
  * (jamais Redis/R2 réels — voir la même politique que les tests de la médiathèque) MAIS
@@ -338,12 +351,13 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
   });
 
   it("PUBLICATION PROGRAMMÉE + FUSEAU HORAIRE : programme puis promeut à l'échéance", async () => {
+    const scheduledDateTimeLocal = localDakarDateTimeInFuture(1);
     const scheduleResult = await scheduleSitePublish(
       {
         tenantId,
         tenantSiteId,
         requestedByUserId: ownerUserId,
-        scheduledDateTimeLocal: "2026-09-22T14:30",
+        scheduledDateTimeLocal,
         timeZone: "Africa/Dakar",
       },
       { mediaRepository: new InMemoryMediaRepository() },
@@ -351,7 +365,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
     expect(scheduleResult.outcome).toBe("scheduled");
     if (scheduleResult.outcome !== "scheduled") throw new Error("unreachable");
     expect(scheduleResult.scheduledAtUtc.toISOString()).toBe(
-      resolveScheduledPublishUtc("2026-09-22T14:30", "Africa/Dakar").toISOString(),
+      resolveScheduledPublishUtc(scheduledDateTimeLocal, "Africa/Dakar").toISOString(),
     );
 
     const promotion = await promoteScheduledPublish(
@@ -386,7 +400,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de publication", () => {
         tenantId,
         tenantSiteId,
         requestedByUserId: ownerUserId,
-        scheduledDateTimeLocal: "2026-10-01T09:00",
+        scheduledDateTimeLocal: localDakarDateTimeInFuture(2),
       },
       { mediaRepository: new InMemoryMediaRepository() },
     );

@@ -369,7 +369,7 @@ export function AdminDomainsPanel() {
               {actionMessage && <p className="text-sm text-gray-700">{actionMessage}</p>}
 
               <div className="border-t border-gray-200 pt-3">
-                <h3 className="mb-2 text-sm font-medium text-gray-700">Journal d'audit</h3>
+                <h3 className="mb-2 text-sm font-medium text-gray-700">Journal d&apos;audit</h3>
                 <ul className="space-y-1 text-xs text-gray-600">
                   {auditLog.length === 0 && <li>Aucune entrée.</li>}
                   {auditLog.map((entry) => (

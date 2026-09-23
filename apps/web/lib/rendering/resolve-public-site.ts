@@ -77,13 +77,20 @@ export async function resolveActiveTenant(host: string): Promise<ActiveTenantRes
   // entier) — voir docs/14-facturation-saas-abonnements.md, « politique de
   // disponibilité du site ». GRACE_PERIOD n'affecte JAMAIS le site public (aucune
   // pénalité avant la fin de la grâce, voir readiness.ts `ALLOWED_SUBSCRIPTION_STATUSES`).
-  // L'ABSENCE de ligne `TenantSubscription` (tenants créés avant cette étape, jamais
-  // rétro-remplie) n'est PAS traitée comme une suspension — seul un statut EXPLICITE
-  // SUSPENDED/EXPIRED bloque le site.
+  //
+  // CORRECTION DE STABILISATION (22 septembre 2026) — l'ABSENCE de ligne
+  // `TenantSubscription` était auparavant traitée comme "site public inchangé", ce qui
+  // permettait de contourner la facturation en supprimant/perdant la ligne
+  // d'abonnement (voir docs/14). Elle bloque désormais le site PAR DÉFAUT, exactement
+  // comme SUSPENDED/EXPIRED — la SEULE exception est un tenant explicitement marqué
+  // `Tenant.billingExemptedAt` (dérogation Super Admin ponctuelle, jamais un défaut).
   const subscription = await withSuperAdminAccess((tx) =>
     tx.tenantSubscription.findUnique({ where: { tenantId: tenant.id }, select: { status: true } }),
   );
   if (subscription?.status === "SUSPENDED" || subscription?.status === "EXPIRED") {
+    return { status: "billing_suspended", tenantName: tenant.name };
+  }
+  if (!subscription && !tenant.billingExemptedAt) {
     return { status: "billing_suspended", tenantName: tenant.name };
   }
 

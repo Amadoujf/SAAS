@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { withSuperAdminAccess } from "@yamacommerce/database";
 import { DEFAULT_LOCALE, t } from "@/lib/i18n";
+import { TenantBillingExemptionToggle } from "@/components/admin/tenant-billing-exemption-toggle";
 
 /**
  * Placeholder de l'espace Super Admin (Phase 0). Les vraies fonctionnalités (création
@@ -52,9 +53,12 @@ export default async function AdminPage() {
                   {tenant.slug}.yamacommerce.ai · {tenant.businessType}
                 </p>
               </div>
-              <span className="bg-brand/10 text-brand rounded-full px-3 py-1 text-xs font-medium">
-                {tenant.status}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <span className="bg-brand/10 text-brand rounded-full px-3 py-1 text-xs font-medium">
+                  {tenant.status}
+                </span>
+                <TenantBillingExemptionToggle tenantId={tenant.id} exempted={Boolean(tenant.billingExemptedAt)} />
+              </div>
             </li>
           ))}
         </ul>

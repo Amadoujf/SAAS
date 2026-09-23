@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   verify:
-    name: Installation, migrations, lint, typecheck, tests (incl. isolation RLS)
+    name: Installation, migrations, lint, typecheck, tests (incl. isolation RLS), build
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
 
     services:
       postgres:
@@ -80,6 +80,10 @@ jobs:
           PAYDUNYA_TOKEN=
           PAYTECH_API_KEY=
           PAYTECH_API_SECRET=
+          SAAS_BILLING_PROVIDER=manual
+          CHARIOW_SECRET_KEY=
+          CHARIOW_WEBHOOK_SECRET=
+          CHARIOW_API_BASE_URL=https://api.chariow.com
           RESEND_API_KEY=
           EMAIL_FROM=no-reply@yamacommerce.ai
           R2_ACCOUNT_ID=
@@ -123,3 +127,6 @@ jobs:
 
       - name: Tests (tous les packages, incl. isolation RLS réelle)
         run: pnpm test
+
+      - name: Build de production (apps/web, apps/worker)
+        run: pnpm build

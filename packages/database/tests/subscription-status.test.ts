@@ -55,6 +55,7 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
   const suffix = Date.now();
   const sectorKey = `test-sector-subscription-status-${suffix}`;
   let tenantId: string;
+  let secondTenantId: string;
   let planId: string;
   let subscriptionId: string;
 
@@ -80,6 +81,14 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
           maxAIProductsImportedPerMonth: 50,
         },
       });
+      // Tenant DÉDIÉ pour le test de concurrence — voir la note de tête de fichier :
+      // `TenantSubscription.tenantId` est `@unique`, un second abonnement "frais" pour
+      // CE MÊME tenant violerait la contrainte (P2002), trouvé en exécutant réellement
+      // cette suite pour la première fois (correction de stabilisation, 22 sept. 2026).
+      const secondTenant = await tx.tenant.create({
+        data: { slug: `test-sub-status-concurrent-${suffix}`, name: "Boutique Statuts Concurrence", businessType: "ECOMMERCE", sectorKey, status: "ACTIVE" },
+      });
+      secondTenantId = secondTenant.id;
       planId = plan.id;
     });
 
@@ -94,15 +103,15 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
   afterAll(async () => {
     const owner = testOwnerClient();
     try {
-      await owner.subscriptionEvent.deleteMany({ where: { tenantId } });
+      await owner.subscriptionEvent.deleteMany({ where: { tenantId: { in: [tenantId, secondTenantId] } } });
     } finally {
       await owner.$disconnect();
     }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
-      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: [tenantId, secondTenantId] } } });
       await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
-      await tx.tenant.deleteMany({ where: { id: tenantId } });
+      await tx.tenant.deleteMany({ where: { id: { in: [tenantId, secondTenantId] } } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });
   });
@@ -168,10 +177,10 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
   });
 
   it("CONCURRENCE RÉELLE : deux transitions concurrentes et mutuellement exclusives depuis le même statut — une seule gagne", async () => {
-    const fresh = await withTenant(tenantId, (tx) =>
+    const fresh = await withTenant(secondTenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
-          tenantId,
+          tenantId: secondTenantId,
           planId,
           status: "GRACE_PERIOD",
           billingCycle: "MONTHLY",
@@ -186,11 +195,11 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
     // (fin de grâce détectée par le balayage) sont TOUTES DEUX valides depuis
     // GRACE_PERIOD : une vraie course entre deux décisions concurrentes.
     const attempts = await Promise.allSettled([
-      withTenant(tenantId, (tx) =>
-        transitionSubscriptionStatus(tx, tenantId, { subscriptionId: fresh.id, toStatus: "ACTIVE", actorType: "webhook", eventType: "reactivated" }),
+      withTenant(secondTenantId, (tx) =>
+        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "ACTIVE", actorType: "webhook", eventType: "reactivated" }),
       ),
-      withTenant(tenantId, (tx) =>
-        transitionSubscriptionStatus(tx, tenantId, { subscriptionId: fresh.id, toStatus: "SUSPENDED", actorType: "system", eventType: "suspended" }),
+      withTenant(secondTenantId, (tx) =>
+        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "SUSPENDED", actorType: "system", eventType: "suspended" }),
       ),
     ]);
 
@@ -198,13 +207,21 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
     const failed = attempts.filter((a) => a.status === "rejected");
     expect(succeeded).toHaveLength(1);
     expect(failed).toHaveLength(1);
+    // Selon le timing exact des deux transactions réelles, le perdant échoue soit sur
+    // la garde anti-TOCTOU (`SubscriptionStatusConflictError`, s'il a lu "GRACE_PERIOD"
+    // avant que le gagnant ne committe) soit sur la validité de la transition
+    // (`InvalidSubscriptionTransitionError`, s'il relit après coup un statut déjà
+    // changé — ex. ACTIVE -> SUSPENDED n'est pas une transition valide) — même
+    // précédent que `order-status.test.ts`, « CONCURRENCE RÉELLE » : les DEUX sont des
+    // refus sûrs et corrects, ce qui compte est qu'AUCUNE des deux ne réussisse jamais
+    // simultanément (trouvé en exécutant réellement ce test pour la première fois).
     const rejection = (failed[0] as PromiseRejectedResult).reason;
-    expect(rejection instanceof SubscriptionStatusConflictError).toBe(true);
+    expect(rejection instanceof SubscriptionStatusConflictError || rejection instanceof InvalidSubscriptionTransitionError).toBe(true);
 
-    const final = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: fresh.id } }));
+    const final = await withTenant(secondTenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: fresh.id } }));
     expect(["ACTIVE", "SUSPENDED"]).toContain(final.status);
 
-    const events = await withTenant(tenantId, (tx) => tx.subscriptionEvent.findMany({ where: { subscriptionId: fresh.id } }));
+    const events = await withTenant(secondTenantId, (tx) => tx.subscriptionEvent.findMany({ where: { subscriptionId: fresh.id } }));
     expect(events).toHaveLength(1); // une seule transition a réellement eu lieu.
   });
 });

@@ -61,6 +61,12 @@ model Tenant {
   supportedLocales String[]     @default(["fr"])
   timezone         String       @default("Africa/Dakar")
   trialEndsAt      DateTime?
+  /// Dérogation Super Admin EXPLICITE pour un tenant antérieur à la facturation SaaS
+  /// (voir docs/14, « aucune souscription = accès illimité » — corrigé le 22
+  /// septembre 2026) : SEUL un tenant marqué ici échappe encore au blocage par défaut
+  /// lorsqu'aucun `TenantSubscription` n'existe. `null` = aucune dérogation (nouveau
+  /// tenant standard) — jamais l'inverse, jamais un défaut permissif.
+  billingExemptedAt DateTime?
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   deletedAt        DateTime?

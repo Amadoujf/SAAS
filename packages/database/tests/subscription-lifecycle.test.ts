@@ -15,6 +15,12 @@ import {
  * récupération que `order-reservation.test.ts` (M4, étape 2), transposée à la
  * facturation SaaS. Exigence explicite du plan : « transition grâce -> suspension ».
  *
+ * CORRECTION DE STABILISATION (22 septembre 2026) — trouvé en exécutant réellement
+ * cette suite pour la première fois : chaque test créait un "nouvel" abonnement pour
+ * le MÊME tenant partagé, violant `TenantSubscription.tenantId @unique` dès le second
+ * test (P2002). Corrigé en créant un TENANT DÉDIÉ par test (et DEUX tenants distincts
+ * pour le test de balayage, qui a réellement besoin de deux abonnements simultanés).
+ *
  * Même politique que les autres suites DB : ignorée en local sans PostgreSQL,
  * obligatoire en CI via REQUIRE_DB_TESTS.
  */
@@ -36,20 +42,37 @@ try {
 describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (réel, PostgreSQL)", () => {
   const suffix = Date.now();
   const sectorKey = `test-sector-subscription-lifecycle-${suffix}`;
-  let tenantId: string;
   let planId: string;
   let saleCounter = 0;
+  let tenantCounter = 0;
+  const createdTenantIds: string[] = [];
 
   function nextSaleId() {
     saleCounter += 1;
     return `sale_lifecycle_${suffix}_${saleCounter}`;
   }
 
-  async function createSubscription(overrides: {
-    status: "ACTIVE" | "GRACE_PERIOD";
-    currentPeriodEnd: Date;
-    graceEndsAt?: Date | null;
-  }) {
+  async function createTestTenant() {
+    tenantCounter += 1;
+    const tenant = await withSuperAdminAccess((tx) =>
+      tx.tenant.create({
+        data: {
+          slug: `test-sub-lifecycle-${suffix}-${tenantCounter}`,
+          name: `Boutique Cycle de Vie ${tenantCounter}`,
+          businessType: "ECOMMERCE",
+          sectorKey,
+          status: "ACTIVE",
+        },
+      }),
+    );
+    createdTenantIds.push(tenant.id);
+    return tenant.id;
+  }
+
+  async function createSubscription(
+    tenantId: string,
+    overrides: { status: "ACTIVE" | "GRACE_PERIOD"; currentPeriodEnd: Date; graceEndsAt?: Date | null },
+  ) {
     return withTenant(tenantId, (tx) =>
       tx.tenantSubscription.create({
         data: {
@@ -68,10 +91,6 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
       await tx.sector.create({ data: { key: sectorKey, name: "Secteur de test", defaultModuleKeys: [], isSystem: false } });
-      const tenant = await tx.tenant.create({
-        data: { slug: `test-sub-lifecycle-${suffix}`, name: "Boutique Cycle de Vie", businessType: "ECOMMERCE", sectorKey, status: "ACTIVE" },
-      });
-      tenantId = tenant.id;
       const plan = await tx.subscriptionPlan.create({
         data: {
           name: `Formule Test Cycle de Vie ${suffix}`,
@@ -95,23 +114,24 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   afterAll(async () => {
     const owner = testOwnerClient();
     try {
-      await owner.subscriptionEvent.deleteMany({ where: { tenantId } });
+      await owner.subscriptionEvent.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
     } finally {
       await owner.$disconnect();
     }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
-      await tx.subscriptionPayment.deleteMany({ where: { tenantId } });
-      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
+      await tx.subscriptionPayment.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.tenant.deleteMany({ where: { id: { in: createdTenantIds } } });
       await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
-      await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });
   });
 
   it("ACTIVE avec échéance dépassée -> GRACE_PERIOD, graceEndsAt posé à partir de la formule (gracePeriodDays)", async () => {
+    const tenantId = await createTestTenant();
     const pastEnd = new Date(Date.now() - 60_000); // dépassée d'une minute.
-    const subscription = await createSubscription({ status: "ACTIVE", currentPeriodEnd: pastEnd });
+    const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: pastEnd });
 
     const outcome = await evaluateSubscriptionLifecycle(tenantId, subscription.id);
     expect(outcome.outcome).toBe("grace_period_started");
@@ -124,8 +144,9 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   });
 
   it("ne touche PAS un abonnement ACTIVE dont l'échéance est encore dans le futur", async () => {
+    const tenantId = await createTestTenant();
     const futureEnd = new Date(Date.now() + 10 * 86_400_000);
-    const subscription = await createSubscription({ status: "ACTIVE", currentPeriodEnd: futureEnd });
+    const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: futureEnd });
 
     const outcome = await evaluateSubscriptionLifecycle(tenantId, subscription.id);
     expect(outcome.outcome).toBe("no_change");
@@ -135,7 +156,8 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   });
 
   it("GRACE_PERIOD dont la grâce est dépassée -> SUSPENDED", async () => {
-    const subscription = await createSubscription({
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, {
       status: "GRACE_PERIOD",
       currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000),
       graceEndsAt: new Date(Date.now() - 60_000), // grâce dépassée d'une minute.
@@ -156,7 +178,8 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   });
 
   it("ne suspend PAS un abonnement encore dans sa fenêtre de grâce", async () => {
-    const subscription = await createSubscription({
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, {
       status: "GRACE_PERIOD",
       currentPeriodEnd: new Date(Date.now() - 86_400_000),
       graceEndsAt: new Date(Date.now() + 86_400_000), // grâce encore valide.
@@ -170,7 +193,8 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   });
 
   it("COURSE CRITIQUE : un paiement confirmé PENDANT le balayage gagne toujours — jamais une suspension après un renouvellement réel", async () => {
-    const subscription = await createSubscription({
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, {
       status: "GRACE_PERIOD",
       currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000),
       graceEndsAt: new Date(Date.now() - 60_000),
@@ -214,8 +238,14 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
   });
 
   it("BALAYAGE : découvre les candidats cross-tenant et traite chaque abonnement dans sa propre transaction", async () => {
-    const subA = await createSubscription({ status: "ACTIVE", currentPeriodEnd: new Date(Date.now() - 60_000) });
-    const subB = await createSubscription({ status: "GRACE_PERIOD", currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000), graceEndsAt: new Date(Date.now() - 60_000) });
+    const tenantAId = await createTestTenant();
+    const tenantBId = await createTestTenant();
+    const subA = await createSubscription(tenantAId, { status: "ACTIVE", currentPeriodEnd: new Date(Date.now() - 60_000) });
+    const subB = await createSubscription(tenantBId, {
+      status: "GRACE_PERIOD",
+      currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000),
+      graceEndsAt: new Date(Date.now() - 60_000),
+    });
 
     const candidates = await findLifecycleCandidates(100);
     const ids = candidates.map((c) => c.id);
@@ -227,8 +257,8 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
     expect(result.gracePeriodStarted).toBeGreaterThanOrEqual(1);
     expect(result.suspended).toBeGreaterThanOrEqual(1);
 
-    const finalA = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subA.id } }));
-    const finalB = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subB.id } }));
+    const finalA = await withTenant(tenantAId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subA.id } }));
+    const finalB = await withTenant(tenantBId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subB.id } }));
     expect(finalA.status).toBe("GRACE_PERIOD");
     expect(finalB.status).toBe("SUSPENDED");
 

@@ -37,6 +37,7 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
   const sectorKey = `test-sector-dnscheck-${suffix}`;
   let tenantId: string;
   let ownerUserId: string;
+  let planId: string;
 
   function deps(zone: InMemoryDnsZone): DnsCheckDeps {
     return {
@@ -67,6 +68,38 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
         data: { email: `owner-dnscheck-${suffix}@test.local`, passwordHash: "x", fullName: "Owner Test" },
       });
       ownerUserId = owner.id;
+
+      // Abonnement ACTIF requis depuis la correction de stabilisation du 22 septembre
+      // 2026 (voir docs/14) : l'ABSENCE de `TenantSubscription` bloque désormais
+      // `addCustomDomain` par défaut (quota "domains" = 0) — ce fixture teste la
+      // détection DNS, pas la facturation.
+      const plan = await tx.subscriptionPlan.create({
+        data: {
+          name: `Formule Test DNS ${suffix}`,
+          status: "PUBLISHED",
+          priceMonthly: 15_000,
+          priceYearly: 150_000,
+          maxProducts: 100,
+          maxEmployees: 5,
+          maxShops: 1,
+          maxCustomDomains: 10,
+          storageMB: 1024,
+          maxAIGenerationsPerMonth: 100,
+          maxAIImagesAnalyzedPerMonth: 100,
+          maxAIProductsImportedPerMonth: 100,
+        },
+      });
+      planId = plan.id;
+      await tx.tenantSubscription.create({
+        data: {
+          tenantId,
+          planId,
+          status: "ACTIVE",
+          billingCycle: "MONTHLY",
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+        },
+      });
     });
   });
 
@@ -75,6 +108,8 @@ describe.skipIf(!databaseAvailable)("Pipeline de détection DNS", () => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
       await tx.user.deleteMany({ where: { id: ownerUserId } });
       await tx.domain.deleteMany({ where: { tenantId } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
+      await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
       await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
     });

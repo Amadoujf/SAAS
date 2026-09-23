@@ -7,8 +7,13 @@ import { assertQuotaAvailable, resolveEffectiveLimit, QuotaExceededError } from 
  * Vérifie l'application RÉELLE des quotas de formule contre PostgreSQL — voir
  * docs/14-facturation-saas-abonnements.md, décision #5. Couvre : comptage direct
  * (jamais un compteur dupliqué), rejet exact à la limite (le (N+1)ᵉ appel échoue),
- * dérogation Super Admin prioritaire sur la formule, absence d'abonnement traitée
- * comme illimité (tenants antérieurs à cette étape, jamais pénalisés).
+ * dérogation Super Admin prioritaire sur la formule.
+ *
+ * CORRECTION DE STABILISATION (22 septembre 2026) : l'absence de `TenantSubscription`
+ * BLOQUE désormais par défaut (limite = 0) — « aucune souscription = accès illimité »
+ * était un contournement possible de la facturation (supprimer/perdre la ligne
+ * d'abonnement). La SEULE échappatoire est `Tenant.billingExemptedAt`, une dérogation
+ * Super Admin explicite et tracée pour un tenant antérieur à cette étape.
  *
  * Même politique que les autres suites DB : ignorée en local sans PostgreSQL,
  * obligatoire en CI via REQUIRE_DB_TESTS.
@@ -139,13 +144,29 @@ describe.skipIf(!databaseAvailable)("Quotas de formule (réel, PostgreSQL)", () 
     await withSuperAdminAccess((tx) => tx.subscriptionEntitlement.deleteMany({ where: { tenantId: tenantWithPlanId, resourceKey: "products" } }));
   });
 
-  it("un tenant SANS TenantSubscription n'est jamais bloqué (illimité) — jamais de pénalité rétroactive pour les tenants antérieurs à cette étape", async () => {
+  it("un tenant SANS TenantSubscription est BLOQUÉ par défaut (limite = 0) — jamais un accès illimité par simple suppression de la ligne d'abonnement", async () => {
+    const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "products"));
+    expect(limit).toBe(0);
+
+    await withTenant(tenantWithoutSubscriptionId, async (tx) => {
+      await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "products")).rejects.toThrow(QuotaExceededError);
+    });
+  });
+
+  it("une dérogation Super Admin explicite (billingExemptedAt) restaure un accès illimité MALGRÉ l'absence d'abonnement", async () => {
+    await withSuperAdminAccess((tx) =>
+      tx.tenant.update({ where: { id: tenantWithoutSubscriptionId }, data: { billingExemptedAt: new Date() } }),
+    );
+
     const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "products"));
     expect(limit).toBeNull();
 
     await withTenant(tenantWithoutSubscriptionId, async (tx) => {
-      // Aucune exception, quel que soit le nombre de produits déjà créés.
       await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "products", 999)).resolves.toBeUndefined();
     });
+
+    await withSuperAdminAccess((tx) =>
+      tx.tenant.update({ where: { id: tenantWithoutSubscriptionId }, data: { billingExemptedAt: null } }),
+    );
   });
 });

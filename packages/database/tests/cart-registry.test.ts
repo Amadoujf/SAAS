@@ -40,7 +40,6 @@ describe.skipIf(!databaseAvailable)("Registre du panier", () => {
   const sectorKey = `test-sector-cart-registry-${suffix}`;
   let tenantAId: string;
   let tenantBId: string;
-  let shopAId: string;
   let publishedVariantId: string;
   let draftVariantId: string;
 
@@ -73,7 +72,6 @@ describe.skipIf(!databaseAvailable)("Registre du panier", () => {
 
     await withTenant(tenantAId, async (tx) => {
       const shop = await tx.shop.create({ data: { tenantId: tenantAId, name: "Boutique A", isMain: true } });
-      shopAId = shop.id;
 
       const publishedProduct = await tx.product.create({
         data: {

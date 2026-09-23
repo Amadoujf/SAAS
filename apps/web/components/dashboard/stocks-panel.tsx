@@ -118,13 +118,13 @@ export function StocksPanel() {
 
       <section className="rounded-lg border border-gray-200 bg-white p-4">
         {!selected ? (
-          <p className="text-sm text-gray-500">Sélectionnez un item pour voir son historique et l'ajuster.</p>
+          <p className="text-sm text-gray-500">Sélectionnez un item pour voir son historique et l&apos;ajuster.</p>
         ) : (
           <div className="flex flex-col gap-4">
             <div>
               <h2 className="text-lg font-semibold text-gray-900">{selected.variant.product.name}</h2>
               <p className="text-sm text-gray-500">
-                {selected.variant.name} · {selected.shop.name} · seuil d'alerte : {selected.lowStockThreshold}
+                {selected.variant.name} · {selected.shop.name} · seuil d&apos;alerte : {selected.lowStockThreshold}
               </p>
             </div>
 

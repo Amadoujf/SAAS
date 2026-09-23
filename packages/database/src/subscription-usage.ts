@@ -47,11 +47,17 @@ export class QuotaExceededError extends Error {
 /**
  * Résout la limite EFFECTIVE pour une ressource : une dérogation Super Admin
  * (`SubscriptionEntitlement`, non expirée) prévaut TOUJOURS sur la limite de la
- * formule — jamais l'inverse. `null` = illimité (dérogation explicite OU aucun
- * abonnement enregistré pour ce tenant). L'ABSENCE d'abonnement n'est délibérément
- * PAS traitée comme un blocage : les tenants créés avant cette étape n'ont jamais eu
- * de `TenantSubscription` (jamais rétro-remplie, voir docs/14) — leur imposer une
- * limite du jour au lendemain casserait leur usage existant sans avertissement.
+ * formule — jamais l'inverse. `null` = illimité.
+ *
+ * CORRECTION DE STABILISATION (22 septembre 2026) — voir docs/14 : « aucune
+ * souscription = accès illimité » a été identifié comme un contournement possible de
+ * la facturation (supprimer/perdre la ligne `TenantSubscription` rendait un tenant
+ * illimité). L'ABSENCE d'abonnement bloque désormais PAR DÉFAUT (retourne `0`, jamais
+ * `null`) — la SEULE exception est un tenant explicitement marqué
+ * `Tenant.billingExemptedAt` (dérogation Super Admin ponctuelle pour un tenant
+ * antérieur à cette étape, jamais un défaut). Un nouveau tenant standard doit
+ * recevoir un `TenantSubscription` réel (essai ou souscription) — voir
+ * `getOrCreateSubscription` — jamais dépendre de ce blocage comme mécanisme normal.
  */
 export async function resolveEffectiveLimit(
   tx: Prisma.TransactionClient,
@@ -66,9 +72,12 @@ export async function resolveEffectiveLimit(
   }
 
   const subscription = await tx.tenantSubscription.findUnique({ where: { tenantId }, include: { plan: true } });
-  if (!subscription) return null;
+  if (subscription) return subscription.plan[PLAN_LIMIT_FIELD[resourceKey]];
 
-  return subscription.plan[PLAN_LIMIT_FIELD[resourceKey]];
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { billingExemptedAt: true } });
+  if (tenant?.billingExemptedAt) return null;
+
+  return 0;
 }
 
 /**

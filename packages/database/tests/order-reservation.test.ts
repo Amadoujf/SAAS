@@ -3,7 +3,7 @@ import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 import { testOwnerClient } from "./test-owner-client";
 import { addCartItem, getOrCreateActiveCart } from "../src/cart-registry";
-import { convertCartToOrder, confirmOrderPaymentSuccess, type ConvertCartToOrderInput } from "../src/order-registry";
+import { convertCartToOrder, confirmOrderPaymentSuccess } from "../src/order-registry";
 import {
   releaseExpiredReservation,
   releaseExpiredReservationTx,

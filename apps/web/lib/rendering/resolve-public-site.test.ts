@@ -96,6 +96,7 @@ describe.skipIf(!databaseAvailable)("resolvePublicSite", () => {
   const host = `public-site-test-${suffix}.example.com`;
   let tenantId: string;
   let templateId: string;
+  let planId: string;
 
   beforeAll(async () => {
     await withSuperAdminAccess(async (tx) => {
@@ -112,6 +113,37 @@ describe.skipIf(!databaseAvailable)("resolvePublicSite", () => {
         },
       });
       tenantId = tenant.id;
+
+      // Abonnement ACTIF requis depuis la correction de stabilisation du 22 septembre
+      // 2026 (voir docs/14) : l'ABSENCE de `TenantSubscription` bloque désormais le
+      // site public par défaut — ce fixture teste la suspension DOMAINE/TENANT, pas
+      // la facturation, donc un tenant normalement abonné est le fixture réaliste.
+      const plan = await tx.subscriptionPlan.create({
+        data: {
+          name: `Formule Test Site Public ${suffix}`,
+          status: "PUBLISHED",
+          priceMonthly: 15_000,
+          priceYearly: 150_000,
+          maxProducts: 100,
+          maxEmployees: 5,
+          maxShops: 1,
+          storageMB: 1024,
+          maxAIGenerationsPerMonth: 100,
+          maxAIImagesAnalyzedPerMonth: 100,
+          maxAIProductsImportedPerMonth: 100,
+        },
+      });
+      planId = plan.id;
+      await tx.tenantSubscription.create({
+        data: {
+          tenantId,
+          planId,
+          status: "ACTIVE",
+          billingCycle: "MONTHLY",
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+        },
+      });
 
       const template = await upsertTemplate(tx, {
         key: `test-public-site-template-${suffix}`,
@@ -147,6 +179,8 @@ describe.skipIf(!databaseAvailable)("resolvePublicSite", () => {
       await tx.tenantSiteVersion.deleteMany({ where: { tenantId } });
       await tx.tenantSite.deleteMany({ where: { tenantId } });
       await tx.counter.deleteMany({ where: { tenantId } });
+      await tx.tenantSubscription.deleteMany({ where: { tenantId } });
+      await tx.subscriptionPlan.deleteMany({ where: { id: planId } });
       await tx.tenant.deleteMany({ where: { id: tenantId } });
       await tx.siteTemplate.deleteMany({ where: { id: templateId } });
       await tx.sector.deleteMany({ where: { key: sectorKey } });
@@ -209,6 +243,54 @@ describe.skipIf(!databaseAvailable)("resolvePublicSite", () => {
       expect(after).not.toHaveProperty("site");
 
       await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { status: "ACTIVE" } }));
+      const restored = await resolvePublicSite(host, deps);
+      expect(restored.status).toBe("ok");
+    },
+  );
+
+  it(
+    "CORRECTION DE STABILISATION — SUPPRESSION DE LA LIGNE D'ABONNEMENT : le site public affiche " +
+      "« abonnement suspendu », jamais le contenu du site (l'absence d'abonnement n'est plus un contournement)",
+    async () => {
+      // Doit s'exécuter AVANT "RETRAIT DU DOMAINE" ci-dessous (terminal, ne restaure
+      // jamais le domaine) — trouvé en exécutant réellement cette suite pour la
+      // première fois : Vitest respecte l'ordre de déclaration, un test ajouté APRÈS
+      // un retrait définitif ne verrait plus jamais "ok" (correction de
+      // stabilisation, 22 septembre 2026).
+      const deps = warmingNeverInvalidatedCacheDeps();
+      const before = await resolvePublicSite(host, deps);
+      expect(before.status).toBe("ok");
+
+      // Simule la suppression/perte de la ligne d'abonnement (voir docs/14, point 4
+      // de la demande de stabilisation) — jamais un tenant.status touché ici.
+      await withSuperAdminAccess((tx) => tx.tenantSubscription.deleteMany({ where: { tenantId } }));
+
+      const after = await resolvePublicSite(host, deps);
+      expect(after.status).toBe("billing_suspended");
+      if (after.status !== "billing_suspended") throw new Error("unreachable");
+      expect(after.tenantName).toBe("Boutique publique de test");
+      expect(after).not.toHaveProperty("site");
+
+      // Une dérogation Super Admin explicite (`billingExemptedAt`) restaure l'accès
+      // MALGRÉ l'absence d'abonnement — c'est la SEULE échappatoire légitime.
+      await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { billingExemptedAt: new Date() } }));
+      const exempted = await resolvePublicSite(host, deps);
+      expect(exempted.status).toBe("ok");
+      await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { billingExemptedAt: null } }));
+
+      // Restaure un abonnement réel pour ne pas polluer les tests suivants.
+      await withSuperAdminAccess((tx) =>
+        tx.tenantSubscription.create({
+          data: {
+            tenantId,
+            planId,
+            status: "ACTIVE",
+            billingCycle: "MONTHLY",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+          },
+        }),
+      );
       const restored = await resolvePublicSite(host, deps);
       expect(restored.status).toBe("ok");
     },

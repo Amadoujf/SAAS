@@ -150,6 +150,14 @@ export function BillingPanel() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4">
+      {/* Correction de stabilisation (22 septembre 2026) — voir docs/14, point 8 :
+          l'abonnement ne doit JAMAIS être présenté comme un prélèvement automatique
+          tant que `renewalMode: AUTOMATIC` reste structurellement inerte. */}
+      <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+        Votre abonnement n&apos;est pas débité automatiquement. Nous vous préviendrons avant son
+        expiration afin que vous puissiez le renouveler.
+      </p>
+
       {/* Statut courant */}
       {summary.subscription ? (
         <section className={`rounded-lg border p-4 ${statusInfo ? TONE_CLASSES[statusInfo.tone] : "border-gray-200 bg-white"}`}>
