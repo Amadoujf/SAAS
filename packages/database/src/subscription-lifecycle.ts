@@ -16,6 +16,19 @@ import { SubscriptionStatusConflictError } from "./subscription-status";
  * leçon que `Order.reservationExpiresAt` (migration `20260927000000_reservation_expiry_timestamptz`).
  */
 
+/** Code PostgreSQL `55P03` (lock_not_available) — levé par `FOR UPDATE NOWAIT` quand
+ *  une autre transaction tient déjà la ligne. Prisma relaie ce code dans `meta.code`
+ *  (parfois aussi présent tel quel dans `message`) : on vérifie les deux plutôt que de
+ *  supposer une seule forme d'erreur, jamais une comparaison de code d'erreur PRISMA
+ *  (`P2010`, "raw query failed") qui, elle, couvrirait aussi des échecs sans rapport. */
+function isLockNotAvailableError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const meta = (error as { meta?: { code?: unknown; message?: unknown } }).meta;
+  if (meta?.code === "55P03") return true;
+  if (typeof meta?.message === "string" && meta.message.includes("55P03")) return true;
+  return /55P03|could not obtain lock/i.test(error.message);
+}
+
 export type EvaluateLifecycleOutcome =
   | { outcome: "grace_period_started" }
   | { outcome: "suspended" }
@@ -68,6 +81,22 @@ export async function evaluateSubscriptionLifecycleTx(
         AND "status" = 'GRACE_PERIOD' AND "graceEndsAt" < NOW()
     `;
     if (candidates.length === 0) return { outcome: "no_change" };
+
+    // Verrou NON BLOQUANT — si une confirmation de paiement tient déjà cette ligne
+    // (`applyRenewalExtension`, `subscription-registry.ts`, verrou bloquant), céder
+    // IMMÉDIATEMENT plutôt que suspendre sur la base d'une lecture qui pourrait devenir
+    // obsolète avant la fin de notre propre transaction. Ce balayage n'est pas urgent :
+    // un report au prochain passage est toujours sûr, alors qu'un paiement réel ne
+    // doit JAMAIS se voir suivi d'une suspension parasite dans le journal d'audit —
+    // voir "COURSE CRITIQUE" dans subscription-lifecycle.test.ts (bogue réel trouvé en
+    // exécutant ce test pour de vrai contre PostgreSQL, jamais détecté avant faute
+    // d'exécution).
+    try {
+      await tx.$queryRaw`SELECT "id" FROM "TenantSubscription" WHERE "id" = ${subscriptionId} AND "tenantId" = ${tenantId} FOR UPDATE NOWAIT`;
+    } catch (lockError) {
+      if (isLockNotAvailableError(lockError)) return { outcome: "no_change" };
+      throw lockError;
+    }
 
     try {
       await suspendSubscription(tx, tenantId, subscriptionId, {

@@ -216,25 +216,72 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
     ]);
 
     // Les deux appels se terminent normalement (fulfilled), quel que soit qui gagne —
-    // la garde anti-TOCTOU rend l'un des deux un no-op sûr, jamais une exception.
+    // la garde anti-TOCTOU rend l'un des deux un no-op sûr, jamais une exception. Un
+    // paiement réel ne doit JAMAIS rester sans effet : `applyRenewalExtension` retente
+    // jusqu'à 5 fois avec un état frais (voir subscription-registry.ts), ce qui
+    // garantit `final.status === "ACTIVE"` dans TOUS les cas, y compris si le balayage
+    // a transitoirement gagné (voir le commentaire ci-dessous).
     expect(paymentResult.status).toBe("fulfilled");
     expect(lifecycleResult.status).toBe("fulfilled");
 
     const final = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscription.id } }));
-    if (final.status === "ACTIVE") {
-      // Le paiement a gagné : jamais suspendu malgré la course.
-      expect(final.suspendedAt).toBeNull();
-      if (lifecycleResult.status === "fulfilled") expect(lifecycleResult.value.outcome).toBe("no_change");
-    } else {
-      // Le balayage a gagné (rare, timing) : le paiement, arrivé juste après, doit
-      // avoir réactivé — ne jamais laisser un paiement réel sans effet.
-      expect(final.status).toBe("SUSPENDED");
-      if (paymentResult.status === "fulfilled") {
-        // La réactivation aurait dû suivre dans un appel séparé — ce test vérifie
-        // seulement l'absence d'état incohérent, pas une seconde tentative ici.
-        expect(paymentResult.value.outcome).toBe("confirmed");
-      }
+    expect(final.status).toBe("ACTIVE");
+    expect(final.suspendedAt).toBeNull();
+
+    // CORRECTION DE STABILISATION (bogue réel trouvé en exécutant ce test pour de vrai
+    // contre PostgreSQL — jamais détecté avant faute d'exécution) : le balayage prend
+    // désormais un verrou `FOR UPDATE NOWAIT` avant de suspendre et cède immédiatement
+    // ("no_change") si la ligne est déjà tenue par une confirmation de paiement en
+    // cours (voir subscription-lifecycle.ts et le test déterministe suivant, qui
+    // prouve ce mécanisme sans dépendre du hasard de l'ordonnancement réel). Il
+    // subsiste un cas limite IRRÉDUCTIBLE sans verrou distribué plus lourd : si le
+    // balayage gagne la course d'ACQUISITION du verrou d'une fraction de milliseconde
+    // — avant même que le paiement n'ait pu émettre sa propre demande de verrou — il
+    // suspend légitimement, puis le paiement réactive immédiatement avec un état
+    // frais. Le résultat final reste TOUJOURS correct (voir les deux assertions
+    // ci-dessus) ; seule la trace d'audit contient alors une paire suspendu/réactivé
+    // véridique. D'où le test tolérant les deux issues ici, complété par le test
+    // déterministe suivant pour verrouiller le mécanisme lui-même.
+    if (lifecycleResult.status === "fulfilled") {
+      expect(["no_change", "suspended"]).toContain(lifecycleResult.value.outcome);
     }
+  });
+
+  it("COURSE CRITIQUE (déterministe) : le balayage cède immédiatement — jamais de suspension — si une confirmation de paiement tient déjà le verrou de la ligne", async () => {
+    const tenantId = await createTestTenant();
+    const subscription = await createSubscription(tenantId, {
+      status: "GRACE_PERIOD",
+      currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000),
+      graceEndsAt: new Date(Date.now() - 60_000),
+    });
+
+    // Reproduit, sans dépendre du hasard de l'ordonnancement réel (voir le test
+    // précédent), le verrou `FOR UPDATE` que tient réellement `applyRenewalExtension`
+    // pendant toute la durée de sa transaction — on le garde ouvert explicitement via
+    // une porte contrôlée par le test, ce qui garantit que le balayage rencontre à
+    // coup sûr la ligne verrouillée.
+    let releaseLock: () => void = () => {};
+    let lockTransactionDone: Promise<unknown> = Promise.resolve();
+    const lockAcquired = new Promise<void>((resolveAcquired) => {
+      lockTransactionDone = withTenant(tenantId, async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "TenantSubscription" WHERE "id" = ${subscription.id} FOR UPDATE`;
+        resolveAcquired();
+        await new Promise<void>((resolveRelease) => {
+          releaseLock = resolveRelease;
+        });
+      });
+    });
+    await lockAcquired;
+
+    const outcome = await evaluateSubscriptionLifecycle(tenantId, subscription.id);
+    expect(outcome.outcome).toBe("no_change");
+
+    const duringLock = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscription.id } }));
+    expect(duringLock.status).toBe("GRACE_PERIOD");
+    expect(duringLock.suspendedAt).toBeNull();
+
+    releaseLock();
+    await lockTransactionDone;
   });
 
   it("BALAYAGE : découvre les candidats cross-tenant et traite chaque abonnement dans sa propre transaction", async () => {

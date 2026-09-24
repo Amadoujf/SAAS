@@ -165,6 +165,14 @@ async function applyRenewalExtension(
   actor: ConfirmSubscriptionPaymentActor,
   attempt = 1,
 ): Promise<TenantSubscription> {
+  // Verrou BLOQUANT — un paiement réel ne doit JAMAIS céder face au balayage
+  // automatique de fin de grâce (`subscription-lifecycle.ts`) : voir "COURSE CRITIQUE"
+  // dans subscription-lifecycle.test.ts. Attend que toute transaction concurrente sur
+  // CETTE ligne (typiquement le balayage, qui lui utilise `FOR UPDATE NOWAIT` et cède
+  // immédiatement s'il nous trouve déjà là) libère le verrou, puis relit un état
+  // garanti frais — jamais une décision prise sur une lecture qui pourrait devenir
+  // obsolète avant l'écriture.
+  await tx.$queryRaw`SELECT "id" FROM "TenantSubscription" WHERE "id" = ${subscriptionId} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const subscription = await tx.tenantSubscription.findFirstOrThrow({ where: { id: subscriptionId, tenantId } });
 
   if (subscription.status !== "ACTIVE" && !isValidSubscriptionTransition(subscription.status, "ACTIVE")) {
