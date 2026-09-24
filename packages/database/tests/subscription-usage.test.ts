@@ -153,6 +153,66 @@ describe.skipIf(!databaseAvailable)("Quotas de formule (réel, PostgreSQL)", () 
     });
   });
 
+  it("CONCURRENCE RÉELLE : N créations simultanées près de la limite ne dépassent jamais le quota réel", async () => {
+    const tenant = await withSuperAdminAccess((tx) =>
+      tx.tenant.create({
+        data: { slug: `test-usage-concurrency-${suffix}`, name: "Boutique Concurrence Quota", businessType: "ECOMMERCE", sectorKey, status: "ACTIVE" },
+      }),
+    );
+    try {
+      await withTenant(tenant.id, (tx) =>
+        tx.tenantSubscription.create({
+          data: {
+            tenantId: tenant.id,
+            planId,
+            status: "ACTIVE",
+            billingCycle: "MONTHLY",
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
+          },
+        }),
+      );
+
+      // La formule autorise 2 produits (voir beforeAll) ; 5 créations simultanées
+      // depuis zéro reproduisent exactement `createProductAction` (vérification +
+      // création dans LA MÊME transaction, voir product-pipeline.ts) — un contrôle non
+      // coordonné ("compter puis comparer" sans verrou) laisserait plusieurs
+      // tentatives lire un compte encore sous la limite au même instant et dépasser le
+      // quota réel.
+      const attempts = await Promise.allSettled(
+        Array.from({ length: 5 }, (_, i) =>
+          withTenant(tenant.id, async (tx) => {
+            await assertQuotaAvailable(tx, tenant.id, "products");
+            return tx.product.create({
+              data: { tenantId: tenant.id, name: `Concurrent ${i}`, slug: `concurrent-${suffix}-${i}`, basePrice: 1000, status: "PUBLISHED" },
+            });
+          }),
+        ),
+      );
+
+      const succeeded = attempts.filter((a) => a.status === "fulfilled");
+      const failed = attempts.filter((a) => a.status === "rejected");
+      expect(succeeded).toHaveLength(2);
+      expect(failed).toHaveLength(3);
+      for (const f of failed as PromiseRejectedResult[]) {
+        expect(f.reason).toBeInstanceOf(QuotaExceededError);
+      }
+
+      const finalCount = await withTenant(tenant.id, (tx) => tx.product.count({ where: { tenantId: tenant.id } }));
+      expect(finalCount).toBe(2); // jamais 3, 4 ou 5 : le quota réel n'est jamais dépassé.
+    } finally {
+      // `finally` — même si une assertion échoue ci-dessus, ce tenant dédié ne doit
+      // jamais rester orphelin (il partage `planId` avec le reste de la suite : un
+      // reste ici ferait échouer le `subscriptionPlan.deleteMany` du `afterAll` global
+      // sur une contrainte de clé étrangère, un vrai bogue de test rencontré une fois).
+      await withSuperAdminAccess(async (tx) => {
+        await tx.product.deleteMany({ where: { tenantId: tenant.id } });
+        await tx.tenantSubscription.deleteMany({ where: { tenantId: tenant.id } });
+        await tx.tenant.deleteMany({ where: { id: tenant.id } });
+      });
+    }
+  });
+
   it("une dérogation Super Admin explicite (billingExemptedAt) restaure un accès illimité MALGRÉ l'absence d'abonnement", async () => {
     await withSuperAdminAccess((tx) =>
       tx.tenant.update({ where: { id: tenantWithoutSubscriptionId }, data: { billingExemptedAt: new Date() } }),

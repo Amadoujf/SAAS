@@ -92,6 +92,23 @@ export async function assertQuotaAvailable(
   resourceKey: QuotaResourceKey,
   increment = 1,
 ): Promise<void> {
+  // Verrou consultatif PAR (tenant, ressource) — CORRECTION DE STABILISATION, bogue
+  // réel trouvé en testant pour de vrai la concurrence (voir "CONCURRENCE RÉELLE" dans
+  // subscription-usage.test.ts) : un COMPTAGE (`SELECT COUNT(*)`) n'a pas de ligne
+  // unique à verrouiller via un `UPDATE ... WHERE` gardé (contrairement à `adjustStock`,
+  // catalog-registry.ts). Sans coordination explicite, plusieurs créations simultanées
+  // proches de la limite lisaient TOUTES un compte encore sous la limite et
+  // dépassaient le quota réel (3 produits acceptés pour une limite de 2, reproduit de
+  // façon fiable). `pg_advisory_xact_lock` sérialise toute paire (tenant, ressource) le
+  // temps de CETTE transaction — relâché automatiquement au commit/rollback, jamais un
+  // verrou à libérer manuellement. `hashtext` retourne un entier 32 bits : une
+  // collision ferait au pire sérialiser deux paires (tenant, ressource) sans rapport
+  // entre elles, jamais un dépassement de quota.
+  // `$executeRaw`, pas `$queryRaw` : `pg_advisory_xact_lock` renvoie `void`, que Prisma
+  // ne sait pas désérialiser depuis `$queryRaw` ("Failed to deserialize column of type
+  // 'void'") — `$executeRaw` n'essaie pas d'interpréter les colonnes retournées.
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${tenantId} || ':' || ${resourceKey}))`;
+
   const limit = await resolveEffectiveLimit(tx, tenantId, resourceKey);
   if (limit === null) return;
 
