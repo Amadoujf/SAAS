@@ -120,6 +120,11 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
     }
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT set_config('app.is_super_admin', 'true', true)`;
+      // `product`/`customer` — voir le test « RÉTENTION COMPLÈTE DES DONNÉES » : sans
+      // cascade de suppression sur `Tenant` (aucune n'existe dans ce schéma), ces
+      // lignes doivent être nettoyées AVANT le tenant, jamais après.
+      await tx.product.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
+      await tx.customer.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
       await tx.subscriptionPayment.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
       await tx.tenantSubscription.deleteMany({ where: { tenantId: { in: createdTenantIds } } });
       await tx.tenant.deleteMany({ where: { id: { in: createdTenantIds } } });
@@ -155,13 +160,23 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
     expect(unchanged.status).toBe("ACTIVE");
   });
 
-  it("GRACE_PERIOD dont la grâce est dépassée -> SUSPENDED", async () => {
+  it("GRACE_PERIOD dont la grâce est dépassée -> SUSPENDED — RÉTENTION COMPLÈTE DES DONNÉES, jamais une suppression", async () => {
     const tenantId = await createTestTenant();
     const subscription = await createSubscription(tenantId, {
       status: "GRACE_PERIOD",
       currentPeriodEnd: new Date(Date.now() - 5 * 86_400_000),
       graceEndsAt: new Date(Date.now() - 60_000), // grâce dépassée d'une minute.
     });
+
+    // Données réelles du tenant AVANT la suspension — voir docs/14, « les données ne
+    // sont jamais supprimées » : la suspension ne doit toucher QUE la ligne
+    // TenantSubscription, jamais Product/Customer ni aucune autre table métier.
+    const product = await withTenant(tenantId, (tx) =>
+      tx.product.create({ data: { tenantId, name: "Produit Avant Suspension", slug: `retention-${subscription.id}`, basePrice: 5000, status: "PUBLISHED" } }),
+    );
+    const customer = await withTenant(tenantId, (tx) =>
+      tx.customer.create({ data: { tenantId, firstName: "Cliente", lastName: "Retenue", email: `retention-${subscription.id}@example.com` } }),
+    );
 
     const outcome = await evaluateSubscriptionLifecycle(tenantId, subscription.id);
     expect(outcome.outcome).toBe("suspended");
@@ -175,6 +190,15 @@ describe.skipIf(!databaseAvailable)("Cycle de vie automatique des abonnements (r
     );
     expect(event.actorType).toBe("system");
     expect(event.justification).toContain("grâce");
+
+    // Les données du tenant restent intactes ET normalement accessibles (même chemin
+    // RLS `withTenant` qu'utiliserait le dashboard — le client garde son accès, voir
+    // docs/14) : ni supprimées, ni verrouillées, ni altérées par la suspension.
+    const productAfter = await withTenant(tenantId, (tx) => tx.product.findUniqueOrThrow({ where: { id: product.id } }));
+    expect(productAfter.name).toBe("Produit Avant Suspension");
+    expect(productAfter.deletedAt).toBeNull();
+    const customerAfter = await withTenant(tenantId, (tx) => tx.customer.findUniqueOrThrow({ where: { id: customer.id } }));
+    expect(customerAfter.firstName).toBe("Cliente");
   });
 
   it("ne suspend PAS un abonnement encore dans sa fenêtre de grâce", async () => {

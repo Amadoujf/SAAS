@@ -80,6 +80,7 @@ describe.skipIf(!databaseAvailable)("processSaasBillingWebhook (réel, PostgreSQ
           maxAIGenerationsPerMonth: 100,
           maxAIImagesAnalyzedPerMonth: 100,
           maxAIProductsImportedPerMonth: 100,
+          chariowMonthlyProductId: `chariow_prod_monthly_${suffix}`,
         },
       });
       planId = plan.id;
@@ -211,6 +212,75 @@ describe.skipIf(!databaseAvailable)("processSaasBillingWebhook (réel, PostgreSQ
 
     const event = await withTenant(tenantId, (tx) =>
       tx.subscriptionEvent.findFirstOrThrow({ where: { type: "webhook_rejected_amount_mismatch", subscriptionId } }),
+    );
+    expect(event.actorType).toBe("webhook");
+  });
+
+  it("DEVISE INCOHÉRENTE (montant correct, devise différente) : rejeté, journalisé, abonnement inchangé", async () => {
+    // Distinct du test « MONTANT INCOHÉRENT » ci-dessus : la garde teste
+    // `amountXOF !== ... || currency !== ...` — envoyer un montant correct avec une
+    // devise différente est la SEULE façon de prouver que la moitié « devise » de
+    // cette condition est réellement vérifiée, et pas seulement la moitié « montant ».
+    const before = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscriptionId } }));
+    const session = await createSession({ amountXOF: 15_000, currency: "XOF" });
+
+    const result = await processSaasBillingWebhook({
+      headers: {},
+      rawBody: JSON.stringify({
+        providerSaleId: `sale_${suffix}_bad_currency`,
+        status: "succeeded",
+        amountXOF: 15_000, // montant correct...
+        currency: "EUR", // ...mais devise différente de celle attendue par la session (XOF).
+        internalReference: session.internalReference,
+      }),
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.reason).toBe("amount_or_currency_mismatch");
+
+    const after = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscriptionId } }));
+    expect(after.currentPeriodEnd.getTime()).toBe(before.currentPeriodEnd.getTime());
+
+    // `orderBy` — un second événement `webhook_rejected_amount_mismatch` existe déjà
+    // pour cet abonnement (test « MONTANT INCOHÉRENT » ci-dessus) : le plus récent est
+    // forcément celui-ci, exécuté ensuite dans le même fichier.
+    const event = await withTenant(tenantId, (tx) =>
+      tx.subscriptionEvent.findFirstOrThrow({
+        where: { type: "webhook_rejected_amount_mismatch", subscriptionId },
+        orderBy: { createdAt: "desc" },
+      }),
+    );
+    expect(event.actorType).toBe("webhook");
+    expect((event.payloadSnapshot as { received?: { currency?: string } })?.received?.currency).toBe("EUR");
+  });
+
+  it("PRODUIT INCOHÉRENT (identifiant Chariow différent de la formule+cycle attendus) : rejeté, journalisé, abonnement inchangé", async () => {
+    const before = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscriptionId } }));
+    const session = await createSession({ amountXOF: 15_000, currency: "XOF" });
+
+    const result = await processSaasBillingWebhook({
+      headers: {},
+      rawBody: JSON.stringify({
+        providerSaleId: `sale_${suffix}_bad_product`,
+        status: "succeeded",
+        amountXOF: 15_000,
+        currency: "XOF",
+        internalReference: session.internalReference,
+        // Ne correspond PAS à `chariowMonthlyProductId` de la formule (voir beforeAll)
+        // — un client ayant payé pour UNE AUTRE formule/produit chez Chariow ne doit
+        // jamais activer CET abonnement-ci.
+        providerProductId: "chariow_prod_totally_different",
+      }),
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.reason).toBe("product_mismatch");
+
+    const after = await withTenant(tenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: subscriptionId } }));
+    expect(after.currentPeriodEnd.getTime()).toBe(before.currentPeriodEnd.getTime());
+
+    const event = await withTenant(tenantId, (tx) =>
+      tx.subscriptionEvent.findFirstOrThrow({ where: { type: "webhook_rejected_product_mismatch", subscriptionId } }),
     );
     expect(event.actorType).toBe("webhook");
   });

@@ -255,6 +255,46 @@ describe.skipIf(!databaseAvailable)("confirmSubscriptionPaymentSuccess (réel, P
     expect(payments).toBe(1); // jamais un second paiement pour le même rejeu.
   });
 
+  it("PROLONGATION MANUELLE SUPER ADMIN : réutilise la MÊME formule de renouvellement, journalise l'acteur et la justification", async () => {
+    // Reproduit exactement l'appel fait par la route Super Admin
+    // (apps/web/app/api/admin/billing/subscriptions/[id]/extend/route.ts) — un
+    // paiement reçu hors ligne (virement, espèces) suit la MÊME fonction et la MÊME
+    // formule qu'un webhook Chariow réel, jamais une seconde branche de calcul.
+    const tenantId = await createTestTenant();
+    const longPastEnd = new Date(Date.now() - 10 * 86_400_000);
+    const subscription = await createSubscription(tenantId, { status: "SUSPENDED", currentPeriodEnd: longPastEnd });
+
+    const result = await withTenant(tenantId, (tx) =>
+      confirmSubscriptionPaymentSuccess(tx, tenantId, {
+        subscriptionId: subscription.id,
+        provider: "manual",
+        providerSaleId: nextSaleId(),
+        planId,
+        billingCycle: "MONTHLY",
+        amountXOF: 15_000,
+        currency: "XOF",
+        actor: {
+          actorType: "super_admin",
+          actorUserId: "super-admin-test-user",
+          justification: "Virement Wave reçu hors ligne le 24/09/2026, confirmé par le service comptable.",
+        },
+      }),
+    );
+
+    expect(result.subscription.status).toBe("ACTIVE");
+    expect(result.subscription.suspendedAt).toBeNull();
+    const daysUntilExpiry = (result.subscription.currentPeriodEnd.getTime() - Date.now()) / 86_400_000;
+    expect(daysUntilExpiry).toBeGreaterThan(29); // base = maintenant (échéance déjà passée), jamais longPastEnd + 30j.
+    expect(daysUntilExpiry).toBeLessThan(31);
+
+    const event = await withTenant(tenantId, (tx) =>
+      tx.subscriptionEvent.findFirstOrThrow({ where: { subscriptionId: subscription.id, type: "reactivated" } }),
+    );
+    expect(event.actorType).toBe("super_admin");
+    expect(event.actorUserId).toBe("super-admin-test-user");
+    expect(event.justification).toContain("Virement Wave");
+  });
+
   it("RENOUVELLEMENTS CONCURRENTS : deux ventes RÉELLES et DISTINCTES arrivant en même temps DOIVENT TOUTES LES DEUX prolonger la période — aucune n'est traitée comme un rejeu de l'autre", async () => {
     const tenantId = await createTestTenant();
     const subscription = await createSubscription(tenantId, { status: "ACTIVE", currentPeriodEnd: new Date(Date.now() + 5 * 86_400_000) });
