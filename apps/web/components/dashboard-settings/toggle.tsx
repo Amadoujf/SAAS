@@ -1,10 +1,10 @@
 "use client";
 
 /** Interrupteur accessible (rôle switch, annoncé par les lecteurs d'écran). */
-export function Toggle({ checked, onChange, label, description, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string; disabled?: boolean }) {
+export function Toggle({ checked, onChange, label, description, disabled, hideLabel = false }: { checked: boolean; onChange: (v: boolean) => void; label: string; description?: string; disabled?: boolean; hideLabel?: boolean }) {
   return (
     <label className="flex cursor-pointer items-start justify-between gap-4">
-      <span>
+      <span className={hideLabel ? "sr-only" : undefined}>
         <span className="block text-sm font-semibold text-yc-ink">{label}</span>
         {description && <span className="block text-xs text-yc-ink-soft">{description}</span>}
       </span>

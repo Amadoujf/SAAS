@@ -148,7 +148,6 @@ export function StoreSettingsForm({ initial }: { initial: { pickupEnabled: boole
         </div>
       )}
       <Field label="Instructions de livraison affichées au client" optional>{(p) => <Textarea {...p} value={s.deliveryInstructions} onChange={(e) => setS({ ...s, deliveryInstructions: e.target.value })} />}</Field>
-      <Toggle checked={s.guestCheckoutEnabled} onChange={(v) => setS({ ...s, guestCheckoutEnabled: v })} label="Commande sans compte" description="Le client commande avec son seul numéro de téléphone." />
       <Field label="Délai pour payer par Wave / Orange Money (heures)" hint="Au-delà, la commande expire et le stock est libéré.">
         {(p) => <Input {...p} type="number" min={1} max={168} value={s.manualPaymentWindowHours} onChange={(e) => setS({ ...s, manualPaymentWindowHours: Number(e.target.value) })} />}
       </Field>
@@ -175,7 +174,7 @@ export function DeliverersManager({ deliverers }: { deliverers: { id: string; ph
                 <span className="block text-sm font-semibold">{d.vehicleType ?? "Livreur"}</span>
                 <span className="block text-xs text-yc-ink-soft">{d.phone}</span>
               </span>
-              <Toggle checked={d.isActive} disabled={pending !== null} onChange={(v) => run(`t-${d.id}`, { action: "deliverer.toggle", delivererId: d.id, isActive: v }, v ? "Livreur réactivé." : "Livreur désactivé.")} label={`Actif : ${d.vehicleType ?? d.phone}`} />
+              <Toggle checked={d.isActive} disabled={pending !== null} onChange={(v) => run(`t-${d.id}`, { action: "deliverer.toggle", delivererId: d.id, isActive: v }, v ? "Livreur réactivé." : "Livreur désactivé.")} label={`Livreur actif : ${d.vehicleType ?? d.phone}`} hideLabel />
             </li>
           ))}
         </ul>

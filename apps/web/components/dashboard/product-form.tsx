@@ -212,12 +212,12 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 p-4">
-      {message && <p className="text-sm text-gray-700">{message}</p>}
+    <div className="flex flex-col gap-6 ">
+      {message && <p className="text-sm text-yc-ink/80">{message}</p>}
 
-      <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Informations générales</h2>
-        <label className="flex flex-col gap-1 text-sm text-gray-700">
+      <section className="flex flex-col gap-3 rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h2 className="text-sm font-semibold text-yc-ink">Informations générales</h2>
+        <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
           Nom
           <input
             type="text"
@@ -226,10 +226,10 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
               setName(e.target.value);
               if (!slugEdited) setSlug(slugify(e.target.value));
             }}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+            className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-gray-700">
+        <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
           Slug (URL)
           <input
             type="text"
@@ -238,24 +238,24 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
               setSlug(e.target.value);
               setSlugEdited(true);
             }}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+            className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-gray-700">
+        <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
           Description
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={4}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+            className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm text-gray-700">
+        <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
           Catégorie
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+            className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
           >
             <option value="">Aucune</option>
             {categories.map((c) => (
@@ -266,22 +266,22 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
           </select>
         </label>
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-sm text-gray-700">
+          <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
             Prix (FCFA)
             <input
               type="number"
               value={basePrice}
               onChange={(e) => setBasePrice(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-gray-700">
+          <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
             Prix barré (optionnel)
             <input
               type="number"
               value={compareAtPrice}
               onChange={(e) => setCompareAtPrice(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             />
           </label>
         </div>
@@ -289,7 +289,7 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
           type="button"
           disabled={saving || !name || !slug}
           onClick={() => void handleSave()}
-          className="w-fit rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+          className="w-fit rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-2 text-sm font-medium text-white hover:bg-yc-night-800 disabled:opacity-50"
         >
           {mode === "create" ? "Créer le produit" : "Enregistrer"}
         </button>
@@ -297,15 +297,15 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
 
       {mode === "edit" && product && (
         <>
-          <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
+          <section className="flex flex-col gap-3 rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-gray-900">Statut : {product.status}</h2>
+              <h2 className="text-sm font-semibold text-yc-ink">Statut : {product.status}</h2>
               <div className="flex gap-2">
                 {product.status !== "PUBLISHED" && (
                   <button
                     type="button"
                     onClick={() => void handleStatusChange("PUBLISHED")}
-                    className="rounded border border-green-300 px-3 py-1 text-xs text-green-700 hover:bg-green-50"
+                    className="rounded-xl border border-green-300 px-3 py-1 text-xs text-green-700 hover:bg-green-50"
                   >
                     Publier
                   </button>
@@ -314,7 +314,7 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
                   <button
                     type="button"
                     onClick={() => void handleStatusChange("ARCHIVED")}
-                    className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                    className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1 text-xs text-yc-ink/80 hover:bg-yc-ivory-50"
                   >
                     Archiver
                   </button>
@@ -323,17 +323,17 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
             </div>
           </section>
 
-          <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-900">Images</h2>
+          <section className="flex flex-col gap-3 rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+            <h2 className="text-sm font-semibold text-yc-ink">Images</h2>
             <div className="flex flex-wrap gap-3">
               {product.images.map((image) => (
-                <div key={image.id} className="relative h-24 w-24 overflow-hidden rounded border border-gray-200">
+                <div key={image.id} className="relative h-24 w-24 overflow-hidden rounded-xl border border-yc-ink/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={image.url} alt={image.altText ?? ""} className="h-full w-full object-cover" />
                   <button
                     type="button"
                     onClick={() => void handleRemoveImage(image.id)}
-                    className="absolute right-1 top-1 rounded bg-black/60 px-1.5 text-[10px] text-white"
+                    className="absolute right-1 top-1 rounded-xl bg-black/60 px-1.5 text-[10px] text-white"
                   >
                     ✕
                   </button>
@@ -342,14 +342,14 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
               <button
                 type="button"
                 onClick={() => setPickerOpen(true)}
-                className="flex h-24 w-24 items-center justify-center rounded border border-dashed border-gray-300 text-xs text-gray-500 hover:border-gray-400"
+                className="flex h-24 w-24 items-center justify-center rounded-xl border border-dashed border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 text-xs text-yc-ink-soft hover:border-yc-ink/40"
               >
                 + Média
               </button>
             </div>
             {pickerOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                <div className="max-h-[80vh] w-full max-w-3xl overflow-auto rounded-lg bg-white p-4">
+                <div className="max-h-[80vh] w-full max-w-3xl overflow-auto rounded-yc-lg bg-white p-4">
                   <MediaLibrary
                     apiBase="/api/media"
                     onClose={() => setPickerOpen(false)}
@@ -367,18 +367,18 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
             )}
           </section>
 
-          <section className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4">
-            <h2 className="text-sm font-semibold text-gray-900">Variantes (taille, couleur, matière) et stock</h2>
+          <section className="flex flex-col gap-3 rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+            <h2 className="text-sm font-semibold text-yc-ink">Variantes (taille, couleur, matière) et stock</h2>
             <ul className="flex flex-col gap-2">
               {product.variants.map((variant) => {
                 const inventory = variant.inventoryItems[0];
                 return (
-                  <li key={variant.id} className="flex items-center justify-between rounded border border-gray-200 px-3 py-2 text-sm">
+                  <li key={variant.id} className="flex items-center justify-between rounded-xl border border-yc-ink/10 px-3 py-2 text-sm">
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-yc-ink">
                         {variant.name} {variant.sku ? `· ${variant.sku}` : ""}
                       </p>
-                      <p className="text-gray-500">
+                      <p className="text-yc-ink-soft">
                         {Object.entries(variant.attributes)
                           .map(([k, v]) => `${k}: ${v}`)
                           .join(" · ")}{" "}
@@ -389,7 +389,7 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
                     <button
                       type="button"
                       onClick={() => void handleDeleteVariant(variant.id)}
-                      className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                      className="rounded-xl border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
                     >
                       Supprimer
                     </button>
@@ -398,60 +398,60 @@ export function ProductForm({ mode, productId }: { mode: "create" | "edit"; prod
               })}
             </ul>
 
-            <div className="grid grid-cols-2 gap-2 border-t border-gray-200 pt-3 sm:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2 border-t border-yc-ink/10 pt-3 sm:grid-cols-3">
               <input
                 type="text"
                 placeholder="Nom (ex. Rouge / M)"
                 value={variantName}
                 onChange={(e) => setVariantName(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="SKU"
                 value={variantSku}
                 onChange={(e) => setVariantSku(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="number"
                 placeholder="Prix (FCFA)"
                 value={variantPrice}
                 onChange={(e) => setVariantPrice(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="Couleur"
                 value={variantColor}
                 onChange={(e) => setVariantColor(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="Taille"
                 value={variantSize}
                 onChange={(e) => setVariantSize(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="text"
                 placeholder="Matière"
                 value={variantMaterial}
                 onChange={(e) => setVariantMaterial(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <input
                 type="number"
                 placeholder="Stock initial"
                 value={variantStock}
                 onChange={(e) => setVariantStock(e.target.value)}
-                className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
               />
               <button
                 type="button"
                 onClick={() => void handleAddVariant()}
-                className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+                className="rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-3 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
               >
                 Ajouter la variante
               </button>

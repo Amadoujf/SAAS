@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/yc/panel";
 import { BillingPanel } from "@/components/dashboard/billing-panel";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 
@@ -18,10 +19,8 @@ export default async function FacturationPage() {
   if (!membership) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white p-4">
-        <h1 className="text-lg font-semibold text-gray-900">Abonnement et facturation</h1>
-      </header>
+    <div>
+      <PageHeader title="Abonnement et facturation" description="Votre formule YamaCommerce, son échéance et son renouvellement." />
       <BillingPanel />
     </div>
   );

@@ -63,19 +63,19 @@ export function CategoriesPanel() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 ">
       <div className="flex gap-2">
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nom de la catégorie"
-          className="flex-1 rounded border border-gray-300 px-3 py-1.5 text-sm"
+          className="flex-1 rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
         />
         <button
           type="button"
           onClick={() => void handleCreate()}
-          className="rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+          className="rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
         >
           Ajouter
         </button>
@@ -83,15 +83,15 @@ export function CategoriesPanel() {
 
       {message && <p className="text-sm text-red-600">{message}</p>}
 
-      <ul className="divide-y divide-gray-200 rounded-lg border border-gray-200 bg-white">
-        {categories.length === 0 && <li className="p-4 text-sm text-gray-500">Aucune catégorie pour le moment.</li>}
+      <ul className="divide-y divide-yc-ink/[0.06] rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0">
+        {categories.length === 0 && <li className="p-4 text-sm text-yc-ink-soft">Aucune catégorie pour le moment.</li>}
         {categories.map((category) => (
           <li key={category.id} className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm text-gray-900">{category.name}</span>
+            <span className="text-sm text-yc-ink">{category.name}</span>
             <button
               type="button"
               onClick={() => void handleDelete(category.id)}
-              className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+              className="rounded-xl border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
             >
               Supprimer
             </button>

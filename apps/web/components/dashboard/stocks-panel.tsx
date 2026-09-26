@@ -81,10 +81,10 @@ export function StocksPanel() {
   }
 
   return (
-    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-4 p-4 lg:grid-cols-2">
-      <section className="rounded-lg border border-gray-200 bg-white">
-        <ul className="divide-y divide-gray-200">
-          {items.length === 0 && <li className="p-4 text-sm text-gray-500">Aucun stock enregistré pour le moment.</li>}
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0">
+        <ul className="divide-y divide-yc-ink/[0.06]">
+          {items.length === 0 && <li className="p-4 text-sm text-yc-ink-soft">Aucun stock enregistré pour le moment.</li>}
           {items.map((item) => {
             const low = item.availableQuantity <= item.lowStockThreshold;
             return (
@@ -92,19 +92,19 @@ export function StocksPanel() {
                 <button
                   type="button"
                   onClick={() => void selectItem(item)}
-                  className={`flex w-full items-center justify-between px-4 py-3 text-left hover:bg-gray-50 ${
-                    selected?.id === item.id ? "bg-gray-50" : ""
+                  className={`flex w-full items-center justify-between px-4 py-3 text-left hover:bg-yc-ivory-50 ${
+                    selected?.id === item.id ? "bg-yc-ivory-50" : ""
                   }`}
                 >
                   <div>
-                    <p className="font-medium text-gray-900">{item.variant.product.name}</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="font-medium text-yc-ink">{item.variant.product.name}</p>
+                    <p className="text-sm text-yc-ink-soft">
                       {item.variant.name} · {item.shop.name}
                     </p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-medium ${
-                      low ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-700"
+                      low ? "bg-red-100 text-red-800" : "bg-yc-ivory-100 text-yc-ink/80"
                     }`}
                   >
                     {item.availableQuantity} en stock
@@ -116,25 +116,25 @@ export function StocksPanel() {
         </ul>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
         {!selected ? (
-          <p className="text-sm text-gray-500">Sélectionnez un item pour voir son historique et l&apos;ajuster.</p>
+          <p className="text-sm text-yc-ink-soft">Sélectionnez un item pour voir son historique et l&apos;ajuster.</p>
         ) : (
           <div className="flex flex-col gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">{selected.variant.product.name}</h2>
-              <p className="text-sm text-gray-500">
+              <h2 className="text-lg font-semibold text-yc-ink">{selected.variant.product.name}</h2>
+              <p className="text-sm text-yc-ink-soft">
                 {selected.variant.name} · {selected.shop.name} · seuil d&apos;alerte : {selected.lowStockThreshold}
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
-              <label className="text-sm font-medium text-gray-700">Ajuster le stock</label>
+            <div className="flex flex-col gap-2 border-t border-yc-ink/10 pt-3">
+              <label className="text-sm font-medium text-yc-ink/80">Ajuster le stock</label>
               <div className="flex flex-wrap gap-2">
                 <select
                   value={adjustType}
                   onChange={(e) => setAdjustType(e.target.value as typeof adjustType)}
-                  className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
                 >
                   <option value="in">Entrée</option>
                   <option value="out">Sortie</option>
@@ -145,19 +145,19 @@ export function StocksPanel() {
                   value={adjustQuantity}
                   onChange={(e) => setAdjustQuantity(e.target.value)}
                   placeholder="Quantité"
-                  className="w-24 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="w-24 rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
                 />
                 <input
                   type="text"
                   value={adjustReason}
                   onChange={(e) => setAdjustReason(e.target.value)}
                   placeholder="Raison (optionnel)"
-                  className="flex-1 rounded border border-gray-300 px-2 py-1.5 text-sm"
+                  className="flex-1 rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-2 py-1.5 text-sm"
                 />
                 <button
                   type="button"
                   onClick={() => void handleAdjust()}
-                  className="rounded bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+                  className="rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-3 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
                 >
                   Appliquer
                 </button>
@@ -165,12 +165,12 @@ export function StocksPanel() {
               {message && <p className="text-sm text-red-600">{message}</p>}
             </div>
 
-            <div className="border-t border-gray-200 pt-3">
-              <h3 className="mb-2 text-sm font-medium text-gray-700">Historique des mouvements</h3>
-              <ul className="space-y-1 text-xs text-gray-600">
+            <div className="border-t border-yc-ink/10 pt-3">
+              <h3 className="mb-2 text-sm font-medium text-yc-ink/80">Historique des mouvements</h3>
+              <ul className="space-y-1 text-xs text-yc-ink/80">
                 {movements.length === 0 && <li>Aucun mouvement.</li>}
                 {movements.map((movement) => (
-                  <li key={movement.id} className="rounded bg-gray-50 px-2 py-1">
+                  <li key={movement.id} className="rounded-xl bg-yc-ivory-50 px-2 py-1">
                     {new Date(movement.createdAt).toLocaleString("fr-FR")} — {MOVEMENT_LABELS[movement.type] ?? movement.type} :{" "}
                     {movement.quantity}
                     {movement.reason ? ` (${movement.reason})` : ""}

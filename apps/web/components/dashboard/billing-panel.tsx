@@ -133,13 +133,13 @@ export function BillingPanel() {
   }
 
   if (loading) {
-    return <div className="mx-auto max-w-4xl p-4 text-sm text-gray-500">Chargement…</div>;
+    return <div role="status" aria-label="Chargement de l'abonnement" className="space-y-4"><div className="yc-skeleton h-20 rounded-yc-lg" /><div className="yc-skeleton h-28 rounded-yc-lg" /><div className="yc-skeleton h-64 rounded-yc-lg" /></div>;
   }
 
   if (error) {
     return (
-      <div className="mx-auto max-w-4xl p-4">
-        <p className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      <div >
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
       </div>
     );
   }
@@ -149,21 +149,21 @@ export function BillingPanel() {
   const statusInfo = summary.subscription ? STATUS_MESSAGES[summary.subscription.status] : null;
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-4">
+    <div className="flex flex-col gap-6 ">
       {/* Correction de stabilisation (22 septembre 2026) — voir docs/14, point 8 :
           l'abonnement ne doit JAMAIS être présenté comme un prélèvement automatique
           tant que `renewalMode: AUTOMATIC` reste structurellement inerte. */}
-      <p className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+      <p className="rounded-yc-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
         Votre abonnement n&apos;est pas débité automatiquement. Nous vous préviendrons avant son
         expiration afin que vous puissiez le renouveler.
       </p>
 
       {/* Statut courant */}
       {summary.subscription ? (
-        <section className={`rounded-lg border p-4 ${statusInfo ? TONE_CLASSES[statusInfo.tone] : "border-gray-200 bg-white"}`}>
+        <section className={`rounded-yc-lg border p-4 ${statusInfo ? TONE_CLASSES[statusInfo.tone] : "border-yc-ink/10 bg-white"}`}>
           <p className="text-sm font-medium">{statusInfo?.label ?? summary.subscription.status}</p>
-          <p className="mt-1 text-2xl font-semibold text-gray-900">{summary.subscription.planName}</p>
-          <p className="mt-1 text-sm text-gray-600">
+          <p className="mt-1 text-2xl font-semibold text-yc-ink">{summary.subscription.planName}</p>
+          <p className="mt-1 text-sm text-yc-ink/80">
             {summary.subscription.status === "ACTIVE" || summary.subscription.status === "GRACE_PERIOD"
               ? `${summary.subscription.daysRemaining} jour(s) restant(s) — échéance le ${new Date(summary.subscription.currentPeriodEnd).toLocaleDateString("fr-FR")}`
               : `Échéance : ${new Date(summary.subscription.currentPeriodEnd).toLocaleDateString("fr-FR")}`}
@@ -175,27 +175,27 @@ export function BillingPanel() {
           )}
         </section>
       ) : (
-        <section className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+        <section className="rounded-yc-lg border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-medium text-amber-800">Aucun abonnement souscrit pour l&apos;instant</p>
           <p className="mt-1 text-sm text-amber-700">Choisissez une formule ci-dessous pour activer votre abonnement.</p>
         </section>
       )}
 
       {/* Quotas */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Utilisation</h2>
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h2 className="text-sm font-semibold text-yc-ink">Utilisation</h2>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {(Object.keys(summary.usage) as Array<keyof BillingSummary["usage"]>).map((key) => {
             const entry = summary.usage[key];
             const ratio = entry.limit ? Math.min(1, entry.used / entry.limit) : 0;
             return (
-              <div key={key} className="rounded border border-gray-100 p-3">
-                <p className="text-xs font-medium text-gray-500">{QUOTA_LABELS[key]}</p>
-                <p className="mt-1 text-sm text-gray-900">
+              <div key={key} className="rounded-xl border border-yc-ink/10 p-3">
+                <p className="text-xs font-medium text-yc-ink-soft">{QUOTA_LABELS[key]}</p>
+                <p className="mt-1 text-sm text-yc-ink">
                   {entry.used} / {entry.limit ?? "Illimité"}
                 </p>
                 {entry.limit !== null && (
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+                  <div className="mt-2 h-1.5 w-full rounded-full bg-yc-ivory-100">
                     <div
                       className={`h-1.5 rounded-full ${ratio >= 1 ? "bg-red-500" : ratio > 0.8 ? "bg-amber-500" : "bg-green-500"}`}
                       style={{ width: `${ratio * 100}%` }}
@@ -209,21 +209,21 @@ export function BillingPanel() {
       </section>
 
       {/* Comparaison des formules */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900">Formules disponibles</h2>
-          <div className="flex rounded-full border border-gray-200 p-0.5 text-xs">
+          <h2 className="text-sm font-semibold text-yc-ink">Formules disponibles</h2>
+          <div className="flex rounded-full border border-yc-ink/10 p-0.5 text-xs">
             <button
               type="button"
               onClick={() => setBillingCycle("MONTHLY")}
-              className={`rounded-full px-3 py-1 ${billingCycle === "MONTHLY" ? "bg-gray-900 text-white" : "text-gray-600"}`}
+              className={`rounded-full px-3 py-1 ${billingCycle === "MONTHLY" ? "bg-yc-night-900 text-white" : "text-yc-ink/80"}`}
             >
               Mensuel
             </button>
             <button
               type="button"
               onClick={() => setBillingCycle("YEARLY")}
-              className={`rounded-full px-3 py-1 ${billingCycle === "YEARLY" ? "bg-gray-900 text-white" : "text-gray-600"}`}
+              className={`rounded-full px-3 py-1 ${billingCycle === "YEARLY" ? "bg-yc-night-900 text-white" : "text-yc-ink/80"}`}
             >
               Annuel
             </button>
@@ -233,19 +233,19 @@ export function BillingPanel() {
         {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
 
         {summary.plans.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">Aucune formule n&apos;est publiée pour le moment.</p>
+          <p className="mt-3 text-sm text-yc-ink-soft">Aucune formule n&apos;est publiée pour le moment.</p>
         ) : (
           <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {summary.plans.map((plan) => {
               const price = billingCycle === "YEARLY" ? plan.priceYearly : plan.priceMonthly;
               const isCurrent = summary.subscription?.planId === plan.id && summary.subscription.status !== "CANCELED";
               return (
-                <div key={plan.id} className={`flex flex-col gap-2 rounded-lg border p-4 ${isCurrent ? "border-gray-900" : "border-gray-200"}`}>
-                  <p className="font-medium text-gray-900">{plan.name}</p>
-                  <p className="text-2xl font-semibold text-gray-900">
-                    {price.toLocaleString("fr-FR")} <span className="text-sm font-normal text-gray-500">{plan.currency}</span>
+                <div key={plan.id} className={`flex flex-col gap-2 rounded-yc-lg border p-4 ${isCurrent ? "border-yc-ink/40" : "border-yc-ink/10"}`}>
+                  <p className="font-medium text-yc-ink">{plan.name}</p>
+                  <p className="text-2xl font-semibold text-yc-ink">
+                    {price.toLocaleString("fr-FR")} <span className="text-sm font-normal text-yc-ink-soft">{plan.currency}</span>
                   </p>
-                  <ul className="flex-1 text-sm text-gray-600">
+                  <ul className="flex-1 text-sm text-yc-ink/80">
                     <li>{plan.maxProducts} produits</li>
                     <li>{plan.maxEmployees} employés</li>
                     <li>{plan.maxCustomDomains} domaine(s) personnalisé(s)</li>
@@ -255,7 +255,7 @@ export function BillingPanel() {
                     type="button"
                     disabled={pendingPlanId === plan.id}
                     onClick={() => void handleChoosePlan(plan.id)}
-                    className="mt-2 rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+                    className="mt-2 rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-2 text-sm font-medium text-white hover:bg-yc-night-800 disabled:opacity-50"
                   >
                     {pendingPlanId === plan.id
                       ? "Redirection…"
@@ -273,19 +273,19 @@ export function BillingPanel() {
       </section>
 
       {/* Historique des paiements */}
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="text-sm font-semibold text-gray-900">Historique des paiements</h2>
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h2 className="text-sm font-semibold text-yc-ink">Historique des paiements</h2>
         {summary.payments.length === 0 ? (
-          <p className="mt-3 text-sm text-gray-500">Aucun paiement pour le moment.</p>
+          <p className="mt-3 text-sm text-yc-ink-soft">Aucun paiement pour le moment.</p>
         ) : (
-          <ul className="mt-3 divide-y divide-gray-100">
+          <ul className="mt-3 divide-y divide-yc-ink/[0.06]">
             {summary.payments.map((payment) => (
               <li key={payment.id} className="flex items-center justify-between py-2 text-sm">
                 <div>
-                  <p className="text-gray-900">
+                  <p className="text-yc-ink">
                     {payment.amountXOF.toLocaleString("fr-FR")} {payment.currency}
                   </p>
-                  <p className="text-xs text-gray-500">{new Date(payment.createdAt).toLocaleString("fr-FR")}</p>
+                  <p className="text-xs text-yc-ink-soft">{new Date(payment.createdAt).toLocaleString("fr-FR")}</p>
                 </div>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs ${
@@ -293,7 +293,7 @@ export function BillingPanel() {
                       ? "bg-green-100 text-green-700"
                       : payment.status === "FAILED"
                         ? "bg-red-100 text-red-700"
-                        : "bg-gray-100 text-gray-600"
+                        : "bg-yc-ivory-100 text-yc-ink/80"
                   }`}
                 >
                   {payment.status}
