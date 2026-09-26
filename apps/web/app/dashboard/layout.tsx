@@ -6,11 +6,13 @@ import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
+import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
 /**
  * Habillage du dashboard commerçant — univers « précis, rapide, dense mais lisible » :
- * navigation nuit profonde à gauche (bureau), barre supérieure + tiroir animé + barre
- * d'onglets au pouce (mobile). Le contenu vit sur un fond ivoire chaud. Aucune
+ * navigation bleu marine à gauche (bureau), barre supérieure (fil d'Ariane, recherche
+ * de commandes, notifications réelles, compte) et barre d'onglets au pouce avec
+ * tiroir « Plus » (mobile). Le contenu vit sur un fond clair neutre. Aucune
  * personnalisation de la boutique (design tokens) ne s'applique ici.
  *
  * Les entrées Produits/Catégories/Stocks/Commandes/Livraison n'apparaissent QUE si
@@ -24,46 +26,56 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const membership = await getCurrentTenantMembership();
   const catalogEnabled = membership ? await isCatalogModuleEnabled(membership.tenantId) : false;
 
-  let toProcess = 0;
+  let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
+  let lowStock = 0;
   let storeUrl: string | null = null;
   if (membership) {
-    const data = await withTenant(membership.tenantId, async (tx) => {
-      const queues = catalogEnabled ? await countOrdersByQueue(tx, membership.tenantId) : null;
-      const domain = await tx.domain.findFirst({
+    const data = await withTenant(membership.tenantId, async (tx) => ({
+      queues: catalogEnabled ? await countOrdersByQueue(tx, membership.tenantId) : null,
+      lowStock: catalogEnabled
+        ? await tx.inventoryItem.count({ where: { tenantId: membership.tenantId, availableQuantity: { lte: tx.inventoryItem.fields.lowStockThreshold } } })
+        : 0,
+      domain: await tx.domain.findFirst({
         where: { tenantId: membership.tenantId, lifecycleStatus: "ACTIVE" },
         orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
-      });
-      return { queues, domain };
-    });
-    toProcess = data.queues ? data.queues.toProcess + data.queues.awaitingProof : 0;
+      }),
+    }));
+    queues = data.queues;
+    lowStock = data.lowStock;
     storeUrl = data.domain ? `https://${data.domain.domain}` : null;
   }
+  const toProcess = queues ? queues.toProcess + queues.awaitingProof : 0;
 
-  const groups: NavGroup[] = [{ label: "Pilotage", items: [{ href: "/dashboard", label: "Accueil", icon: "home" }] }];
+  const groups: NavGroup[] = [{ label: "Pilotage", items: [{ href: "/dashboard", label: "Vue d'ensemble", icon: "home" }] }];
   if (membership && catalogEnabled) {
+    groups[0]!.items.push(
+      { href: "/dashboard/commandes", label: "Commandes", icon: "orders", badge: toProcess || undefined },
+      { href: "/dashboard/produits", label: "Produits", icon: "products" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers" },
+      { href: "/dashboard/livraison", label: "Livraisons", icon: "delivery" },
+    );
     groups.push({
-      label: "Ventes",
+      label: "Gestion",
       items: [
-        { href: "/dashboard/commandes", label: "Commandes", icon: "orders", badge: toProcess || undefined },
-        { href: "/dashboard/clients", label: "Clients", icon: "customers" },
-        { href: "/dashboard/livraison", label: "Livraison", icon: "delivery" },
+        ...(storeUrl ? [{ href: storeUrl, label: "Mon site", icon: "site" as const, external: true }] : []),
         { href: "/dashboard/paiements", label: "Paiements", icon: "payments" },
-      ],
-    });
-    groups.push({
-      label: "Catalogue",
-      items: [
-        { href: "/dashboard/produits", label: "Produits", icon: "products" },
-        { href: "/dashboard/categories", label: "Catégories", icon: "categories" },
         { href: "/dashboard/stocks", label: "Stocks", icon: "stock" },
+        { href: "/dashboard/categories", label: "Catégories", icon: "categories" },
+        { href: "/dashboard/facturation", label: "Facturation", icon: "billing" },
       ],
     });
   } else if (membership) {
     groups[0]!.items.push({ href: "/dashboard/clients", label: "Clients", icon: "customers" });
+    groups.push({ label: "Gestion", items: [{ href: "/dashboard/facturation", label: "Facturation", icon: "billing" }] });
   }
-  if (membership) {
-    groups.push({ label: "Compte", items: [{ href: "/dashboard/facturation", label: "Abonnement", icon: "billing" }] });
-  }
+
+  const alerts = queues
+    ? [
+        { href: "/dashboard/commandes?file=preuves", label: "Preuves de paiement à vérifier", count: queues.awaitingProof },
+        { href: "/dashboard/commandes?file=a-traiter", label: "Commandes à préparer", count: queues.toProcess },
+        { href: "/dashboard/stocks", label: "Articles en stock faible", count: lowStock },
+      ]
+    : [];
 
   async function doSignOut() {
     "use server";
@@ -71,17 +83,27 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className={`${ycFontVariables} min-h-screen bg-yc-ivory-50 font-ui text-yc-ink lg:flex`}>
+    <div className={`${ycFontVariables} min-h-screen bg-[#F6F7FB] font-ui text-yc-ink lg:flex`}>
       <DashboardSidebar
         groups={groups}
         tenantName={membership?.tenantName ?? "YamaCommerce"}
         roleName={membership?.roleName ?? null}
         storeUrl={storeUrl}
+        supportUrl={process.env.SUPPORT_URL?.startsWith("https://") ? process.env.SUPPORT_URL : null}
         signOut={doSignOut}
       />
-      <main id="contenu" className="min-w-0 flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-12 lg:pt-10">
-        <div className="mx-auto w-full max-w-[1240px]">{children}</div>
-      </main>
+      <div className="min-w-0 flex-1">
+        <DashboardTopbar
+          alerts={alerts}
+          userName={session.user.name ?? session.user.email ?? "Mon compte"}
+          userEmail={session.user.email ?? null}
+          signOut={doSignOut}
+          searchEnabled={!!membership && catalogEnabled}
+        />
+        <main id="contenu" className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
+          <div className="mx-auto w-full max-w-[1240px]">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

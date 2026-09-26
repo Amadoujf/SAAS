@@ -17,3 +17,24 @@ export function YcLogo({ tone = "dark", className = "" }: { tone?: "dark" | "lig
     </span>
   );
 }
+
+/** Variante « application » (dashboard) : monogramme en dégradé bleu lumineux et
+ *  nom en linéale — l'univers précis et dense de l'espace marchand. `id` unique par
+ *  instance : un dégradé défini dans un élément masqué (display:none) ne s'affiche pas. */
+export function YcAppLogo({ className = "", compact = false, id = "yc-app-mark" }: { className?: string; compact?: boolean; id?: string }) {
+  return (
+    <span className={`inline-flex items-center gap-2 ${className}`}>
+      <svg width={compact ? 30 : 36} height={compact ? 30 : 36} viewBox="0 0 40 40" aria-hidden="true">
+        <defs>
+          <linearGradient id={id} x1="0" y1="0" x2="0.8" y2="1">
+            <stop offset="0" stopColor="#7DB4FF" />
+            <stop offset="1" stopColor="#1F5BF0" />
+          </linearGradient>
+        </defs>
+        <path fill={`url(#${id})`} d="M2 4h11.5l6.6 11.2L26.6 4H38L25.4 22.6V36h-10.8V22.6z" />
+        <path fill="#fff" fillOpacity=".22" d="M2 4h11.5l6.6 11.2-3.9 5.9z" />
+      </svg>
+      <span className={`font-ui font-bold tracking-[-0.02em] ${compact ? "text-[17px]" : "text-[21px]"}`}>YamaCommerce</span>
+    </span>
+  );
+}

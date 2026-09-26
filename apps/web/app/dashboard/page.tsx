@@ -1,26 +1,122 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { withTenant, getCommerceOverview } from "@yamacommerce/database";
+import { withTenant, getDashboardInsights, isDashboardPeriod, type DashboardPeriod, type PaymentBucket } from "@yamacommerce/database";
 import { auth } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { formatAmount, formatRelative } from "@/lib/format";
-import { PageHeader, Panel, PanelHeader } from "@/components/yc/panel";
+import { Panel } from "@/components/yc/panel";
 import { ButtonLink } from "@/components/yc/button";
-import { CountUp } from "@/components/yc/count-up";
-import { AreaChart } from "@/components/yc/area-chart";
 import { OrderStatusPill } from "@/components/yc/status-pill";
 import { EmptyState } from "@/components/yc/empty-state";
-import { IconAlert, IconArrowRight, IconCheck, IconClock, IconPlus, IconTruck, IconWallet } from "@/components/yc/icons";
+import { IconArrowRight, IconBag, IconBox, IconChart, IconCheck, IconChevronRight, IconPlus, IconSparkles, IconUsers } from "@/components/yc/icons";
+import { SalesChart } from "@/components/dashboard-home/sales-chart";
+import { PeriodSelect } from "@/components/dashboard-home/period-select";
 
-export const metadata: Metadata = { title: "Accueil — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Vue d'ensemble — YamaCommerce", robots: { index: false, follow: false } };
 
-function greeting(now = new Date()) {
-  const h = Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hour12: false, timeZone: "Africa/Dakar" }).format(now));
-  return h < 12 ? "Bonjour" : h < 18 ? "Bon après-midi" : "Bonsoir";
+function dakarHour(now = new Date()) {
+  return Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hour12: false, timeZone: "Africa/Dakar" }).format(now));
 }
 
-export default async function DashboardHome() {
+function Greeting({ name }: { name: string }) {
+  const h = dakarHour();
+  const evening = h >= 18 || h < 5;
+  return (
+    <h1 className="flex items-center gap-2.5 font-ui text-[30px] font-bold leading-tight tracking-[-0.03em] sm:text-[36px]">
+      {evening ? "Bonsoir" : "Bonjour"} {name}
+      {evening ? (
+        <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="#F5B82E" /></svg>
+      ) : (
+        <svg width="32" height="32" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#F5B82E" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="#F5B82E" stroke="none" />
+          {[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <path key={a} d="M12 2.5v2.2" transform={`rotate(${a} 12 12)`} />)}
+        </svg>
+      )}
+    </h1>
+  );
+}
+
+const PAYMENT_META: Record<PaymentBucket, { label: string; color: string; mark: React.ReactNode }> = {
+  wave: { label: "Wave", color: "#0F2E70", mark: <span className="grid h-7 w-7 place-items-center rounded-md bg-[#1DC4FF] text-[13px] font-black text-white">W</span> },
+  orange_money: { label: "Orange Money", color: "#3B82F6", mark: <span className="grid h-7 w-7 place-items-center rounded-md bg-[#111] text-[10px] font-black text-[#FF7900]">OM</span> },
+  cod: { label: "À la livraison", color: "#E9DCC6", mark: <span className="grid h-7 w-7 place-items-center rounded-md bg-[#FFF3E3] text-[#C2570C]"><IconBox size={16} /></span> },
+  online: { label: "En ligne", color: "#9DBBFF", mark: <span className="grid h-7 w-7 place-items-center rounded-md bg-[#E8EFFF] text-yc-electric"><IconChart size={15} /></span> },
+};
+
+const METHOD_TO_BUCKET: Record<string, PaymentBucket> = { manual_wave: "wave", manual_orange_money: "orange_money", cod: "cod", online: "online" };
+
+const ACTIVITY_LABELS: Record<string, string> = {
+  NEW: "Nouvelle commande", AWAITING_PAYMENT: "Nouvelle commande", PAID: "Paiement reçu", CONFIRMED: "Commande confirmée",
+  PREPARING: "Préparation lancée", READY: "Commande prête", SHIPPED: "Commande expédiée", OUT_FOR_DELIVERY: "Partie en livraison",
+  DELIVERED: "Commande livrée", CANCELED: "Commande annulée", REFUNDED: "Remboursement enregistré",
+};
+
+const fmtPct = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1, signDisplay: "always" });
+
+function Trend({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-[13px] text-yc-ink-soft" title="Pas de période précédente comparable">Pas de comparaison</span>;
+  const up = value >= 0;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[12px] font-semibold sm:text-sm ${up ? "text-yc-electric" : "text-[#C2410C]"}`}>
+      <svg width="14" height="14" viewBox="0 0 12 12" aria-hidden="true" className={up ? "" : "rotate-180"}><path d="M2.5 7.5 6 4l3.5 3.5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" /></svg>
+      {fmtPct.format(value)} %
+      <span className="sr-only"> par rapport à la période précédente</span>
+    </span>
+  );
+}
+
+function KpiCard({ href, icon, tone = "blue", label, value, foot }: { href: string; icon: React.ReactNode; tone?: "blue" | "orange"; label: string; value: React.ReactNode; foot: React.ReactNode }) {
+  return (
+    <Link href={href} className="yc-focus group flex gap-3 rounded-xl bg-white p-4 shadow-[0_1px_2px_rgb(12_22_48/0.04),0_8px_24px_-16px_rgb(12_22_48/0.12)] ring-1 ring-yc-ink/[0.07] transition-shadow hover:shadow-[0_12px_30px_-14px_rgb(12_22_48/0.25)] max-sm:gap-2.5 max-sm:p-3 sm:gap-4 sm:p-5">
+      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg sm:h-12 sm:w-12 ${tone === "orange" ? "bg-[#FFF1E3] text-[#E07A1F]" : "bg-[#E8EFFF] text-yc-electric"}`}>{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center justify-between gap-1 text-[12px] text-yc-ink-soft sm:text-[15px]">{label}<IconChevronRight size={16} className="shrink-0 transition-transform group-hover:translate-x-0.5" /></span>
+        <span className="yc-num mt-1 block truncate text-[16px] font-bold tracking-[-0.02em] text-yc-ink sm:text-[24px] 2xl:text-[26px]">{value}</span>
+        <span className="mt-1 block">{foot}</span>
+      </span>
+    </Link>
+  );
+}
+
+function PaymentDonut({ payments }: { payments: { total: number; items: { method: PaymentBucket; count: number; percent: number }[] } }) {
+  const r = 38;
+  const c = 2 * Math.PI * r;
+  let offset = 0;
+  return (
+    <div className="flex flex-col items-center gap-6 sm:flex-row sm:gap-5">
+      <div className="relative h-40 w-40 shrink-0 xl:h-36 xl:w-36 2xl:h-40 2xl:w-40">
+        <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90" aria-hidden="true">
+          <circle cx="50" cy="50" r={r} fill="none" stroke="rgb(12 22 48 / 0.06)" strokeWidth="18" />
+          {payments.items.map((p) => {
+            const len = (p.count / payments.total) * c;
+            const el = <circle key={p.method} cx="50" cy="50" r={r} fill="none" stroke={PAYMENT_META[p.method].color} strokeWidth="18" strokeDasharray={`${len} ${c - len}`} strokeDashoffset={-offset} />;
+            offset += len;
+            return el;
+          })}
+        </svg>
+        <div className="absolute inset-0 grid place-items-center text-center">
+          <span><span className="yc-num block text-[26px] font-bold leading-none">{payments.total}</span><span className="text-xs text-yc-ink-soft">commande{payments.total > 1 ? "s" : ""}</span></span>
+        </div>
+      </div>
+      <ul className="w-full space-y-3.5">
+        {payments.items.map((p) => (
+          <li key={p.method} className="flex items-center gap-3 whitespace-nowrap text-[14px] sm:text-[15px]">
+            <span className="h-3.5 w-3.5 shrink-0 rounded-full" style={{ background: PAYMENT_META[p.method].color }} aria-hidden="true" />
+            <span className="flex-1">{PAYMENT_META[p.method].label}</span>
+            <span className="yc-num font-bold">{p.percent} %</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const Dots = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+);
+
+export default async function DashboardHome({ searchParams }: { searchParams: { periode?: string } }) {
   const session = await auth();
   const membership = await getCurrentTenantMembership();
   const firstName = session?.user?.name?.split(" ")[0] ?? "";
@@ -28,12 +124,12 @@ export default async function DashboardHome() {
   if (!membership) {
     return (
       <>
-        <PageHeader eyebrow="Bienvenue" title={`${greeting()} ${firstName}`.trim()} description="Votre compte n'est rattaché à aucune entreprise pour le moment." />
+        <div className="mb-6"><Greeting name={firstName} /><p className="mt-1 text-yc-ink-soft">Votre compte n&apos;est rattaché à aucune entreprise pour le moment.</p></div>
         <Panel>
           <EmptyState
             title="Créez votre première boutique"
             description="Choisissez votre secteur et un template : votre site est prêt à recevoir des commandes en quelques minutes."
-            action={<ButtonLink href="/creer-ma-boutique" variant="primary">Créer ma boutique <IconArrowRight size={18} /></ButtonLink>}
+            action={<ButtonLink href="/creer-ma-boutique" variant="royal">Créer ma boutique <IconArrowRight size={18} /></ButtonLink>}
           />
         </Panel>
       </>
@@ -41,115 +137,234 @@ export default async function DashboardHome() {
   }
 
   const catalogEnabled = await isCatalogModuleEnabled(membership.tenantId);
-  const overview = catalogEnabled ? await withTenant(membership.tenantId, (tx) => getCommerceOverview(tx, membership.tenantId)) : null;
-  const setup = catalogEnabled
-    ? await withTenant(membership.tenantId, async (tx) => ({
-        products: await tx.product.count({ where: { tenantId: membership.tenantId, status: "PUBLISHED", deletedAt: null } }),
-        zones: await tx.deliveryZone.count({ where: { tenantId: membership.tenantId, isActive: true } }),
-        wallets: await tx.paymentProviderConfig.count({ where: { tenantId: membership.tenantId, isEnabled: true, accountNumber: { not: null } } }),
-        orders: await tx.order.count({ where: { tenantId: membership.tenantId } }),
-      }))
-    : null;
-  const steps = setup
-    ? [
-        { done: setup.products > 0, label: "Publier un premier produit", href: "/dashboard/produits/nouveau" },
-        { done: setup.zones > 0, label: "Définir vos zones de livraison", href: "/dashboard/livraison" },
-        { done: setup.wallets > 0, label: "Ajouter votre numéro Wave ou Orange Money", href: "/dashboard/paiements" },
-        { done: setup.orders > 0, label: "Recevoir votre première commande", href: "/catalogue" },
-      ]
-    : [];
-  const remaining = steps.filter((s) => !s.done).length;
+  if (!catalogEnabled) {
+    return (
+      <>
+        <div className="mb-6"><Greeting name={firstName} /></div>
+        <Panel><EmptyState title="Module commerce non activé" description="Votre secteur n'utilise pas le catalogue produits." /></Panel>
+      </>
+    );
+  }
 
-  const today = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dakar" }).format(new Date());
+  const period: DashboardPeriod = isDashboardPeriod(searchParams.periode) ? searchParams.periode : "month";
+  const { insights, setup, demo } = await withTenant(membership.tenantId, async (tx) => {
+    const tenantId = membership.tenantId;
+    const [insights, products, zones, wallets, orders, tenant] = await Promise.all([
+      getDashboardInsights(tx, tenantId, period),
+      tx.product.count({ where: { tenantId, status: "PUBLISHED", deletedAt: null } }),
+      tx.deliveryZone.count({ where: { tenantId, isActive: true } }),
+      tx.paymentProviderConfig.count({ where: { tenantId, isEnabled: true, accountNumber: { not: null } } }),
+      tx.order.count({ where: { tenantId } }),
+      tx.tenant.findUnique({ where: { id: tenantId }, select: { branding: true } }),
+    ]);
+    const branding = (tenant?.branding ?? {}) as Record<string, unknown>;
+    return { insights, setup: { products, zones, wallets, orders }, demo: branding.demoData === true };
+  });
+
+  const steps = [
+    { done: setup.products > 0, label: "Publier un premier produit", href: "/dashboard/produits/nouveau" },
+    { done: setup.zones > 0, label: "Définir vos zones de livraison", href: "/dashboard/livraison" },
+    { done: setup.wallets > 0, label: "Ajouter votre numéro Wave ou Orange Money", href: "/dashboard/paiements" },
+    { done: setup.orders > 0, label: "Recevoir votre première commande", href: "/catalogue" },
+  ];
+  const remaining = steps.filter((s) => !s.done).length;
+  const { kpis } = insights;
 
   return (
     <>
-      <PageHeader
-        eyebrow={today}
-        title={
-          <>
-            {greeting()} {firstName}
-            <span className="text-yc-ink-soft/60"> — </span>
-            <em className="text-yc-electric">{membership.tenantName}</em>
-          </>
-        }
-        description={overview && overview.queues.toProcess + overview.queues.awaitingProof > 0
-          ? `${overview.queues.toProcess + overview.queues.awaitingProof} action(s) vous attendent aujourd'hui.`
-          : "Tout est à jour. Voici l'activité de votre boutique."}
-        actions={catalogEnabled ? (
-          <>
-            <ButtonLink href="/dashboard/produits/nouveau" variant="secondary"><IconPlus size={18} /> Produit</ButtonLink>
-            <ButtonLink href="/dashboard/commandes" variant="primary">Commandes <IconArrowRight size={18} /></ButtonLink>
-          </>
-        ) : undefined}
-      />
+      <div className="yc-rise mb-5 flex flex-col gap-4 sm:mb-6 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0">
+          {demo && <p className="mb-2 inline-block rounded-md bg-[#E8EFFF] px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-yc-electric">Données de démonstration</p>}
+          <Greeting name={firstName} />
+          <p className="mt-1 text-[15px] text-yc-ink-soft sm:text-base">Voici l&apos;essentiel de votre activité aujourd&apos;hui.</p>
+        </div>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <PeriodSelect value={period} className="sm:w-56" />
+          <ButtonLink href="/dashboard/produits/nouveau" variant="royal" className="hidden rounded-lg px-6 sm:inline-flex"><IconPlus size={20} /> Ajouter un produit</ButtonLink>
+        </div>
+      </div>
 
-      {!overview ? (
-        <Panel><EmptyState title="Module commerce non activé" description="Votre secteur n'utilise pas le catalogue produits." /></Panel>
-      ) : (
-        <div className="flex flex-col gap-5">
-          {remaining > 0 && (
+      <div className="flex flex-col gap-4 sm:gap-5">
+        {/* Indicateurs de la période, comparés à la période précédente de même durée. */}
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+          <KpiCard href="/dashboard/commandes" icon={<IconChart size={22} />} label="Chiffre d'affaires" value={<>{formatAmount(kpis.revenue.value)} <span className="text-[0.62em] font-bold">FCFA</span></>} foot={<Trend value={kpis.revenue.trend} />} />
+          <KpiCard href="/dashboard/commandes" icon={<IconBag size={22} />} label="Commandes" value={formatAmount(kpis.orders.value)} foot={<Trend value={kpis.orders.trend} />} />
+          <KpiCard href="/dashboard/clients" icon={<IconUsers size={22} />} label="Clients" value={formatAmount(kpis.customers.value)} foot={<Trend value={kpis.customers.trend} />} />
+          <KpiCard href="/dashboard/commandes?file=a-traiter" icon={<IconBox size={22} />} tone="orange" label="À préparer" value={kpis.toPrepare} foot={<span className="text-[13px] text-yc-ink-soft">En ce moment</span>} />
+        </div>
+
+        {remaining > 0 && (
+          <Panel as="div">
+            <div id="premiers-pas" className="grid scroll-mt-24 gap-5 p-5 lg:grid-cols-[1fr_1.6fr] lg:items-center">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-yc-electric">Premiers pas</p>
+                <h2 className="mt-1 text-xl font-bold tracking-tight">Encore {remaining} étape{remaining > 1 ? "s" : ""} avant de vendre</h2>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-yc-ink/[0.07]"><div className="h-full rounded-full bg-yc-electric transition-all duration-700" style={{ width: `${((steps.length - remaining) / steps.length) * 100}%` }} /></div>
+              </div>
+              <ol className="grid gap-2 sm:grid-cols-2">
+                {steps.map((st, i) => (
+                  <li key={st.label}>
+                    <Link href={st.href} className={`yc-focus flex items-center gap-3 rounded-lg p-3 text-sm font-semibold ring-1 ring-inset transition-colors ${st.done ? "bg-yc-success/[0.06] text-yc-ink-soft ring-yc-success/20" : "bg-white ring-yc-ink/10 hover:ring-yc-electric"}`}>
+                      <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs ${st.done ? "bg-yc-success text-white" : "bg-yc-ink/[0.06] text-yc-ink"}`}>{st.done ? <IconCheck size={14} /> : i + 1}</span>
+                      <span className={st.done ? "line-through decoration-yc-ink/30" : ""}>{st.label}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </Panel>
+        )}
+
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[1.9fr_1fr]">
+          <Panel className="min-w-0 p-4 sm:p-5">
+            <SalesChart series={insights.series} />
+          </Panel>
+
+          <Panel className="p-5">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-[18px] font-bold tracking-[-0.015em]">Moyens de paiement</h2>
+              <Link href="/dashboard/paiements" aria-label="Réglages des moyens de paiement" className="yc-focus grid h-8 w-8 place-items-center rounded-md text-yc-ink-soft hover:bg-yc-ink/5"><Dots /></Link>
+            </div>
+            {insights.payments.total === 0 ? (
+              <p className="py-10 text-center text-sm text-yc-ink-soft">Aucune commande sur cette période.</p>
+            ) : (
+              <PaymentDonut payments={insights.payments} />
+            )}
+          </Panel>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[1.9fr_1fr]">
+          <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
             <Panel className="overflow-hidden">
-              <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_1.4fr] lg:items-center">
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-yc-electric">Premiers pas</p>
-                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">Encore {remaining} étape{remaining > 1 ? "s" : ""} avant de vendre</h2>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-yc-ink/[0.07]"><div className="h-full rounded-full bg-gradient-to-r from-yc-cyan to-yc-electric transition-all duration-700" style={{ width: `${((steps.length - remaining) / steps.length) * 100}%` }} /></div>
-                </div>
-                <ol className="grid gap-2 sm:grid-cols-2">
-                  {steps.map((st, i) => (
-                    <li key={st.label}>
-                      <Link href={st.href} className={`yc-focus flex items-center gap-3 rounded-2xl p-3.5 text-sm font-semibold ring-1 ring-inset transition-colors ${st.done ? "bg-yc-success/[0.06] text-yc-ink-soft ring-yc-success/20" : "bg-white ring-yc-ink/10 hover:ring-yc-electric"}`}>
-                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs ${st.done ? "bg-yc-success text-white" : "bg-yc-ink/[0.06] text-yc-ink"}`}>{st.done ? <IconCheck size={14} /> : i + 1}</span>
-                        <span className={st.done ? "line-through decoration-yc-ink/30" : ""}>{st.label}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ol>
+              <div className="flex items-center justify-between px-5 pb-3 pt-5">
+                <h2 className="text-[18px] font-bold tracking-[-0.015em]">Dernières commandes</h2>
+                <Link href="/dashboard/commandes" className="yc-focus inline-flex items-center gap-1.5 rounded text-sm font-semibold text-yc-electric hover:underline">Tout voir <IconArrowRight size={16} /></Link>
+              </div>
+              {insights.recent.length === 0 ? (
+                <EmptyState art="orders" title="Aucune commande pour l'instant" description="Partagez le lien de votre boutique sur WhatsApp : les commandes apparaîtront ici." />
+              ) : (
+                <>
+                  {/* Tableau (tablette et bureau) */}
+                  <div className="relative hidden overflow-x-auto px-2 pb-2 sm:block">
+                    <table className="w-full min-w-[600px] text-left text-[14px]">
+                      <thead>
+                        <tr className="bg-[#F6F7FB] text-[13px] text-yc-ink-soft">
+                          <th scope="col" className="rounded-l-md px-2.5 py-2.5 font-medium">Commande</th>
+                          <th scope="col" className="px-2.5 py-2.5 font-medium">Client</th>
+                          <th scope="col" className="px-2.5 py-2.5 font-medium">Montant</th>
+                          <th scope="col" className="px-2.5 py-2.5 font-medium">Paiement</th>
+                          <th scope="col" className="px-2.5 py-2.5 font-medium">Statut</th>
+                          <th scope="col" className="rounded-r-md px-2.5 py-2.5"><span className="sr-only">Ouvrir</span></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-yc-ink/[0.06]">
+                        {insights.recent.map((o) => {
+                          const pay = PAYMENT_META[METHOD_TO_BUCKET[o.paymentMethod] ?? "cod"];
+                          return (
+                            <tr key={o.id} className="hover:bg-[#F9FAFD]">
+                              <td className="whitespace-nowrap px-2.5 py-3 font-semibold"><Link href={`/dashboard/commandes/${o.id}`} className="yc-focus rounded hover:text-yc-electric">#{o.orderNumber}</Link></td>
+                              <td className="max-w-[180px] truncate px-2.5 py-3">{o.customer.firstName} {o.customer.lastName ?? ""}</td>
+                              <td className="yc-num whitespace-nowrap px-2.5 py-3">{formatAmount(o.total)} FCFA</td>
+                              <td className="whitespace-nowrap px-2.5 py-3"><span className="flex items-center gap-2" title={pay.label}>{pay.mark}<span className="text-[13px] max-2xl:sr-only">{pay.label}</span></span></td>
+                              <td className="px-2.5 py-3"><OrderStatusPill status={o.status} /></td>
+                              <td className="px-2.5 py-3 text-right">
+                                <Link href={`/dashboard/commandes/${o.id}`} aria-label={`Ouvrir la commande ${o.orderNumber}`} className="yc-focus inline-grid h-8 w-8 place-items-center rounded-md text-yc-ink-soft hover:bg-yc-ink/5"><Dots /></Link>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  {/* Liste (mobile) */}
+                  <ul className="divide-y divide-yc-ink/[0.06] px-2 pb-2 sm:hidden">
+                    {insights.recent.map((o) => (
+                      <li key={o.id}>
+                        <Link href={`/dashboard/commandes/${o.id}`} className="yc-focus flex items-center gap-3 rounded-lg px-2.5 py-3">
+                          <span className="min-w-0 flex-1">
+                            <span className="block whitespace-nowrap text-[13px] font-bold">#{o.orderNumber}</span>
+                            <span className="block truncate text-[13px] text-yc-ink-soft">{o.customer.firstName} {o.customer.lastName ?? ""}</span>
+                          </span>
+                          <span className="flex flex-col items-end gap-1">
+                            <span className="yc-num text-[13px]">{formatAmount(o.total)} FCFA</span>
+                            <OrderStatusPill status={o.status} />
+                          </span>
+                          <IconChevronRight size={18} className="shrink-0 text-yc-ink-soft" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </Panel>
+
+            <Panel className="px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:gap-6">
+                <h2 className="shrink-0 text-[17px] font-bold tracking-[-0.015em] sm:pt-0.5">Activité récente</h2>
+                {insights.activity.length === 0 ? (
+                  <p className="text-sm text-yc-ink-soft">Aucune activité pour le moment.</p>
+                ) : (
+                  <ul className="min-w-0 flex-1 space-y-2.5">
+                    {insights.activity.slice(0, 3).map((a) => (
+                      <li key={a.id}>
+                        <Link href={`/dashboard/commandes/${a.order.id}`} className="yc-focus flex items-center gap-3 rounded text-[14px] hover:text-yc-electric">
+                          <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-yc-electric" aria-hidden="true" />
+                          <span className="min-w-0 flex-1 truncate">
+                            {a.fromStatus === null ? "Nouvelle commande" : ACTIVITY_LABELS[a.toStatus] ?? a.toStatus} #{a.order.orderNumber} de {a.order.customer.firstName} {a.order.customer.lastName ?? ""}
+                          </span>
+                          <span className="shrink-0 text-[13px] text-yc-ink-soft">{formatRelative(a.createdAt)}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </Panel>
-          )}
-          {/* Files d'action : ce qui demande une décision maintenant. */}
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <QueueCard href="/dashboard/commandes?file=a-traiter" label="À préparer" value={overview.queues.toProcess} icon={<IconClock size={20} />} tone="violet" hint="Confirmées, en attente d'expédition" />
-            <QueueCard href="/dashboard/commandes?file=preuves" label="Preuves de paiement" value={overview.queues.awaitingProof} icon={<IconWallet size={20} />} tone="warning" hint="Wave / Orange Money à vérifier" />
-            <QueueCard href="/dashboard/commandes?file=livraison" label="En livraison" value={overview.queues.inDelivery} icon={<IconTruck size={20} />} tone="cyan" hint="Expédiées ou en route" />
           </div>
 
-          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.6fr_1fr]">
-            <Panel className="overflow-hidden">
-              <div className="grid grid-cols-2 gap-px bg-yc-ink/[0.06] sm:grid-cols-4">
-                <Kpi label="Ventes · 30 j" value={<CountUp value={overview.revenue30} format="fcfa" />} />
-                <Kpi label="Cmd · 30 j" value={<CountUp value={overview.orders30} />} />
-                <Kpi label="Panier moyen" value={<CountUp value={overview.averageBasket30} format="fcfa" />} />
-                <Kpi label="Clients" value={<CountUp value={overview.customers} />} />
+          <div className="flex min-w-0 flex-col gap-4 sm:gap-5">
+            {/* Assistant IA : annoncé, pas encore disponible — l'action proposée est réelle. */}
+            <section className="relative overflow-hidden rounded-xl bg-[linear-gradient(135deg,#0F2E70_0%,#0B2459_60%,#123A8C_100%)] p-5 text-white">
+              <svg className="pointer-events-none absolute -right-10 -top-6 h-48 w-48 text-white/[0.07]" viewBox="0 0 200 200" aria-hidden="true" fill="none" stroke="currentColor">
+                {[40, 60, 80, 100].map((r) => <circle key={r} cx="150" cy="60" r={r} />)}
+              </svg>
+              <div className="relative flex gap-3.5">
+                <IconSparkles size={30} className="mt-0.5 shrink-0 text-[#8FB8FF]" />
+                <div>
+                  <h2 className="flex flex-wrap items-center gap-2 text-[18px] font-bold">Votre assistant IA <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">Bientôt</span></h2>
+                  <p className="mt-1 text-[14px] text-white/80">Il vous aidera à ajouter plusieurs produits en quelques instants. En attendant, ajoutez-les un par un.</p>
+                </div>
               </div>
-              <div className="px-4 pb-4 pt-6 sm:px-6">
-                <p className="mb-2 text-[13px] font-semibold text-yc-ink-soft">Chiffre d&apos;affaires · 14 derniers jours</p>
-                <AreaChart label="Chiffre d'affaires des 14 derniers jours" points={overview.series.map((d) => ({ date: d.date, value: d.revenue, orders: d.orders }))} />
-              </div>
-            </Panel>
+              <Link href="/dashboard/produits/nouveau" className="relative mt-4 flex items-center justify-center gap-2 rounded-lg bg-white py-2.5 text-sm font-bold text-yc-navy transition-colors hover:bg-[#EEF3FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70">
+                Ajouter un produit <IconArrowRight size={16} />
+              </Link>
+            </section>
 
-            <Panel>
-              <PanelHeader title="Dernières commandes" action={<Link href="/dashboard/commandes" className="yc-focus rounded-lg text-sm font-semibold text-yc-electric hover:underline">Tout voir</Link>} />
-              {overview.recent.length === 0 ? (
-                <EmptyState art="orders" title="Aucune commande pour l'instant" description="Partagez le lien de votre boutique sur WhatsApp : les commandes apparaîtront ici en temps réel." />
+            <Panel className="p-5">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="text-[18px] font-bold tracking-[-0.015em]">Stock à surveiller</h2>
+                <Link href="/dashboard/stocks" className="yc-focus inline-flex items-center gap-1.5 rounded text-sm font-semibold text-yc-ink-soft hover:text-yc-electric">Tout voir <IconArrowRight size={16} /></Link>
+              </div>
+              {insights.lowStock.length === 0 ? (
+                <p className="py-4 text-sm text-yc-ink-soft">Aucun article sous son seuil d&apos;alerte.</p>
               ) : (
-                <ul className="divide-y divide-yc-ink/[0.06] px-2 pb-2">
-                  {overview.recent.map((o) => (
-                    <li key={o.id}>
-                      <Link href={`/dashboard/commandes/${o.id}`} className="yc-focus flex items-center gap-3 rounded-xl px-3 py-3 transition-colors hover:bg-yc-ivory-50">
-                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-yc-ivory-100 text-xs font-bold text-yc-ink">
-                          {o.customer.firstName.slice(0, 1)}{o.customer.lastName?.slice(0, 1) ?? ""}
-                        </span>
+                <ul className="divide-y divide-yc-ink/[0.06]">
+                  {insights.lowStock.map((item) => (
+                    <li key={item.id}>
+                      <Link href={`/dashboard/produits/${item.productId}`} className="yc-focus flex items-center gap-3 rounded-lg py-2.5">
+                        {item.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={item.imageUrl} alt="" className="h-14 w-16 shrink-0 rounded-md object-cover" loading="lazy" />
+                        ) : (
+                          <span className="grid h-14 w-16 shrink-0 place-items-center rounded-md bg-yc-ivory-100 text-yc-ink-soft"><IconBox size={20} /></span>
+                        )}
                         <span className="min-w-0 flex-1">
-                          <span className="block truncate text-sm font-semibold">{o.customer.firstName} {o.customer.lastName ?? ""}</span>
-                          <span className="block text-xs text-yc-ink-soft">{o.orderNumber} · {formatRelative(o.createdAt)}</span>
+                          <span className="block truncate text-[14px] font-medium">{item.name}{item.variantName && item.variantName !== "Standard" ? ` · ${item.variantName}` : ""}</span>
+                          <span className={`mt-1 inline-block rounded-md px-2 py-0.5 text-[12px] font-semibold ${item.available === 0 ? "bg-[#FDECEC] text-[#B42318]" : "bg-[#FFF1E3] text-[#C2570C]"}`}>
+                            {item.available === 0 ? "Rupture" : `${item.available} restant${item.available > 1 ? "s" : ""}`}
+                          </span>
                         </span>
-                        <span className="flex flex-col items-end gap-1">
-                          <span className="yc-num text-sm font-semibold">{formatAmount(o.total)} F</span>
-                          <OrderStatusPill status={o.status} />
-                        </span>
+                        <IconChevronRight size={18} className="shrink-0 text-yc-ink-soft" />
                       </Link>
                     </li>
                   ))}
@@ -157,50 +372,8 @@ export default async function DashboardHome() {
               )}
             </Panel>
           </div>
-
-          {overview.lowStock > 0 && (
-            <Link href="/dashboard/stocks" className="yc-focus group flex items-center gap-4 rounded-yc-lg bg-yc-night-900 p-5 text-white shadow-yc-float">
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-yc-warning/20 text-yc-warning"><IconAlert size={22} /></span>
-              <span className="flex-1">
-                <span className="block font-semibold">{overview.lowStock} article(s) en stock faible</span>
-                <span className="block text-sm text-white/60">Réapprovisionnez avant la rupture pour ne pas perdre de ventes.</span>
-              </span>
-              <IconArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
-            </Link>
-          )}
         </div>
-      )}
+      </div>
     </>
-  );
-}
-
-function Kpi({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="bg-white px-4 py-4 sm:px-6 sm:py-5">
-      <p className="text-[12px] font-semibold uppercase tracking-[0.08em] text-yc-ink-soft">{label}</p>
-      <p className="mt-2 font-display text-[22px] font-semibold tracking-tight sm:text-[26px]">{value}</p>
-    </div>
-  );
-}
-
-const QUEUE_TONES = {
-  violet: "from-yc-violet/15 to-transparent text-yc-violet",
-  warning: "from-yc-warning/20 to-transparent text-[rgb(180_100_0)]",
-  cyan: "from-yc-cyan/20 to-transparent text-yc-cyan-strong",
-};
-
-function QueueCard({ href, label, value, icon, tone, hint }: { href: string; label: string; value: number; icon: React.ReactNode; tone: keyof typeof QUEUE_TONES; hint: string }) {
-  return (
-    <Link href={href} className="yc-focus group relative overflow-hidden rounded-yc-lg bg-white p-5 shadow-yc ring-1 ring-yc-ink/[0.06] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-yc-float">
-      <span className={`pointer-events-none absolute inset-0 bg-gradient-to-br opacity-70 ${QUEUE_TONES[tone].split(" ").slice(0, 2).join(" ")}`} aria-hidden="true" />
-      <span className="relative flex items-start justify-between">
-        <span>
-          <span className="block text-[13px] font-semibold text-yc-ink-soft">{label}</span>
-          <span className="mt-1 block font-display text-[34px] font-semibold leading-none tracking-tight text-yc-ink"><CountUp value={value} /></span>
-          <span className="mt-2 block text-xs text-yc-ink-soft">{hint}</span>
-        </span>
-        <span className={`grid h-10 w-10 place-items-center rounded-2xl bg-white/80 ring-1 ring-yc-ink/5 ${QUEUE_TONES[tone].split(" ").at(-1)}`}>{icon}</span>
-      </span>
-    </Link>
   );
 }
