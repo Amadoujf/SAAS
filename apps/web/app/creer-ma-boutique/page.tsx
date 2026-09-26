@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { withSuperAdminAccess } from "@yamacommerce/database";
@@ -20,6 +21,7 @@ export default async function CreateStorePage({ searchParams }: { searchParams: 
     searchParams.formule ? await tx.subscriptionPlan.findFirst({ where: { name: searchParams.formule, status: "PUBLISHED" } }) : null,
   ] as const);
   return (
+    <div className={ycFontVariables}>
     <OnboardingFlow
       loggedIn={!!session?.user}
       sectors={sectors.map((s) => ({ key: s.key, name: s.name }))}
@@ -27,5 +29,6 @@ export default async function CreateStorePage({ searchParams }: { searchParams: 
       plan={plan?.name ?? null}
       action={createStoreAction}
     />
+    </div>
   );
 }

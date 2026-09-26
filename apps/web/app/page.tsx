@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { permanentRedirect } from "next/navigation";
@@ -63,7 +64,7 @@ export default async function HomePage() {
 
 function TenantComingSoon({ tenantName }: { tenantName: string }) {
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-yc-ivory-50 px-6 text-center font-ui text-yc-ink">
+    <main className={`${ycFontVariables} relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-yc-ivory-50 px-6 text-center font-ui text-yc-ink`}>
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yc-ink-soft">Bientôt en ligne</p>
       <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">{tenantName}</h1>
       <p className="mt-4 max-w-md text-yc-ink-soft">Notre site se prépare. Vous pouvez déjà parcourir le catalogue et commander.</p>

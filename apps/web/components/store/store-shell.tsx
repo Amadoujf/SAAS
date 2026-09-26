@@ -4,7 +4,7 @@ import { designTokensToStyle } from "@/lib/design-tokens-to-css";
 import type { StoreContext } from "@/lib/storefront/store-context";
 import { StoreCartProvider } from "./cart-provider";
 import { StoreHeader } from "./store-header";
-import { CartDrawer } from "./cart-drawer";
+import { LazyCartDrawer } from "./lazy-cart-drawer";
 
 /** Coque des pages commerce d'une boutique : TOUTES les couleurs, polices et rayons
  *  viennent des design tokens de l'entreprise (template + personnalisation). Rien de
@@ -30,7 +30,7 @@ export function StoreShell({ store, children }: { store: StoreContext; children:
             <p className="text-xs text-[var(--color-text-muted)] sm:text-right">Boutique propulsée par YamaCommerce</p>
           </div>
         </footer>
-        <CartDrawer />
+        <LazyCartDrawer />
       </StoreCartProvider>
     </div>
   );

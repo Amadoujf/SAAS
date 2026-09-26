@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import Link from "next/link";
 import { YcLogo } from "@/components/yc/logo";
 import { buttonClasses } from "@/components/yc/button";
@@ -24,7 +25,7 @@ const fmt = (n: number) => new Intl.NumberFormat("fr-SN").format(n);
  *  moyens de paiement, formules réelles en base) — aucune statistique inventée. */
 export function Landing({ plans }: { plans: LandingPlan[] }) {
   return (
-    <div className="bg-yc-night-950 font-ui text-white">
+    <div className={`${ycFontVariables} bg-yc-night-950 font-ui text-white`}>
       <PlatformHeader />
 
       {/* HÉROS */}

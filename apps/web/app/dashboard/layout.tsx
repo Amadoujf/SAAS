@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { withTenant, countOrdersByQueue } from "@yamacommerce/database";
@@ -70,7 +71,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className="min-h-screen bg-yc-ivory-50 font-ui text-yc-ink lg:flex">
+    <div className={`${ycFontVariables} min-h-screen bg-yc-ivory-50 font-ui text-yc-ink lg:flex`}>
       <DashboardSidebar
         groups={groups}
         tenantName={membership?.tenantName ?? "YamaCommerce"}

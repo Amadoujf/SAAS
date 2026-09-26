@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthError } from "next-auth";
@@ -28,7 +29,7 @@ export default function ConnexionPage({ searchParams }: { searchParams: { error?
   }
 
   return (
-    <div className="grid min-h-screen font-ui lg:grid-cols-2">
+    <div className={`${ycFontVariables} grid min-h-screen font-ui lg:grid-cols-2`}>
       <aside className="relative hidden overflow-hidden bg-yc-night-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
         <div className="pointer-events-none absolute inset-0 yc-glow" aria-hidden="true" />
         <div className="pointer-events-none absolute inset-0 yc-grid" aria-hidden="true" />

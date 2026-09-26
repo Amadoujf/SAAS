@@ -1,3 +1,4 @@
+import { ycFontVariables } from "@/lib/yc-fonts";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { withTenant, getOrderDetailForTenant } from "@yamacommerce/database";
@@ -31,7 +32,7 @@ export default async function OrderDocumentPage({ params, searchParams }: { para
   const showPrices = type !== "preparation";
 
   return (
-    <main className="mx-auto max-w-[800px] bg-white px-8 py-10 font-ui text-[13px] text-yc-ink print:p-0">
+    <main className={`${ycFontVariables} mx-auto max-w-[800px] bg-white px-8 py-10 font-ui text-[13px] text-yc-ink print:p-0`}>
       <div className="mb-8 flex items-start justify-between gap-6 border-b-2 border-yc-ink pb-6">
         <div>
           <p className="font-display text-2xl font-semibold">{membership?.tenantName}</p>

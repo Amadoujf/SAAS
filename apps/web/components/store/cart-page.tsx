@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { IconArrowRight, IconShield } from "@/components/yc/icons";
 import { fcfa, useStoreCart } from "./cart-provider";
-import { CartLineRow } from "./cart-drawer";
+import { CartLineRow } from "./cart-lines";
 import { ProductCard, type StoreProductCard } from "./product-card";
 
 export function CartPage({ suggestions }: { suggestions: StoreProductCard[] }) {

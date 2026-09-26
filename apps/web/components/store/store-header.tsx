@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import { IconBag, IconMenu, IconX } from "@/components/yc/icons";
 import { useStoreCart } from "./cart-provider";
 
@@ -11,6 +10,13 @@ export function StoreHeader({ tenantName, logoUrl, categories }: { tenantName: s
   const [menu, setMenu] = useState(false);
   const [bump, setBump] = useState(false);
   const count = cart?.itemCount ?? 0;
+
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenu(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [menu]);
 
   useEffect(() => {
     if (count === 0) return;
@@ -54,26 +60,22 @@ export function StoreHeader({ tenantName, logoUrl, categories }: { tenantName: s
         </div>
       </div>
 
-      <AnimatePresence>
-        {menu && (
-          <motion.div className="fixed inset-0 z-50 md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button type="button" aria-label="Fermer le menu" className="absolute inset-0 bg-black/40" onClick={() => setMenu(false)} />
-            <motion.nav
-              aria-label="Menu"
-              className="absolute inset-y-0 left-0 flex w-[82vw] max-w-xs flex-col gap-1 bg-[var(--color-background)] p-5 text-[var(--color-text-primary)]"
-              initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "spring", stiffness: 400, damping: 40 }}
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <span className="font-[family-name:var(--font-heading)] text-lg font-semibold">{tenantName}</span>
-                <button type="button" aria-label="Fermer" onClick={() => setMenu(false)} className="grid h-10 w-10 place-items-center rounded-full"><IconX size={20} /></button>
-              </div>
-              {[{ href: "/catalogue", label: "Tout le catalogue" }, ...categories.map((c) => ({ href: `/catalogue?categorie=${c.slug}`, label: c.name })), { href: "/suivi", label: "Suivre ma commande" }].map((l) => (
-                <Link key={l.href} href={l.href} onClick={() => setMenu(false)} className="rounded-[var(--radius-md)] px-3 py-3 text-base font-medium hover:bg-[var(--color-surface-muted)]">{l.label}</Link>
-              ))}
-            </motion.nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Menu mobile : transitions CSS (aucune bibliothèque d'animation au 1er rendu). */}
+      <div className={`fixed inset-0 z-50 md:hidden ${menu ? "" : "pointer-events-none"}`} aria-hidden={!menu}>
+        <button type="button" tabIndex={menu ? 0 : -1} aria-label="Fermer le menu" className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${menu ? "opacity-100" : "opacity-0"}`} onClick={() => setMenu(false)} />
+        <nav
+          aria-label="Menu"
+          className={`absolute inset-y-0 left-0 flex w-[82vw] max-w-xs flex-col gap-1 bg-[var(--color-background)] p-5 text-[var(--color-text-primary)] transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${menu ? "translate-x-0" : "-translate-x-full"}`}
+        >
+          <div className="mb-4 flex items-center justify-between">
+            <span className="font-[family-name:var(--font-heading)] text-lg font-semibold">{tenantName}</span>
+            <button type="button" tabIndex={menu ? 0 : -1} aria-label="Fermer" onClick={() => setMenu(false)} className="grid h-10 w-10 place-items-center rounded-full"><IconX size={20} /></button>
+          </div>
+          {[{ href: "/catalogue", label: "Tout le catalogue" }, ...categories.map((c) => ({ href: `/catalogue?categorie=${c.slug}`, label: c.name })), { href: "/suivi", label: "Suivre ma commande" }].map((l) => (
+            <Link key={l.href} href={l.href} tabIndex={menu ? 0 : -1} onClick={() => setMenu(false)} className="rounded-[var(--radius-md)] px-3 py-3 text-base font-medium hover:bg-[var(--color-surface-muted)]">{l.label}</Link>
+          ))}
+        </nav>
+      </div>
     </header>
   );
 }

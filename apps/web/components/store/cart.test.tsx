@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StoreCartProvider, useStoreCart, type StoreCart } from "./cart-provider";
-import { CartLineRow } from "./cart-drawer";
+import { CartLineRow } from "./cart-lines";
 
 const line = (over: Partial<StoreCart["lines"][number]> = {}) => ({
   id: "l1", productVariantId: "v1", productId: "p1", productName: "Boubou", variantName: "M", imageUrl: null,
