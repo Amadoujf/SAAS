@@ -1,14 +1,26 @@
-import { Bricolage_Grotesque, Inter } from "next/font/google";
+import localFont from "next/font/local";
 
 /**
- * Typographies YamaCommerce — importées UNIQUEMENT par les pages de l'univers
- * YamaCommerce (vitrine, connexion, onboarding, dashboard, documents). Next.js ne
- * précharge une police que sur les routes qui l'importent : les boutiques des
- * entreprises (autres domaines, leurs propres polices) ne la téléchargent jamais,
- * et les pages YamaCommerce l'ont préchargée (aucun saut de mise en page).
+ * Typographies YamaCommerce — AUTO-HÉBERGÉES (app/fonts, SIL OFL 1.1). Auparavant
+ * `next/font/google`, qui télécharge les polices pendant le build : un build sans
+ * accès à Google (CI derrière un proxy, environnement isolé) échouait. Importées
+ * UNIQUEMENT par les pages de l'univers YamaCommerce (vitrine, connexion,
+ * onboarding, dashboard, documents) : Next.js ne les précharge que sur ces routes,
+ * jamais sur les boutiques des entreprises, qui gardent leurs propres polices.
  */
-// Une seule graisse pour les titres (600) : ~20 kB au lieu du fichier variable complet.
-const display = Bricolage_Grotesque({ subsets: ["latin"], weight: ["600"], variable: "--font-yc-display", display: "swap" });
-const ui = Inter({ subsets: ["latin"], variable: "--font-yc-ui", display: "swap" });
+const display = localFont({
+  src: "../app/fonts/bricolage-grotesque-600-latin.woff2",
+  weight: "600",
+  variable: "--font-yc-display",
+  display: "swap",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
+});
+const ui = localFont({
+  src: "../app/fonts/inter-variable-latin.woff2",
+  weight: "100 900",
+  variable: "--font-yc-ui",
+  display: "swap",
+  fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
+});
 
 export const ycFontVariables = `${display.variable} ${ui.variable}`;
