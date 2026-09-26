@@ -20,23 +20,33 @@
   --color-border: #e2e8f0;
 
   /* Identité YamaCommerce */
-  --yc-night-950: 6 9 26;
-  --yc-night-900: 10 16 42;
-  --yc-night-800: 17 26 62;
-  --yc-night-700: 29 41 88;
-  --yc-night-600: 49 64 120;
-  --yc-ivory-50: 252 250 245;
-  --yc-ivory-100: 247 243 234;
-  --yc-ivory-200: 236 230 216;
-  --yc-ink: 15 20 44;
-  --yc-ink-soft: 71 80 112;
-  --yc-cyan: 34 211 238;
-  --yc-cyan-strong: 6 182 212;
-  --yc-electric: 59 91 255;
-  --yc-violet: 139 92 246;
+  /* Marine profond (barre latérale, bandeaux) — même famille que le site public. */
+  --yc-night-950: 9 20 48;
+  --yc-night-900: 14 36 82;
+  --yc-night-800: 22 49 104;
+  --yc-night-700: 36 64 128;
+  --yc-night-600: 60 88 150;
+  --yc-ivory-50: 251 248 242;
+  --yc-ivory-100: 247 242 234;
+  --yc-ivory-200: 238 230 217;
+  --yc-ink: 12 22 48;
+  --yc-ink-soft: 74 83 108;
+  /* Accents : bleu clair lumineux sur fond marine, bleu roi sur fond clair, indigo en touche. */
+  --yc-cyan: 143 169 238;
+  --yc-cyan-strong: 12 61 186;
+  --yc-electric: 12 61 186;
+  --yc-violet: 80 84 196;
   --yc-success: 16 185 129;
   --yc-warning: 245 158 11;
   --yc-danger: 239 68 68;
+  /* Direction éditoriale du site public : papier ivoire, encre marine, bleu roi. */
+  --yc-paper: 247 242 234;
+  --yc-paper-deep: 238 230 217;
+  --yc-sand: 222 209 190;
+  --yc-navy: 14 36 82;
+  --yc-navy-ink: 12 22 48;
+  --yc-royal: 12 61 186;
+  --yc-royal-strong: 8 46 150;
 
   --yc-radius-sm: 10px;
   --yc-radius: 16px;
@@ -124,9 +134,20 @@ body {
 }
 
 /* Aucune animation décorative pour qui la refuse : les actions restent immédiates. */
+/* Titres éditoriaux : graisse moyenne, approche serrée ; l'italique reste léger. */
+.font-editorial { font-weight: 500; letter-spacing: -0.022em; font-optical-sizing: auto; }
+.font-editorial em, em.font-editorial { font-weight: 400; letter-spacing: -0.01em; }
+
+@keyframes yc-bar {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+.yc-bar { transform-origin: bottom; animation: yc-bar 0.9s var(--yc-ease) both; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;

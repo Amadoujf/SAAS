@@ -23,4 +23,16 @@ const ui = localFont({
   fallback: ["ui-sans-serif", "system-ui", "sans-serif"],
 });
 
-export const ycFontVariables = `${display.variable} ${ui.variable}`;
+/** Serif éditoriale du site public (titres, logo) — Newsreader variable (axe de
+ *  graisse), romain + italique. */
+const serif = localFont({
+  src: [
+    { path: "../app/fonts/newsreader-variable-latin.woff2", weight: "200 800", style: "normal" },
+    { path: "../app/fonts/newsreader-variable-italic-latin.woff2", weight: "200 800", style: "italic" },
+  ],
+  variable: "--font-yc-serif",
+  display: "swap",
+  fallback: ["Georgia", "Cambria", "serif"],
+});
+
+export const ycFontVariables = `${display.variable} ${ui.variable} ${serif.variable}`;

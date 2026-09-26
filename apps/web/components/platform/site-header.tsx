@@ -1,65 +1,118 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { YcLogo } from "@/components/yc/logo";
-import { IconMenu, IconX } from "@/components/yc/icons";
-import { buttonClasses } from "@/components/yc/button";
+import { IconArrowRight, IconMenu, IconX } from "@/components/yc/icons";
+
+/** Secteurs couverts : seul le commerce est ouvert aujourd'hui ; les autres sont
+ *  annoncés honnêtement comme « bientôt », jamais proposés à la vente. */
+export const SECTOR_LINKS = [
+  { key: "commerce", label: "Commerce", note: "Boutiques en ligne", available: true },
+  { key: "immobilier", label: "Immobilier", note: "Bientôt", available: false },
+  { key: "voyage", label: "Voyage", note: "Bientôt", available: false },
+  { key: "restauration", label: "Restauration", note: "Bientôt", available: false },
+  { key: "services", label: "Services", note: "Bientôt", available: false },
+] as const;
 
 const LINKS = [
-  { href: "#fonctionnalites", label: "Fonctionnalités" },
   { href: "#templates", label: "Templates" },
-  { href: "#paiements", label: "Paiements" },
   { href: "#tarifs", label: "Tarifs" },
 ];
 
 export function PlatformHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
+  const [solutions, setSolutions] = useState(false);
+  const solutionsRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
+    const onScroll = () => setScrolled(window.scrollY > 16);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    if (!solutions) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !solutionsRef.current?.contains(e.target as Node)) setSolutions(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [solutions]);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
   return (
-    <header className={`fixed inset-x-0 top-0 z-50 transition-all duration-500 ${scrolled ? "bg-yc-night-950/80 py-3 shadow-[0_1px_0_rgb(255_255_255/0.06)] backdrop-blur-xl" : "py-5"}`}>
-      <div className="mx-auto flex max-w-7xl items-center gap-8 px-5 sm:px-8">
-        <Link href="/" aria-label="YamaCommerce, accueil" className="rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-cyan"><YcLogo tone="light" /></Link>
-        <nav aria-label="Principale" className="hidden items-center gap-1 lg:flex">
+    <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${scrolled ? "border-yc-navy/10 bg-yc-paper/90 backdrop-blur-md" : "border-transparent bg-yc-paper xl:bg-transparent"}`}>
+      <div className="mx-auto flex h-[72px] max-w-[1200px] items-center gap-10 px-4 sm:px-8">
+        <Link href="/" aria-label="YamaCommerce, accueil" className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal"><YcLogo /></Link>
+
+        <nav aria-label="Principale" className="hidden items-center gap-1 text-[15px] text-yc-navy-ink lg:flex">
+          <div ref={solutionsRef} className="relative">
+            <button type="button" aria-expanded={solutions} aria-controls="yc-solutions" onClick={() => setSolutions((v) => !v)}
+              className="flex items-center gap-1.5 rounded-md px-3.5 py-2 font-medium hover:text-yc-royal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal">
+              Solutions
+              <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true" className={`transition-transform ${solutions ? "rotate-180" : ""}`}><path d="M2.5 4.5 6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" /></svg>
+            </button>
+            {solutions && (
+              <div id="yc-solutions" className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-yc-navy/10 bg-white p-2 shadow-[0_24px_60px_-24px_rgb(12_22_48/0.35)]">
+                {SECTOR_LINKS.map((s) => (
+                  <a key={s.key} href={`#univers-${s.key}`} onClick={() => setSolutions(false)} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-yc-paper">
+                    <span className="font-medium text-yc-navy-ink">{s.label}</span>
+                    <span className={`text-xs ${s.available ? "font-semibold text-yc-royal" : "text-yc-ink-soft"}`}>{s.note}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
           {LINKS.map((l) => (
-            <a key={l.href} href={l.href} className="rounded-full px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:bg-white/5 hover:text-white">{l.label}</a>
+            <a key={l.href} href={l.href} className="rounded-md px-3.5 py-2 font-medium hover:text-yc-royal">{l.label}</a>
           ))}
         </nav>
-        <div className="ml-auto hidden items-center gap-2 sm:flex">
-          <Link href="/connexion" className="rounded-full px-4 py-2 text-sm font-semibold text-white/80 hover:text-white">Connexion</Link>
-          <Link href="/creer-ma-boutique" className={buttonClasses("glow", "sm", "rounded-full px-5")}>Créer ma boutique</Link>
+
+        <div className={`ml-auto hidden items-center gap-5 rounded-xl sm:flex ${scrolled ? "" : "xl:bg-yc-paper/85 xl:py-1.5 xl:pl-5 xl:pr-1.5 xl:backdrop-blur-md"}`}>
+          <Link href="/connexion" className="text-[15px] font-medium text-yc-navy-ink hover:text-yc-royal">Connexion</Link>
+          <Link href="/creer-ma-boutique" className="rounded-lg bg-yc-royal px-5 py-2.5 text-[15px] font-semibold text-white shadow-[0_8px_20px_-10px_rgb(12_61_186/0.8)] transition-colors hover:bg-yc-royal-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal focus-visible:ring-offset-2">Commencer</Link>
         </div>
-        <button type="button" aria-label="Ouvrir le menu" aria-expanded={open} onClick={() => setOpen(true)} className="ml-auto grid h-11 w-11 place-items-center rounded-full text-white ring-1 ring-inset ring-white/15 sm:hidden lg:hidden">
-          <IconMenu size={20} />
+
+        <button type="button" aria-label="Ouvrir le menu" aria-expanded={open} onClick={() => setOpen(true)} className="ml-auto grid h-11 w-11 place-items-center text-yc-navy-ink sm:ml-0 lg:hidden">
+          <IconMenu size={26} />
         </button>
       </div>
-      <AnimatePresence>
-        {open && (
-          <motion.div className="fixed inset-0 z-50 bg-yc-night-950/95 backdrop-blur-xl lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="flex items-center justify-between px-5 py-5">
-              <YcLogo tone="light" />
-              <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center rounded-full text-white ring-1 ring-inset ring-white/15"><IconX size={20} /></button>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-yc-paper lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
+          <div className="flex h-[72px] items-center justify-between px-4 sm:px-8">
+            <YcLogo />
+            <button type="button" aria-label="Fermer le menu" onClick={() => setOpen(false)} className="grid h-11 w-11 place-items-center text-yc-navy-ink"><IconX size={26} /></button>
+          </div>
+          <nav aria-label="Menu mobile" className="flex flex-1 flex-col px-4 pb-8 sm:px-8">
+            <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-yc-ink-soft">Solutions</p>
+            {SECTOR_LINKS.map((s) => (
+              <a key={s.key} href={`#univers-${s.key}`} onClick={() => setOpen(false)} className="flex items-baseline justify-between border-b border-yc-navy/10 py-3.5">
+                <span className="font-editorial text-[28px] leading-none text-yc-navy-ink">{s.label}</span>
+                <span className={`text-xs ${s.available ? "font-semibold text-yc-royal" : "text-yc-ink-soft"}`}>{s.note}</span>
+              </a>
+            ))}
+            {LINKS.map((l) => (
+              <a key={l.href} href={l.href} onClick={() => setOpen(false)} className="border-b border-yc-navy/10 py-3.5 font-editorial text-[28px] leading-none text-yc-navy-ink">{l.label}</a>
+            ))}
+            <div className="mt-auto grid gap-3 pt-10">
+              <Link href="/creer-ma-boutique" className="flex items-center justify-center gap-2 rounded-lg bg-yc-royal px-6 py-4 text-base font-semibold text-white">Créer mon site <IconArrowRight size={18} /></Link>
+              <Link href="/connexion" className="flex items-center justify-center rounded-lg border border-yc-navy/80 px-6 py-4 text-base font-semibold text-yc-navy">Connexion</Link>
             </div>
-            <nav aria-label="Menu mobile" className="flex flex-col gap-2 px-5 pt-6">
-              {LINKS.map((l, i) => (
-                <motion.a key={l.href} href={l.href} onClick={() => setOpen(false)} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * i }}
-                  className="border-b border-white/10 py-4 font-display text-3xl font-semibold text-white">{l.label}</motion.a>
-              ))}
-              <div className="mt-8 grid gap-3">
-                <Link href="/creer-ma-boutique" className={buttonClasses("glow", "lg", "w-full rounded-full")}>Créer ma boutique</Link>
-                <Link href="/connexion" className={buttonClasses("inverse", "lg", "w-full rounded-full")}>Connexion</Link>
-              </div>
-            </nav>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

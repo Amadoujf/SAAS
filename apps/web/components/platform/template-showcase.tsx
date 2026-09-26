@@ -76,15 +76,15 @@ export function TemplateShowcase() {
   const [active, setActive] = useState(0);
   return (
     <div>
-      <div className="-mx-5 flex snap-x snap-mandatory gap-5 overflow-x-auto px-5 pb-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:overflow-visible lg:px-0" role="list">
+      <div className="-mx-4 flex snap-x snap-mandatory gap-5 overflow-x-auto px-4 pb-6 sm:-mx-8 sm:px-8 lg:mx-0 lg:overflow-visible lg:px-0" role="list">
         {TEMPLATES.map((t, i) => (
           <div key={t.slug} role="listitem" className={`group w-[78vw] max-w-[360px] shrink-0 snap-center transition-all duration-500 ease-yc sm:w-[46vw] lg:w-auto lg:min-w-0 lg:max-w-none ${active === i ? "lg:flex-[2.2]" : "lg:flex-1"}`}
             onMouseEnter={() => setActive(i)} onFocus={() => setActive(i)}>
-            <Link href={`/demo/${t.slug}`} className="yc-focus block overflow-hidden rounded-[26px] bg-white/5 ring-1 ring-white/10 transition-all duration-500 group-hover:-translate-y-1 group-hover:ring-white/30">
-              <div className="h-[340px] overflow-hidden rounded-t-[26px] sm:h-[380px]"><Mock t={t} /></div>
-              <div className="flex items-center justify-between gap-3 px-5 py-4 text-white">
-                <span className="min-w-0"><span className="block truncate font-display text-lg font-semibold">{t.name}</span><span className="block truncate text-xs text-white/55">{t.sector}</span></span>
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white/10 transition-colors group-hover:bg-yc-cyan group-hover:text-yc-night-950" aria-label="Voir la démo"><IconArrowRight size={18} /></span>
+            <Link href={`/demo/${t.slug}`} className="block focus-visible:outline-none overflow-hidden rounded-xl bg-white ring-1 ring-yc-navy/10 transition-all duration-500 group-hover:-translate-y-1 group-hover:shadow-[0_30px_60px_-30px_rgb(12_22_48/0.45)] focus-visible:ring-2 focus-visible:ring-yc-royal">
+              <div className="h-[340px] overflow-hidden rounded-t-xl sm:h-[380px]"><Mock t={t} /></div>
+              <div className="flex items-center justify-between gap-3 px-5 py-4 text-yc-navy-ink">
+                <span className="min-w-0"><span className="block truncate font-editorial text-[22px] leading-tight">{t.name}</span><span className="block truncate text-xs text-yc-ink-soft">{t.sector}</span></span>
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-yc-paper text-yc-royal transition-colors group-hover:bg-yc-royal group-hover:text-white" aria-label="Voir la démo"><IconArrowRight size={18} /></span>
               </div>
             </Link>
           </div>
