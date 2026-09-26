@@ -101,6 +101,8 @@ model Tenant {
   paymentConfigs           PaymentProviderConfig[]
   whatsappConfig           WhatsAppConfig?
   deliveryZones            DeliveryZone[]
+  commerceSettings         CommerceSettings?
+  notificationLogs         NotificationLog[]
   deliverers               Deliverer[]
   counters                 Counter[]
   aiJobs                   AIGenerationJob[]
@@ -1297,6 +1299,12 @@ model Order {
   /// propre confirmation de commande sans authentification — voir le storefront.
   accessToken          String        @unique @default(uuid())
   notes                String?
+  /// Moyen de paiement CHOISI au checkout (`cod`, `online`, `manual_wave`,
+  /// `manual_orange_money`) — affichage et tri uniquement. Le statut réel du paiement
+  /// reste `paymentStatus` + les lignes `Payment`, jamais ce champ.
+  paymentMethod        String        @default("cod")
+  /// Notes internes de l'équipe — jamais exposées au client (storefront, suivi).
+  internalNotes        String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -1364,6 +1372,13 @@ model PaymentProviderConfig {
   isEnabled Boolean @default(false)
   mode      String  @default("sandbox") // sandbox | live
   label     String?
+  /// Paiement MANUEL (`wave_direct`, `orange_money_direct`) — numéro du portefeuille
+  /// marchand affiché au client pour qu'il envoie le montant exact. Donnée publique
+  /// (le client doit la voir), jamais un secret : ne remplace pas les identifiants
+  /// chiffrés ci-dessous, réservés aux prestataires automatiques (PSP).
+  accountNumber      String?
+  accountHolderName  String?
+  publicInstructions String?
 
   // Identifiants du compte marchand du tenant, chiffrés au repos (AES-256-GCM).
   // Adjustement #4 : chaque entreprise peut connecter son propre compte marchand ;
@@ -1402,6 +1417,17 @@ model Payment {
   // Rapprochement commande ↔ paiement ↔ facture (adjustement #3)
   reconciliationStatus  String          @default("pending") // pending | matched | mismatched
   reconciledAt          DateTime?
+  /// Paiement MANUEL (Wave/Orange Money direct) — preuve déclarée par le client,
+  /// jamais une confirmation : seul un membre de l'équipe du tenant avec
+  /// `payments.view` + `orders.update_status` peut valider (voir
+  /// `manual-payment-registry.ts`). Une preuve déposée laisse la commande
+  /// `AWAITING_PAYMENT`, jamais `PAID`.
+  proofReference        String?
+  proofImageUrl         String?
+  proofSubmittedAt      DateTime?
+  reviewedByUserId      String?
+  reviewedAt            DateTime?
+  reviewNote            String?
   createdAt             DateTime        @default(now())
 
   @@index([tenantId, status])
@@ -1553,6 +1579,14 @@ model DeliveryZone {
   id             String  @id @default(uuid())
   tenantId       String
   tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  /// Nom affiché au client (ex. « Dakar Plateau — express »). Null = libellé dérivé
+  /// de la région/commune.
+  name           String?
+  isActive       Boolean @default(true)
+  /// Catégories exclues de cette zone (ex. produits fragiles ou encombrants non
+  /// livrables hors Dakar) : un panier contenant un article d'une de ces catégories
+  /// ne peut pas choisir cette zone — recalculé côté serveur (`quoteDelivery`).
+  excludedCategoryIds String[] @default([])
   region         String
   department     String?
   commune        String?
@@ -1727,4 +1761,45 @@ model ErrorLog {
   createdAt DateTime @default(now())
 
   @@index([level, createdAt])
+}
+
+/// Réglages de vente d'un tenant — retrait en boutique, instructions, commande
+/// invitée, fenêtre de paiement manuel. Une ligne au plus par tenant ; absente =
+/// valeurs par défaut (voir `getCommerceSettings`).
+model CommerceSettings {
+  id                       String   @id @default(uuid())
+  tenantId                 String   @unique
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id])
+  pickupEnabled            Boolean  @default(true)
+  pickupAddress            String?
+  pickupInstructions       String?
+  deliveryInstructions     String?
+  guestCheckoutEnabled     Boolean  @default(true)
+  /// Durée (heures) pendant laquelle le stock reste réservé pour une commande en
+  /// paiement manuel (Wave/Orange Money) avant expiration automatique.
+  manualPaymentWindowHours Int      @default(24)
+  updatedAt                DateTime @updatedAt
+}
+
+/// Journal HONNÊTE des notifications — distingue « événement créé / mis en file »
+/// (`queued`) d'une livraison réellement réussie (`sent`), échouée (`failed`) ou
+/// impossible faute de fournisseur configuré (`not_sent_no_provider`). Jamais un
+/// envoi présenté comme réussi sans réponse positive d'un fournisseur réel.
+model NotificationLog {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  orderId   String?
+  event     String
+  channel   String
+  recipient String?
+  status    String    @default("queued")
+  attempts  Int       @default(0)
+  lastError String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sentAt    DateTime?
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, orderId])
 }

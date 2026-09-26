@@ -4,6 +4,7 @@ import { getOrCreateMainShop, InsufficientStockError } from "./catalog-registry"
 import { resolveOrCreateCustomer, addCustomerAddress, type CustomerInput, type CustomerAddressInput } from "./customer-registry";
 import { nextCounterValue, orderScope, formatOrderNumber } from "./counters";
 import { transitionOrderStatus, STOCK_COMMIT_STATUS, OrderStatusConflictError, InvalidOrderTransitionError } from "./order-status";
+import { computeZoneShipping, getCommerceSettings } from "./commerce-registry";
 
 /**
  * Persistance des commandes — étape 2 (clients/panier/commandes/livraison, 19
@@ -31,10 +32,20 @@ export interface ConvertCartToOrderInput {
   deliveryMethod: "delivery" | "pickup";
   deliveryZoneId?: string | null;
   deliveryAddress?: DeliveryAddressInput | null;
-  paymentMethod: "cod" | "online";
+  /** `cod` : paiement à la livraison. `online` : prestataire automatique (PSP) du
+   *  tenant. `manual_wave` / `manual_orange_money` : transfert manuel vers le
+   *  portefeuille marchand du tenant, avec preuve à valider par l'équipe. */
+  paymentMethod: OrderPaymentMethod;
   promoCode?: string | null;
   notes?: string | null;
   channel?: string;
+}
+
+export const ORDER_PAYMENT_METHODS = ["cod", "online", "manual_wave", "manual_orange_money"] as const;
+export type OrderPaymentMethod = (typeof ORDER_PAYMENT_METHODS)[number];
+
+export function isManualPaymentMethod(method: string): method is "manual_wave" | "manual_orange_money" {
+  return method === "manual_wave" || method === "manual_orange_money";
 }
 
 export interface ConvertCartToOrderResult {
@@ -108,16 +119,34 @@ export async function convertCartToOrder(
     0,
   );
 
+  // Frais de livraison — calculés par `computeZoneShipping` (commerce-registry.ts),
+  // la MÊME fonction que celle qui alimente l'affichage du checkout : le montant
+  // facturé ne peut jamais diverger de celui présenté au client.
+  const settings = await getCommerceSettings(tx, tenantId);
   let shippingTotal = 0;
+  if (input.deliveryMethod === "pickup" && !settings.pickupEnabled) {
+    throw new Error("Le retrait en boutique n'est pas proposé par cette boutique.");
+  }
   if (input.deliveryMethod === "delivery") {
     if (!input.deliveryZoneId) throw new Error("convertCartToOrder : zone de livraison requise pour ce mode.");
     const zone = await tx.deliveryZone.findFirst({ where: { id: input.deliveryZoneId, tenantId } });
     if (!zone) {
       throw new Error(`convertCartToOrder : zone de livraison "${input.deliveryZoneId}" introuvable pour ce tenant.`);
     }
-    const freeThresholdMet = zone.freeThreshold !== null && subtotal >= zone.freeThreshold;
-    shippingTotal = freeThresholdMet ? 0 : zone.fee;
-    if (hasBulky) shippingTotal += zone.bulkySurcharge;
+    const shipping = computeZoneShipping(zone, {
+      subtotal,
+      hasBulky,
+      hasNonDeliverable,
+      categoryIds: [...new Set(cartItems.map((i) => i.variant.product.categoryId).filter((id): id is string => !!id))],
+    });
+    if (!shipping.available) {
+      throw new Error(
+        shipping.reason === "excluded_category"
+          ? "Un article de votre panier n'est pas livrable dans cette zone — choisissez une autre zone ou le retrait."
+          : "Cette zone de livraison n'est plus disponible — choisissez-en une autre.",
+      );
+    }
+    shippingTotal = shipping.fee;
   }
 
   let discountTotal = 0;
@@ -202,6 +231,7 @@ export async function convertCartToOrder(
       deliveryZoneId: input.deliveryMethod === "delivery" ? input.deliveryZoneId : null,
       deliveryAddressId,
       notes: input.notes ?? null,
+      paymentMethod: input.paymentMethod,
       items: {
         create: lineComputations.map(({ item, unitPrice, lineTotal }) => ({
           tenantId,
@@ -233,13 +263,18 @@ export async function convertCartToOrder(
     });
     await commitReservedStock(tx, tenantId, orderId);
   } else {
-    const reservationExpiresAt = new Date(Date.now() + RESERVATION_WINDOW_MINUTES * 60_000);
+    // Paiement manuel : le client doit ouvrir son application Wave/Orange Money,
+    // transférer, puis déposer une preuve — la fenêtre de réservation est donc celle
+    // configurée par le tenant (heures), pas les 30 minutes d'un paiement PSP hébergé.
+    const manual = isManualPaymentMethod(input.paymentMethod);
+    const windowMs = manual ? settings.manualPaymentWindowHours * 3_600_000 : RESERVATION_WINDOW_MINUTES * 60_000;
+    const reservationExpiresAt = new Date(Date.now() + windowMs);
     await tx.order.update({ where: { id: orderId }, data: { reservationExpiresAt } });
     await transitionOrderStatus(tx, tenantId, {
       orderId,
       toStatus: "AWAITING_PAYMENT",
       changedByType: "system",
-      note: "En attente de paiement en ligne.",
+      note: manual ? "En attente du transfert manuel et de sa preuve." : "En attente de paiement en ligne.",
     });
   }
 
