@@ -18,11 +18,23 @@ import type { Prisma } from "@prisma/client";
  *   silence.
  * - `resolveOrCreateCustomer` : dédoublonnage TRANSPARENT au moment du checkout
  *   (étape 2, M3) — un client qui repasse commande avec le même téléphone ne doit
- *   jamais produire une seconde fiche. Priorité : téléphone (sûr sous concurrence,
- *   `upsert` sur l'index unique réel) puis, à défaut, e-mail (`findFirst` puis
- *   `create` — PAS protégé par une contrainte DB, donc un « best effort », pas une
- *   garantie sous concurrence : deux checkouts simultanés avec le même e-mail mais
- *   sans téléphone peuvent encore produire deux fiches — limite documentée).
+ *   jamais produire une seconde fiche. Priorité : téléphone, protégé par l'index
+ *   unique réel `@@unique([tenantId, phone])` — voir CORRECTION DE STABILISATION
+ *   ci-dessous — puis, à défaut, e-mail (`findFirst` puis `create` — PAS protégé par
+ *   une contrainte DB, donc un « best effort », pas une garantie sous concurrence :
+ *   deux checkouts simultanés avec le même e-mail mais sans téléphone peuvent encore
+ *   produire deux fiches — limite documentée).
+ *
+ * CORRECTION DE STABILISATION — bogue réel trouvé en exécutant la suite réelle sur
+ * GitHub Actions (jamais reproduit localement) : la branche téléphone utilisait
+ * `tx.customer.upsert(...)`, présumé « sûr sous concurrence » sur l'index unique réel
+ * — un présupposé faux en pratique : sous une vraie course (5 checkouts simultanés
+ * avec le même téléphone), Prisma a laissé remonter une violation de contrainte
+ * unique (P2002) au lieu de la résoudre en interne. Remplacé par le même idiome déjà
+ * établi ailleurs dans ce projet pour EXACTEMENT ce cas (voir `getOrCreateActiveCart`,
+ * `getOrCreateSubscription`) : `create()` + capture de la violation P2002 + relecture
+ * du gagnant — jamais un `upsert` pour une création dédupliquée sous concurrence
+ * réelle.
  */
 
 export interface CustomerInput {
@@ -107,23 +119,33 @@ export async function resolveOrCreateCustomer(
   input: CustomerInput,
 ) {
   if (input.phone) {
-    return tx.customer.upsert({
-      where: { tenantId_phone: { tenantId, phone: input.phone } },
-      create: {
-        tenantId,
-        firstName: input.firstName,
-        lastName: input.lastName ?? null,
-        email: input.email ?? null,
-        phone: input.phone,
-        customerGroup: input.customerGroup ?? "retail",
-      },
+    const phone = input.phone;
+    const existing = await tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
+    if (existing) {
       // Une commande existante ne doit jamais réécrire silencieusement le nom d'un
-      // client déjà connu (ex. faute de frappe volontaire d'un tiers) — seules les
-      // coordonnées manquantes sont complétées, jamais un champ déjà renseigné.
-      update: {
-        email: input.email ?? undefined,
-      },
-    });
+      // client déjà connu (ex. faute de frappe volontaire d'un tiers) — seul l'e-mail
+      // est complété, jamais un champ déjà renseigné.
+      return input.email ? tx.customer.update({ where: { id: existing.id }, data: { email: input.email } }) : existing;
+    }
+    try {
+      return await tx.customer.create({
+        data: {
+          tenantId,
+          firstName: input.firstName,
+          lastName: input.lastName ?? null,
+          email: input.email ?? null,
+          phone,
+          customerGroup: input.customerGroup ?? "retail",
+        },
+      });
+    } catch (error) {
+      // Un checkout concurrent avec le MÊME téléphone a gagné la course entre notre
+      // lecture ci-dessus et notre tentative de création — voir CORRECTION DE
+      // STABILISATION en tête de fichier.
+      const winner = await tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
+      if (!winner) throw error;
+      return input.email ? tx.customer.update({ where: { id: winner.id }, data: { email: input.email } }) : winner;
+    }
   }
 
   if (input.email) {
