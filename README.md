@@ -102,7 +102,7 @@ pnpm --filter @yamacommerce/database run validate   # valide prisma/schema.prism
 
 ### Résultats vérifiés dans cet environnement (2026-09-13 — historique Phase 0)
 
-> Résultats historiques de la Phase 0, conservés pour mémoire. Les résultats actuels (791 tests, 11/11 packages, CI verte) sont dans [Stabilisation de la facturation SaaS](#stabilisation-de-la-facturation-saas-septembre-2026).
+> Résultats historiques de la Phase 0, conservés pour mémoire. Les résultats actuels (793 tests, 11/11 packages) sont dans [Stabilisation de la facturation SaaS](#stabilisation-de-la-facturation-saas-septembre-2026).
 
 | Vérification                                                                             | Résultat                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -156,8 +156,8 @@ Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url
 
 Validation réelle de la facturation SaaS avant toute nouvelle fonctionnalité — détail complet dans [docs/15-rapport-stabilisation-facturation.md](docs/15-rapport-stabilisation-facturation.md).
 
-- **791 tests réels, 0 échec, 0 skip**, 11/11 packages verts ; `pnpm build` réussi (apps/web + apps/worker) ; CI GitHub verte sur `4645347`.
-- **8 bogues réels corrigés** : RLS de connexion (`fb7cee7`), suspension automatique vs paiement concurrent (`eefa8ba`), quota dépassable sous concurrence (`cfee5ea`), double libération de stock + rejet non géré à l'annulation (`9950bad`), dédoublonnage client non atomique (`32e4cef`), interblocage (`26078f6`), « créer puis rattraper » corrigé par `SAVEPOINT` (`4645347`).
+- **792 tests réels sur `4645347`** (CI GitHub verte), **793 avec le test de régression ajouté par `ca6d6d1`** — 0 échec, 0 skip, 11/11 packages verts ; `pnpm build` réussi (apps/web + apps/worker).
+- **8 bogues réels corrigés** : RLS de connexion (`fb7cee7`), suspension automatique vs paiement concurrent (`eefa8ba`), quota dépassable sous concurrence (`cfee5ea`), double libération de stock + rejet non géré à l'annulation (`9950bad`, correctif rendu fiable par verrou de ligne dans `ca6d6d1`), dédoublonnage client non atomique (`32e4cef`), interblocage (`26078f6`), « créer puis rattraper » corrigé par `SAVEPOINT` (`4645347`).
 - **Plus d'accès illimité par défaut** : sans abonnement, quotas à zéro et site public suspendu ; seule exception, la dérogation Super Admin tracée `Tenant.billingExemptedAt`.
 
 ## Prochaine étape

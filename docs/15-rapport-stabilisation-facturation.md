@@ -3,13 +3,13 @@
 Validation réelle avant toute nouvelle fonctionnalité : commandes exécutées, résultats réels, bogues trouvés et corrigés, preuves en navigateur.
 
 - **Période :** 24–26 septembre 2026
-- **Commits de stabilisation :** 8 (`fb7cee7` → `4645347`)
+- **Commits de stabilisation :** 8 (`fb7cee7` → `4645347`), plus `ca6d6d1` (rechute corrigée pendant la PR #1)
 - **Poste :** `C:\yamacommerce-saas` (hors OneDrive)
 - **CI GitHub :** passe intégralement sur `4645347`
 
 | Indicateur                   | Valeur                   |
 | ---------------------------- | ------------------------ |
-| Tests réels                  | **791**, 0 échec, 0 skip |
+| Tests réels                  | **792** sur `4645347`, 793 avec `ca6d6d1` — 0 échec, 0 skip |
 | Packages verts               | 11 / 11                  |
 | Bogues réels corrigés        | 8                        |
 | Build production             | ✅                       |
@@ -35,7 +35,7 @@ pnpm build                             # apps/web + apps/worker
 
 | Package                       | Tests   | Statut           |
 | ----------------------------- | ------- | ---------------- |
-| `@yamacommerce/database`      | 183     | ✅               |
+| `@yamacommerce/database`      | 184     | ✅               |
 | `@yamacommerce/web`           | 312     | ✅               |
 | `@yamacommerce/domains`       | 81      | ✅               |
 | `@yamacommerce/storage`       | 85      | ✅               |
@@ -46,7 +46,7 @@ pnpm build                             # apps/web + apps/worker
 | `@yamacommerce/payments`      | 8       | ✅               |
 | `@yamacommerce/auth`          | 8       | ✅               |
 | `@yamacommerce/design-tokens` | 7       | ✅               |
-| **Total**                     | **791** | 0 échec, 0 skip  |
+| **Total**                     | **792** | 0 échec, 0 skip  |
 
 ## 2. Trois bogues réels trouvés en local, en exécutant
 
@@ -81,11 +81,19 @@ Invisibles en local (Windows, embedded-postgres) mais reproduits sur la CI (Linu
 
 | Bogue                                                 | Commit    | Cause                                                                                                                                                                                                 | Correction                                                                                                                     | Vérifié           |
 | ----------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
-| Double libération de stock à l'annulation             | `9950bad` | `transitionOrderStatus` est un no-op si la commande est déjà dans l'état visé ; `cancelOrder` relâchait le stock dans les deux cas (5 annulations simultanées → stock libéré 3 fois).                | Compte les lignes d'historique avant/après pour savoir si cet appel a réellement agi.                                          | 12/12             |
+| Double libération de stock à l'annulation             | `9950bad` | `transitionOrderStatus` est un no-op si la commande est déjà dans l'état visé ; `cancelOrder` relâchait le stock dans les deux cas (5 annulations simultanées → stock libéré 3 fois).                | Comptait les lignes d'historique avant/après — **insuffisant** sous READ COMMITTED (voir `ca6d6d1` ci-dessous).                  | 12/12 local, rechute en CI |
 | Rejet non géré : paiement vs expiration               | `9950bad` | Seul l'un des deux types d'erreur (conflit) était rattrapé ; une commande déjà annulée rend la cible invalide.                                                                                        | Rattrape aussi le second type d'erreur avec le mécanisme de nouvelle tentative existant.                                       | 12/12             |
 | `upsert` non atomique pour le dédoublonnage client    | `32e4cef` | `upsert` présumé atomique sur l'index unique — faux sous vraie concurrence (5 checkouts simultanés, même téléphone).                                                                                   | Motif « créer puis rattraper ».                                                                                                | voir `4645347`    |
 | Interblocage introduit par le correctif `eefa8ba`     | `26078f6` | Créer un paiement prend un verrou de partage implicite (clé étrangère) sur l'abonnement ; le verrou exclusif pris ensuite formait un cycle entre deux ventes concurrentes.                             | Verrou exclusif pris avant toute écriture, dès le début de la confirmation.                                                    | 15/15             |
 | « Créer puis rattraper » cassé sous PostgreSQL réel   | `4645347` | PostgreSQL abandonne toute la transaction dès qu'une instruction échoue : relire dans le `catch` échoue aussi. Même motif présent dans le panier et l'abonnement.                                       | Fonction partagée `packages/database/src/concurrency.ts` : `SAVEPOINT` / `ROLLBACK TO SAVEPOINT`, appliquée aux 3 endroits.    | 12/12 par fonction |
+
+### Rechute en CI et correctif définitif — `ca6d6d1`
+
+La CI de la PR #1 (sur un commit ne touchant que la documentation) a de nouveau fait échouer « DEUX WORKERS SUR LE MÊME JOB » et, par effet de bord sur la même ligne de stock, « COURSE CRITIQUE ».
+
+- **Cause :** le correctif de `9950bad` comparait le nombre de lignes `OrderStatusHistory` avant et après la transition. Sous READ COMMITTED, le second comptage voit aussi la ligne validée entre-temps par l'AUTRE worker : le perdant se croyait gagnant et libérait le stock une seconde fois.
+- **Correction :** verrou de ligne `SELECT … FOR UPDATE` sur la commande, dans `releaseExpiredReservationTx` et dans `cancelOrder` ; le comptage d'historique est supprimé.
+- **Vérifié :** nouveau test déterministe qui force l'entrelacement exact — sur l'ancien code il échoue à chaque exécution (deux « released », stock disponible +4 au lieu de +2), avec le correctif il passe 10/10. Suite complète locale contre PostgreSQL : 793 tests, 0 échec ; lint, typecheck et build réussis.
 
 ## 4. Règle de facturation : plus d'accès illimité par défaut
 
@@ -139,6 +147,7 @@ Scénarios nommés dans le plan et jusque-là non prouvés (le code était corre
 | `cfee5ea` | Dépassement de quota sous requêtes simultanées                                            |
 | `ef6e4d4` | Couverture : devise, produit, prolongation admin, rétention (tests uniquement)            |
 | `9950bad` | Double libération de stock + rejet non géré à l'annulation (CI)                           |
+| `ca6d6d1` | Double libération de stock : verrou de ligne `FOR UPDATE` à la place du comptage d'historique (CI de la PR #1) |
 | `32e4cef` | `upsert` non atomique pour le dédoublonnage client (CI)                                   |
 | `26078f6` | Interblocage auto-infligé par un correctif précédent (CI)                                 |
 | `4645347` | « Créer puis rattraper » corrigé par `SAVEPOINT`, appliqué à 3 endroits (CI)              |
