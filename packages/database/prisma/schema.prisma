@@ -74,6 +74,7 @@ model Tenant {
   domains                  Domain[]
   users                    TenantUser[]
   invitations              TenantInvitation[]
+  storefrontContent        StorefrontContent?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -838,6 +839,17 @@ model TenantUser {
 
   @@unique([tenantId, userId])
   @@index([tenantId])
+}
+
+/// Contenus mis en avant sur l'accueil de la boutique (carrousel, univers, sélection,
+/// collections, bandeau) — structure validée côté serveur par un schéma Zod
+/// (apps/web/lib/storefront/home-content.ts) avant tout enregistrement.
+model StorefrontContent {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  content   Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
 }
 
 /// Invitation d'un membre de l'équipe. Le jeton n'est JAMAIS stocké en clair (seule

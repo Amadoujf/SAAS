@@ -24,6 +24,7 @@ export * from "./commerce-registry";
 export * from "./order-operations";
 export * from "./dashboard-insights";
 export * from "./team-registry";
+export * from "./storefront-registry";
 export * from "./notification-registry";
 export * from "./subscription-status";
 export * from "./subscription-registry";
