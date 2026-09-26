@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { createOrRecoverFromConflict } from "./concurrency";
 
 /**
  * Persistance du panier — étape 2 (clients/panier/commandes/livraison, 19 septembre
@@ -61,18 +62,23 @@ export async function getOrCreateActiveCart(
   tenantId: string,
   visitorToken: string,
 ) {
-  const existing = await tx.cart.findFirst({ where: { tenantId, visitorToken, status: "active" } });
+  const refetch = () => tx.cart.findFirst({ where: { tenantId, visitorToken, status: "active" } });
+  const existing = await refetch();
   if (existing) return existing;
 
-  try {
-    return await tx.cart.create({ data: { tenantId, visitorToken, status: "active", currency: "XOF" } });
-  } catch (error) {
-    // P2002 : un autre appel concurrent a créé le panier actif entre notre lecture et
-    // notre écriture — jamais deux paniers actifs pour le même visiteur, on relit.
-    const winner = await tx.cart.findFirst({ where: { tenantId, visitorToken, status: "active" } });
-    if (winner) return winner;
-    throw error;
-  }
+  // CORRECTION DE STABILISATION — voir `createOrRecoverFromConflict` (concurrency.ts) :
+  // un `create()` nu suivi d'une relecture dans le `catch`, sur la MÊME transaction,
+  // échoue sous PostgreSQL réel dès que la course se produit vraiment (la transaction
+  // entière est abandonnée par la première erreur) — bogue jumeau trouvé et corrigé
+  // pour `resolveOrCreateCustomer` (customer-registry.ts) en exécutant la suite réelle
+  // sur GitHub Actions ; jamais exercé ici avant faute d'un test appelant réellement
+  // cette fonction sous concurrence (le test existant crée directement via `tx.cart`,
+  // sans passer par `getOrCreateActiveCart`).
+  return createOrRecoverFromConflict(
+    tx,
+    () => tx.cart.create({ data: { tenantId, visitorToken, status: "active", currency: "XOF" } }),
+    refetch,
+  );
 }
 
 /**

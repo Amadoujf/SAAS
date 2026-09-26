@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
+import { getOrCreateActiveCart } from "../src/cart-registry";
 
 /**
  * Preuve dédiée que `Cart`/`CartItem` sont RÉELLEMENT protégées par Row-Level
@@ -170,6 +171,29 @@ describe.skipIf(!databaseAvailable)("RLS réelle — Cart / CartItem", () => {
       for (const failure of failed as PromiseRejectedResult[]) {
         expect(String(failure.reason)).toMatch(/Unique constraint|P2002/i);
       }
+
+      const activeCarts = await withTenant(tenantAId, (tx) =>
+        tx.cart.findMany({ where: { visitorToken, status: "active" } }),
+      );
+      expect(activeCarts).toHaveLength(1);
+
+      await withSuperAdminAccess((tx) => tx.cart.deleteMany({ where: { visitorToken } }));
+    });
+
+    it("getOrCreateActiveCart RÉELLE : 5 appels simultanés du même visiteur renvoient TOUS le même panier, jamais une erreur", async () => {
+      // Distinct du test ci-dessus (qui crée directement via `tx.cart` et VEUT voir 4
+      // rejets P2002) : celui-ci appelle la vraie fonction publique utilisée par le
+      // checkout — voir `createOrRecoverFromConflict` (concurrency.ts), CORRECTION DE
+      // STABILISATION trouvée en exécutant la suite réelle sur GitHub Actions pour
+      // `resolveOrCreateCustomer` (bogue jumeau, jamais exercé ici avant faute d'un
+      // test appelant réellement cette fonction sous concurrence).
+      const visitorToken = `visiteur-getorcreate-${suffix}`;
+      const attempts = await Promise.all(
+        Array.from({ length: 5 }, () => withTenant(tenantAId, (tx) => getOrCreateActiveCart(tx, tenantAId, visitorToken))),
+      );
+
+      const uniqueIds = new Set(attempts.map((c) => c.id));
+      expect(uniqueIds.size).toBe(1);
 
       const activeCarts = await withTenant(tenantAId, (tx) =>
         tx.cart.findMany({ where: { visitorToken, status: "active" } }),

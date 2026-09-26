@@ -1,4 +1,5 @@
 import type { Prisma } from "@prisma/client";
+import { createOrRecoverFromConflict } from "./concurrency";
 
 /**
  * Persistance des clients — étape 2 (clients/panier/commandes/livraison, 19
@@ -30,11 +31,11 @@ import type { Prisma } from "@prisma/client";
  * `tx.customer.upsert(...)`, présumé « sûr sous concurrence » sur l'index unique réel
  * — un présupposé faux en pratique : sous une vraie course (5 checkouts simultanés
  * avec le même téléphone), Prisma a laissé remonter une violation de contrainte
- * unique (P2002) au lieu de la résoudre en interne. Remplacé par le même idiome déjà
- * établi ailleurs dans ce projet pour EXACTEMENT ce cas (voir `getOrCreateActiveCart`,
- * `getOrCreateSubscription`) : `create()` + capture de la violation P2002 + relecture
- * du gagnant — jamais un `upsert` pour une création dédupliquée sous concurrence
- * réelle.
+ * unique (P2002) au lieu de la résoudre en interne. Un premier correctif (`create()` +
+ * capture de la violation + relecture, le même idiome que `getOrCreateActiveCart`/
+ * `getOrCreateSubscription`) a ENSUITE révélé un second bogue, plus profond, commun
+ * aux trois : voir `createOrRecoverFromConflict` (concurrency.ts) pour la correction
+ * réelle (verrou de sauvegarde SQL), appliquée ici et dans ces deux autres fonctions.
  */
 
 export interface CustomerInput {
@@ -120,32 +121,30 @@ export async function resolveOrCreateCustomer(
 ) {
   if (input.phone) {
     const phone = input.phone;
-    const existing = await tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
-    if (existing) {
-      // Une commande existante ne doit jamais réécrire silencieusement le nom d'un
-      // client déjà connu (ex. faute de frappe volontaire d'un tiers) — seul l'e-mail
-      // est complété, jamais un champ déjà renseigné.
-      return input.email ? tx.customer.update({ where: { id: existing.id }, data: { email: input.email } }) : existing;
-    }
-    try {
-      return await tx.customer.create({
-        data: {
-          tenantId,
-          firstName: input.firstName,
-          lastName: input.lastName ?? null,
-          email: input.email ?? null,
-          phone,
-          customerGroup: input.customerGroup ?? "retail",
-        },
-      });
-    } catch (error) {
-      // Un checkout concurrent avec le MÊME téléphone a gagné la course entre notre
-      // lecture ci-dessus et notre tentative de création — voir CORRECTION DE
-      // STABILISATION en tête de fichier.
-      const winner = await tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
-      if (!winner) throw error;
-      return input.email ? tx.customer.update({ where: { id: winner.id }, data: { email: input.email } }) : winner;
-    }
+    const refetch = () => tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
+    const existing = await refetch();
+    const customer =
+      existing ??
+      (await createOrRecoverFromConflict(
+        tx,
+        () =>
+          tx.customer.create({
+            data: {
+              tenantId,
+              firstName: input.firstName,
+              lastName: input.lastName ?? null,
+              email: input.email ?? null,
+              phone,
+              customerGroup: input.customerGroup ?? "retail",
+            },
+          }),
+        refetch,
+      ));
+
+    // Une commande existante ne doit jamais réécrire silencieusement le nom d'un
+    // client déjà connu (ex. faute de frappe volontaire d'un tiers) — seul l'e-mail
+    // est complété, jamais un champ déjà renseigné.
+    return input.email ? tx.customer.update({ where: { id: customer.id }, data: { email: input.email } }) : customer;
   }
 
   if (input.email) {

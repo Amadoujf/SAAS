@@ -1,5 +1,6 @@
 import type { Prisma, SubscriptionPayment, TenantSubscription } from "@prisma/client";
 import { isValidSubscriptionTransition, transitionSubscriptionStatus, InvalidSubscriptionTransitionError, SubscriptionStatusConflictError } from "./subscription-status";
+import { createOrRecoverFromConflict } from "./concurrency";
 
 /**
  * Persistance des abonnements SaaS — voir docs/14-facturation-saas-abonnements.md.
@@ -15,25 +16,26 @@ import { isValidSubscriptionTransition, transitionSubscriptionStatus, InvalidSub
  * paiement confirmé pour l'instant, c'est le point d'entrée du TOUT PREMIER checkout
  * d'un tenant (l'onboarding ne crée aujourd'hui aucun `TenantSubscription`, voir
  * docs/14). `TenantSubscription.tenantId` est `@unique` mais non déclarable comme
- * garde de concurrence via `@@unique` côté appel : même idiome que
- * `getOrCreateActiveCart` (`cart-registry.ts`) — `create()` + capture de la violation
- * P2002 + relecture, jamais un `upsert` qui masquerait silencieusement une double
- * création concurrente.
+ * garde de concurrence via `@@unique` côté appel : jamais un `upsert` qui masquerait
+ * silencieusement une double création concurrente, et jamais un `create()` nu suivi
+ * d'une relecture sans filet — voir `createOrRecoverFromConflict` (concurrency.ts,
+ * CORRECTION DE STABILISATION : ce dernier idiome, plus simple, casse sous PostgreSQL
+ * réel dès que la course se produit vraiment).
  */
 export async function getOrCreateSubscription(tx: Prisma.TransactionClient, tenantId: string, planId: string) {
-  const existing = await tx.tenantSubscription.findUnique({ where: { tenantId } });
+  const refetch = () => tx.tenantSubscription.findUnique({ where: { tenantId } });
+  const existing = await refetch();
   if (existing) return existing;
 
   const now = new Date();
-  try {
-    return await tx.tenantSubscription.create({
-      data: { tenantId, planId, status: "PENDING", billingCycle: "MONTHLY", currentPeriodStart: now, currentPeriodEnd: now },
-    });
-  } catch (error) {
-    const winner = await tx.tenantSubscription.findUnique({ where: { tenantId } });
-    if (winner) return winner;
-    throw error;
-  }
+  return createOrRecoverFromConflict(
+    tx,
+    () =>
+      tx.tenantSubscription.create({
+        data: { tenantId, planId, status: "PENDING", billingCycle: "MONTHLY", currentPeriodStart: now, currentPeriodEnd: now },
+      }),
+    refetch,
+  );
 }
 
 /** Auteur de la confirmation, journalisé sur le `SubscriptionEvent` "renewed"/
