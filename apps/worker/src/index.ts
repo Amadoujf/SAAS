@@ -6,6 +6,7 @@ import {
   stockReservationExpiryQueue,
   subscriptionLifecycleSweepQueue,
   notificationsQueue,
+  deliverNotification,
 } from "@yamacommerce/queue";
 import type {
   AIJobData,
@@ -31,6 +32,8 @@ import {
   markBillingReminderSentForTenant,
   findDueStatusChangeNotifications,
   markStatusChangeNotificationSent,
+  markNotificationOutcome,
+  withTenant,
 } from "@yamacommerce/database";
 
 /**
@@ -99,10 +102,31 @@ const importsWorker = new Worker<ImportJobData>(
   { connection: redisConnection, concurrency },
 );
 
+/**
+ * Notifications : livraison RÉELLE (voir `deliverNotification`, @yamacommerce/queue).
+ * Pour les notifications de commande (`notificationLogId`), le résultat est écrit
+ * dans `NotificationLog` — `sent` seulement après une réponse positive d'un vrai
+ * fournisseur, `not_sent_no_provider` si aucun n'est configuré (WhatsApp/SMS à ce
+ * jour), `failed` sinon. Les autres notifications (domaines, publication,
+ * facturation) suivent le même chemin mais sans journal dédié.
+ */
 const notificationsWorker = new Worker<NotificationJobData>(
   QUEUE_NAMES.notifications,
   async (job) => {
-    console.info(`[notifications] TODO Phase 2 — envoi SMS/WhatsApp : ${JSON.stringify(job.data)}`);
+    const outcome = await deliverNotification(job.data, {
+      fetch,
+      resendApiKey: process.env.RESEND_API_KEY ?? null,
+      emailFrom: process.env.EMAIL_FROM ?? null,
+    });
+    if (job.data.notificationLogId) {
+      await withTenant(job.data.tenantId, (tx) =>
+        markNotificationOutcome(tx, job.data.tenantId, job.data.notificationLogId!, { status: outcome.status, error: outcome.error ?? null }),
+      );
+    }
+    if (outcome.status === "not_sent_no_provider") {
+      console.info(`[notifications] non envoyée (${job.data.channel}) : ${outcome.error}`);
+    }
+    return outcome;
   },
   { connection: redisConnection, concurrency },
 );
