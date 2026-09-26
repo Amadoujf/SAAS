@@ -1,102 +1,66 @@
-import { headers } from "next/headers";
-import { notFound, permanentRedirect } from "next/navigation";
-import type { Metadata } from "next";
 import Link from "next/link";
-import { withTenant, listProducts, listCategories } from "@yamacommerce/database";
-import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
+import type { Metadata } from "next";
+import { resolveStore } from "@/lib/storefront/store-context";
+import { loadProductCards } from "@/lib/storefront/catalog-view";
+import { withTenant, listCategories } from "@yamacommerce/database";
+import { StoreShell } from "@/components/store/store-shell";
+import { ProductCard } from "@/components/store/product-card";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
 export const metadata: Metadata = { title: "Catalogue" };
 
-/**
- * Liste RÉELLE du catalogue public d'un tenant — voir docs/08 §8.1, `/catalogue`, et
- * la revue du 18 septembre 2026 : « un dashboard soigné... relié aux sites publiés ».
- * Route dédiée (pas une section du manifeste éditeur) : filtres/tri/pagination d'un
- * vrai catalogue dépassent ce qu'une section configurable par bloc peut offrir.
- *
- * RÉUTILISE `resolveActiveTenant` (voir resolve-public-site.ts) — jamais une
- * résolution de tenant parallèle : un domaine/tenant suspendu ne doit JAMAIS servir
- * de contenu catalogue, exactement la même garantie que le reste du site (voir la
- * revue du 18 septembre 2026 sur ce point précis).
- *
- * Pas de panier/commande ici (étape 2 de l'ordre validé, pas encore construite) —
- * uniquement la consultation du catalogue réel.
- */
-export default async function CataloguePage({
-  searchParams,
-}: {
-  searchParams: { categorie?: string };
-}) {
-  const headerList = await headers();
-  const host = headerList.get("host") ?? "";
-  const active = await resolveActiveTenant(host);
-
-  if (active.status === "not_found") notFound();
-  if (active.status === "suspended") return <PublicSiteSuspended tenantName={active.tenantName} />;
-  if (active.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={active.tenantName} />;
-  if (active.status === "redirect") {
-    permanentRedirect(`https://${active.targetDomain}/catalogue`);
-  }
-
-  const [categories, products] = await withTenant(active.tenantId, async (tx) => {
-    const cats = await listCategories(tx, active.tenantId);
-    const category = searchParams.categorie ? cats.find((c) => c.slug === searchParams.categorie) : undefined;
-    const prods = await listProducts(tx, active.tenantId, {
-      status: "PUBLISHED",
-      ...(category ? { categoryId: category.id } : {}),
-    });
-    return [cats, prods];
-  });
+/** Catalogue public RÉEL — mêmes protections domaine/tenant suspendu que le reste du
+ *  site (voir `resolveStore`), design tokens de l'entreprise. */
+export default async function CataloguePage({ searchParams }: { searchParams: { categorie?: string } }) {
+  const resolution = await resolveStore(`/catalogue`);
+  if (resolution.status === "suspended") return <PublicSiteSuspended tenantName={resolution.tenantName} />;
+  if (resolution.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;
+  const { store } = resolution;
+  const categories = await withTenant(store.tenantId, (tx) => listCategories(tx, store.tenantId));
+  const category = searchParams.categorie ? categories.find((c) => c.slug === searchParams.categorie) : undefined;
+  const products = await loadProductCards(store.tenantId, { categoryId: category?.id });
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-12">
-      <h1 className="text-2xl font-semibold">{active.tenantName} — Catalogue</h1>
-
-      {categories.length > 0 && (
-        <nav className="flex flex-wrap gap-2 text-sm">
-          <Link
-            href="/catalogue"
-            className={`rounded-full border px-3 py-1 ${!searchParams.categorie ? "border-gray-900 font-medium" : "border-gray-300 text-gray-600"}`}
-          >
-            Tout
-          </Link>
-          {categories.map((category) => (
-            <Link
-              key={category.id}
-              href={`/catalogue?categorie=${encodeURIComponent(category.slug)}`}
-              className={`rounded-full border px-3 py-1 ${
-                searchParams.categorie === category.slug ? "border-gray-900 font-medium" : "border-gray-300 text-gray-600"
-              }`}
-            >
-              {category.name}
-            </Link>
-          ))}
-        </nav>
-      )}
-
-      {products.length === 0 ? (
-        <p className="text-[var(--color-muted)]">Aucun produit disponible pour le moment.</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-          {products.map((product) => (
-            <Link key={product.id} href={`/p/${product.slug}`} className="group flex flex-col gap-2">
-              <div className="aspect-square overflow-hidden rounded-lg bg-gray-100">
-                {product.images[0] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={product.images[0].url}
-                    alt={product.images[0].altText ?? product.name}
-                    className="h-full w-full object-cover transition group-hover:scale-105"
-                  />
-                )}
-              </div>
-              <p className="truncate text-sm font-medium">{product.name}</p>
-              <p className="text-sm text-[var(--color-muted)]">{product.basePrice.toLocaleString("fr-FR")} FCFA</p>
-            </Link>
-          ))}
-        </div>
-      )}
-    </main>
+    <StoreShell store={store}>
+      <section className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 pb-6 pt-10 sm:px-6 sm:pt-14">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">{store.tenantName}</p>
+        <h1 className="mt-2 font-[family-name:var(--font-heading)] text-[length:var(--text-heading-xl,2.5rem)] font-semibold leading-[1.05] tracking-tight">
+          {category ? category.name : "Toute la collection"}
+        </h1>
+        <p className="mt-2 text-[var(--color-text-muted)]">{products.length} pièce{products.length > 1 ? "s" : ""}</p>
+        {categories.length > 0 && (
+          <nav aria-label="Catégories" className="-mx-4 mt-6 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <ul className="flex w-max gap-2">
+              {[{ slug: "", name: "Tout" }, ...categories].map((c) => {
+                const active = (c.slug || undefined) === searchParams.categorie;
+                return (
+                  <li key={c.slug || "tout"}>
+                    <Link href={c.slug ? `/catalogue?categorie=${encodeURIComponent(c.slug)}` : "/catalogue"} aria-current={active ? "page" : undefined}
+                      className={`block rounded-[var(--radius-full)] px-4 py-2 text-sm font-semibold ring-1 ring-inset transition ${active ? "bg-[var(--color-text-primary)] text-[var(--color-background)] ring-[var(--color-text-primary)]" : "ring-[var(--color-border)] hover:ring-[var(--color-text-primary)]"}`}>
+                      {c.name}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
+        )}
+      </section>
+      <section className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 sm:px-6">
+        {products.length === 0 ? (
+          <div className="rounded-[var(--radius-lg)] bg-[var(--color-surface)] px-6 py-20 text-center">
+            <p className="font-[family-name:var(--font-heading)] text-xl font-semibold">Aucun produit ici pour le moment</p>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">Revenez bientôt, ou explorez les autres catégories.</p>
+          </div>
+        ) : (
+          <ul className="grid grid-cols-2 gap-x-4 gap-y-10 sm:gap-x-6 md:grid-cols-3 xl:grid-cols-4">
+            {products.map((p, i) => (
+              <li key={p.slug}><ProductCard product={p} priority={i < 4} /></li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </StoreShell>
   );
 }
