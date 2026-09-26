@@ -1,3 +1,4 @@
+import { normalizeSenegalPhone } from "./senegal-reference";
 import type { Prisma } from "@prisma/client";
 import { createOrRecoverFromConflict } from "./concurrency";
 
@@ -120,7 +121,9 @@ export async function resolveOrCreateCustomer(
   input: CustomerInput,
 ) {
   if (input.phone) {
-    const phone = input.phone;
+    // Forme canonique `+221XXXXXXXXX` : « 77 123 45 67 », « 00221771234567 » et
+    // « +221771234567 » désignent le MÊME client (dédoublonnage et suivi invité).
+    const phone = normalizeSenegalPhone(input.phone) ?? input.phone.trim();
     const refetch = () => tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
     const existing = await refetch();
     const customer =

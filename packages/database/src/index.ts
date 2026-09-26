@@ -2,7 +2,7 @@
  *  applicatives (ex. apps/web/lib/publishing/*) qui reçoivent un `tx` déjà ouvert par
  *  `withTenant()` de le typer explicitement sans dépendre directement de
  *  `@prisma/client` (qui reste un détail d'implémentation de ce package). */
-export type { Prisma, DomainLifecycleStatus, ProductStatus } from "@prisma/client";
+export type { Prisma, DomainLifecycleStatus, ProductStatus, OrderStatus } from "@prisma/client";
 export * from "./client";
 export * from "./tenant-context";
 export * from "./counters";

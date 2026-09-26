@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 import { testOwnerClient } from "./test-owner-client";
-import { addCartItem, getOrCreateActiveCart } from "../src/cart-registry";
+import { addCartItem, getCartWithTotals, getOrCreateActiveCart, updateCartItemQuantity, CartStockError } from "../src/cart-registry";
 import { convertCartToOrder, type ConvertCartToOrderInput } from "../src/order-registry";
 import { releaseExpiredReservation } from "../src/order-reservation";
 import {
@@ -180,6 +180,65 @@ describe.skipIf(!databaseAvailable)("Opérations commerce (livraison, paiement m
     } finally {
       await owner.$disconnect();
     }
+  });
+
+  // --- Panier ----------------------------------------------------------------
+
+  it("STOCK À L'AJOUT : refus clair au-delà du stock, diminution toujours permise même après une baisse de stock", async () => {
+    const limited = await withTenant(tenantId, async (tx) => {
+      const product = await tx.product.create({ data: { tenantId, name: "Pièce rare", slug: `rare-${suffix}`, basePrice: 5_000, status: "PUBLISHED" } });
+      const variant = await tx.productVariant.create({ data: { tenantId, productId: product.id, name: "Unique", price: 5_000, attributes: {} } });
+      await tx.inventoryItem.create({ data: { tenantId, productVariantId: variant.id, shopId, availableQuantity: 2 } });
+      return variant.id;
+    });
+    const visitorToken = `stock-${suffix}`;
+    const cart = await withTenant(tenantId, (tx) => getOrCreateActiveCart(tx, tenantId, visitorToken));
+    await withTenant(tenantId, (tx) => addCartItem(tx, tenantId, cart.id, { productVariantId: limited, quantity: 2 }));
+    await expect(withTenant(tenantId, (tx) => addCartItem(tx, tenantId, cart.id, { productVariantId: limited, quantity: 1 }))).rejects.toBeInstanceOf(CartStockError);
+
+    // Le stock baisse (vente en boutique) : le panier signale la ligne, et le client
+    // peut réduire sa quantité — jamais bloqué dans un panier invalide.
+    await withTenant(tenantId, (tx) => tx.inventoryItem.updateMany({ where: { productVariantId: limited }, data: { availableQuantity: 1 } }));
+    const view = await withTenant(tenantId, (tx) => getCartWithTotals(tx, tenantId, cart.id));
+    const line = view!.lines.find((l) => l.productVariantId === limited)!;
+    expect(line.quantity).toBeGreaterThan(line.availableQuantity);
+    await withTenant(tenantId, (tx) => updateCartItemQuantity(tx, tenantId, visitorToken, line.id, 1));
+    await expect(withTenant(tenantId, (tx) => updateCartItemQuantity(tx, tenantId, visitorToken, line.id, 3))).rejects.toThrow(/il ne reste que 1/);
+  });
+
+  it("PRIX NON FIABLE CÔTÉ NAVIGATEUR : la commande prend le prix EN BASE au moment de la commande, jamais celui affiché plus tôt", async () => {
+    const cartId = await cartWith([{ variantId: fragileVariantId, quantity: 1 }]);
+    const before = await withTenant(tenantId, (tx) => getCartWithTotals(tx, tenantId, cartId));
+    expect(before!.subtotal).toBe(15_000);
+    // Le marchand change le prix entre l'affichage du panier et la commande.
+    await withTenant(tenantId, (tx) => tx.productVariant.update({ where: { id: fragileVariantId }, data: { price: 18_000 } }));
+    try {
+      const { order: created } = await withTenant(tenantId, (tx) =>
+        convertCartToOrder(tx, tenantId, { cartId, customer: { firstName: "Lamine", phone: nextPhone() }, deliveryMethod: "pickup", paymentMethod: "cod" }),
+      );
+      expect(created.subtotal).toBe(18_000);
+      expect(created.total).toBe(18_000);
+    } finally {
+      await withTenant(tenantId, (tx) => tx.productVariant.update({ where: { id: fragileVariantId }, data: { price: 15_000 } }));
+    }
+  });
+
+  it("VARIANTE SUPPRIMÉE / PRODUIT DÉSACTIVÉ : ligne omise du panier et commande refusée avec un message clair", async () => {
+    const productId = await withTenant(tenantId, async (tx) => {
+      const product = await tx.product.create({ data: { tenantId, name: "Éphémère", slug: `ephemere-${suffix}`, basePrice: 3_000, status: "PUBLISHED" } });
+      const variant = await tx.productVariant.create({ data: { tenantId, productId: product.id, name: "Unique", price: 3_000, attributes: {} } });
+      await tx.inventoryItem.create({ data: { tenantId, productVariantId: variant.id, shopId, availableQuantity: 5 } });
+      return { productId: product.id, variantId: variant.id };
+    });
+    const cartId = await cartWith([{ variantId: productId.variantId, quantity: 1 }, { variantId, quantity: 1 }]);
+    await withTenant(tenantId, (tx) => tx.product.update({ where: { id: productId.productId }, data: { status: "ARCHIVED" } }));
+    const view = await withTenant(tenantId, (tx) => getCartWithTotals(tx, tenantId, cartId));
+    expect(view!.lines.map((l) => l.productVariantId)).toEqual([variantId]);
+    await expect(
+      withTenant(tenantId, (tx) =>
+        convertCartToOrder(tx, tenantId, { cartId, customer: { firstName: "Seynabou", phone: nextPhone() }, deliveryMethod: "pickup", paymentMethod: "cod" }),
+      ),
+    ).rejects.toThrow(/n'est plus disponible à l'achat/);
   });
 
   // --- Livraison -----------------------------------------------------------
@@ -398,6 +457,25 @@ describe.skipIf(!databaseAvailable)("Opérations commerce (livraison, paiement m
     ).rejects.toThrow();
   });
 
+  it("RETRAIT EN BOUTIQUE : prête → remise au client (sans expédition) ; expédier un retrait est refusé", async () => {
+    const { order: pickup } = await order({ deliveryMethod: "pickup" });
+    await withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, pickup.id, "PREPARING", { userId: null, type: "owner" }));
+    await withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, pickup.id, "READY", { userId: null, type: "owner" }));
+    await expect(
+      withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, pickup.id, "SHIPPED", { userId: null, type: "owner" })),
+    ).rejects.toThrow(/retrait en boutique n'est pas expédiée/);
+    const delivered = await withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, pickup.id, "DELIVERED", { userId: null, type: "owner" }));
+    expect(delivered.status).toBe("DELIVERED");
+    expect(delivered.paymentStatus).toBe("PAID");
+
+    const { order: home } = await order({});
+    await withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, home.id, "PREPARING", { userId: null, type: "owner" }));
+    await withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, home.id, "READY", { userId: null, type: "owner" }));
+    await expect(
+      withTenant(tenantId, (tx) => advanceOrderStatus(tx, tenantId, home.id, "DELIVERED", { userId: null, type: "owner" })),
+    ).rejects.toThrow(/d'abord être expédiée/);
+  });
+
   it("REMBOURSEMENT : trace une demande (pending), jamais un remboursement présenté comme exécuté", async () => {
     const { order: created } = await manualOrderWithPayment();
     await withTenant(tenantId, (tx) => submitManualPaymentProof(tx, tenantId, created.id, created.accessToken, { reference: "WAVE-REFUND" }));
@@ -417,6 +495,15 @@ describe.skipIf(!databaseAvailable)("Opérations commerce (livraison, paiement m
     expect(ok).toEqual({ orderId: created.id, accessToken: created.accessToken });
     expect(await withTenant(tenantId, (tx) => findOrderForGuest(tx, tenantId, created.orderNumber, "+221781112233"))).toBeNull();
     expect(await withTenant(tenantId, (tx) => findOrderForGuest(tx, tenantId, "CMD-1999-000001", phone))).toBeNull();
+  });
+
+  it("TÉLÉPHONE CANONIQUE : « 77 123 45 67 » et « +221771234567 » désignent le même client, retrouvable par le suivi invité", async () => {
+    const local = `77 ${String(100 + (Number(suffix.slice(-3)) % 800))} 45 67`;
+    const first = await order({ customer: { firstName: "Rama", phone: local } });
+    const second = await order({ customer: { firstName: "Rama", phone: `+221${local.replace(/ /g, "")}` } });
+    expect(first.order.customerId).toBe(second.order.customerId);
+    const found = await withTenant(tenantId, (tx) => findOrderForGuest(tx, tenantId, first.order.orderNumber, local));
+    expect(found?.orderId).toBe(first.order.id);
   });
 
   it("VUE CLIENT : jeton obligatoire, notes internes jamais exposées", async () => {

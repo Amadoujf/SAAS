@@ -1,4 +1,6 @@
+import { createHash, randomUUID } from "node:crypto";
 import type { OrderStatus, Prisma } from "@prisma/client";
+import { nextCounterValue, invoiceScope, formatInvoiceNumber } from "./counters";
 import { transitionOrderStatus, isValidOrderTransition, ORDER_STATUS_TRANSITIONS } from "./order-status";
 import { cancelOrder, confirmOrderPaymentSuccess, isManualPaymentMethod } from "./order-registry";
 import { normalizeSenegalPhone } from "./senegal-reference";
@@ -26,7 +28,7 @@ export interface OrderActor {
 // ---------------------------------------------------------------------------
 
 export interface ListOrdersFilter {
-  status?: OrderStatus | "to_process" | "awaiting_proof";
+  status?: OrderStatus | "to_process" | "awaiting_proof" | "in_delivery";
   paymentStatus?: "UNPAID" | "PAID" | "REFUNDED" | "FAILED" | "PARTIAL";
   search?: string;
   from?: Date;
@@ -41,6 +43,7 @@ export const TO_PROCESS_STATUSES: OrderStatus[] = ["CONFIRMED", "PREPARING", "RE
 function buildOrderWhere(tenantId: string, filter: ListOrdersFilter): Prisma.OrderWhereInput {
   const where: Prisma.OrderWhereInput = { tenantId };
   if (filter.status === "to_process") where.status = { in: TO_PROCESS_STATUSES };
+  else if (filter.status === "in_delivery") where.status = { in: ["SHIPPED", "OUT_FOR_DELIVERY"] };
   else if (filter.status === "awaiting_proof") {
     where.status = "AWAITING_PAYMENT";
     where.payments = { some: { status: "PENDING", proofSubmittedAt: { not: null } } };
@@ -155,6 +158,13 @@ export async function advanceOrderStatus(
   if (order.status === toStatus) return order;
   if (!isValidOrderTransition(order.status, toStatus)) {
     throw new OrderOperationError(`Transition interdite : ${order.status} → ${toStatus}.`);
+  }
+
+  if (order.status === "READY" && toStatus === "DELIVERED" && order.deliveryMethod !== "pickup") {
+    throw new OrderOperationError("Une commande à livrer doit d'abord être expédiée.");
+  }
+  if (toStatus === "SHIPPED" && order.deliveryMethod === "pickup") {
+    throw new OrderOperationError("Une commande en retrait en boutique n'est pas expédiée : marquez-la « remise au client ».");
   }
 
   const changedByType = actor.type;
@@ -586,3 +596,58 @@ export async function getCommerceOverview(tx: Prisma.TransactionClient, tenantId
     series: days,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Facture
+// ---------------------------------------------------------------------------
+
+/**
+ * Émet la facture d'une commande PAYÉE — numérotation séquentielle par entreprise et
+ * par exercice (`FAC-2026-000001`), instantanés figés du client et des lignes,
+ * empreinte d'intégrité. Idempotente : une commande n'a jamais deux factures. Refusée
+ * tant que le paiement n'est pas vérifié (jamais de facture « payée » pour une
+ * commande en attente de paiement).
+ */
+export async function issueInvoiceForOrder(tx: Prisma.TransactionClient, tenantId: string, orderId: string) {
+  await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+  const existing = await tx.invoice.findFirst({ where: { orderId, tenantId } });
+  if (existing) return existing;
+  const order = await tx.order.findFirst({ where: { id: orderId, tenantId }, include: { customer: true, items: true } });
+  if (!order) throw new OrderOperationError("Commande introuvable.");
+  if (order.paymentStatus !== "PAID") {
+    throw new OrderOperationError("La facture est émise une fois le paiement vérifié (ou encaissé à la livraison).");
+  }
+  const fiscalYear = new Date().getFullYear();
+  const seq = await nextCounterValue(tx, tenantId, invoiceScope(fiscalYear));
+  const customerSnapshot = {
+    firstName: order.customer.firstName,
+    lastName: order.customer.lastName,
+    phone: order.customer.phone,
+    email: order.customer.email,
+  };
+  const itemsSnapshot = order.items.map((i) => ({ name: i.productNameSnapshot, unitPrice: i.unitPrice, quantity: i.quantity, total: i.total }));
+  const number = formatInvoiceNumber(fiscalYear, seq);
+  const integrityHash = createHash("sha256")
+    .update(JSON.stringify({ number, customerSnapshot, itemsSnapshot, subtotal: order.subtotal, total: order.total, tenantId }))
+    .digest("hex");
+  return tx.invoice.create({
+    data: {
+      tenantId,
+      orderId,
+      number,
+      fiscalYear,
+      status: "finalized",
+      customerSnapshot,
+      itemsSnapshot,
+      subtotal: order.subtotal,
+      discountTotal: order.discountTotal,
+      taxTotal: order.taxTotal,
+      total: order.total,
+      paymentStatus: "PAID",
+      qrCodeToken: randomUUID(),
+      finalizedAt: new Date(),
+      integrityHash,
+    },
+  });
+}
+

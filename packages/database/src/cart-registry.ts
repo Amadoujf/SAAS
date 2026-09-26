@@ -105,6 +105,26 @@ async function assertActiveCart(
   return cart;
 }
 
+export class CartStockError extends Error {
+  constructor(public readonly available: number) {
+    super(
+      available === 0
+        ? "Cet article est en rupture de stock."
+        : `Stock insuffisant : il ne reste que ${available} exemplaire${available > 1 ? "s" : ""}.`,
+    );
+    this.name = "CartStockError";
+  }
+}
+
+/** Vérification de stock À L'AJOUT (confort du client) — la garantie finale reste la
+ *  réservation atomique de `convertCartToOrder`, qui seule protège d'une vente
+ *  concurrente du dernier exemplaire. */
+async function assertStockFor(tx: Prisma.TransactionClient, tenantId: string, productVariantId: string, quantity: number) {
+  const items = await tx.inventoryItem.findMany({ where: { tenantId, productVariantId }, select: { availableQuantity: true } });
+  const available = items.reduce((sum, i) => sum + i.availableQuantity, 0);
+  if (quantity > available) throw new CartStockError(available);
+}
+
 /** Valide que la variante existe, appartient à CE tenant, et que son produit est
  *  publiquement achetable (publié, non supprimé) — jamais un produit brouillon/
  *  archivé ajoutable au panier public, même par un id deviné. */
@@ -127,6 +147,10 @@ export async function addCartItem(
   if (input.quantity <= 0) throw new Error("addCartItem : la quantité doit être strictement positive.");
   await assertActiveCart(tx, tenantId, cartId);
   await assertPurchasableVariant(tx, tenantId, input.productVariantId);
+  const existing = await tx.cartItem.findUnique({
+    where: { cartId_productVariantId: { cartId, productVariantId: input.productVariantId } },
+  });
+  await assertStockFor(tx, tenantId, input.productVariantId, (existing?.quantity ?? 0) + input.quantity);
 
   return tx.cartItem.upsert({
     where: { cartId_productVariantId: { cartId, productVariantId: input.productVariantId } },
@@ -154,6 +178,9 @@ export async function updateCartItemQuantity(
     await tx.cartItem.deleteMany({ where: { id: cartItemId, tenantId } });
     return null;
   }
+  // Diminuer une quantité est toujours permis (même si le stock a baissé entre-temps :
+  // c'est précisément ce que fait un client qui corrige son panier).
+  if (quantity > item.quantity) await assertStockFor(tx, tenantId, item.productVariantId, quantity);
   return tx.cartItem.update({ where: { id: cartItemId }, data: { quantity } });
 }
 
