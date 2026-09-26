@@ -17,11 +17,11 @@ const NEXT_STEP: Record<string, { to: string; label: string } | ((pickup: boolea
   OUT_FOR_DELIVERY: { to: "DELIVERED", label: "Confirmer la livraison" },
 };
 
-function Feedback({ error, success }: { error: string | null; success: string | null }) {
-  if (error) return <p role="alert" className="mt-3 rounded-xl bg-yc-danger/[0.07] px-3 py-2 text-sm font-medium text-[rgb(185_28_28)]">{error}</p>;
+function Feedback({ error, success, onDark = false }: { error: string | null; success: string | null; onDark?: boolean }) {
+  if (error) return <p role="alert" className={`mt-3 rounded-xl px-3 py-2 text-sm font-medium ${onDark ? "bg-rose-500/15 text-rose-100" : "bg-yc-danger/[0.07] text-[rgb(185_28_28)]"}`}>{error}</p>;
   if (success)
     return (
-      <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-yc-success/10 px-3 py-2 text-sm font-medium text-[rgb(4_120_87)]">
+      <p role="status" className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium ${onDark ? "bg-emerald-400/15 text-emerald-100" : "bg-yc-success/10 text-[rgb(4_120_87)]"}`}>
         <span className="yc-pop grid h-5 w-5 place-items-center rounded-full bg-yc-success text-white"><IconCheck size={13} /></span>
         {success}
       </p>
@@ -51,7 +51,7 @@ export function StatusActions({ orderId, status, pickup, canCancel, canRefund, o
           <Button variant={onDark ? "inverse" : "danger"} size="lg" onClick={() => setDialog("CANCELED")}>Annuler</Button>
         )}
       </div>
-      <Feedback error={error} success={success} />
+      <Feedback error={error} success={success} onDark={onDark} />
       <Dialog open={dialog !== null} onClose={() => setDialog(null)} title={dialog === "CANCELED" ? "Annuler la commande ?" : "Enregistrer un remboursement ?"}>
         <p className="text-sm text-yc-ink-soft">
           {dialog === "CANCELED"

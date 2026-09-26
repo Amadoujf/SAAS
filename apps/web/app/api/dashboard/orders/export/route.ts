@@ -2,14 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { withTenant, listOrdersForTenant } from "@yamacommerce/database";
 import { resolveDashboardTenant } from "@/lib/orders/dashboard-pipeline";
 import { parseOrderFilters } from "@/lib/orders/filters";
+import { csvCell } from "@/lib/orders/csv";
 import { ORDER_STATUS_META, PAYMENT_METHOD_LABEL, PAYMENT_STATUS_META } from "@/lib/commerce/order-status-meta";
-
-function csvCell(value: unknown): string {
-  const text = value === null || value === undefined ? "" : String(value);
-  // Neutralise l'injection de formules dans les tableurs (=, +, -, @).
-  const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
-  return /[";\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-}
 
 /** Export CSV (séparateur « ; », BOM UTF-8 pour Excel) des commandes filtrées. */
 export async function GET(request: NextRequest) {
