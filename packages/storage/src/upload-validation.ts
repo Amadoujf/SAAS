@@ -71,11 +71,18 @@ const DANGEROUS_EXTENSIONS = new Set([
  *  heuristique de bon sens (polyglotte fichier-image + code exécutable), PAS une
  *  substitution à un vrai moteur antivirus/CDR (voir le rapport de livraison pour
  *  cette limite assumée). */
-const DANGEROUS_BYTE_PATTERNS: { label: string; bytes: number[] }[] = [
+//
+// CORRECTION (26 septembre 2026, trouvée en important une vraie photo) : les motifs
+// très COURTS (« <% » : 2 octets, « #!/ » : 3 octets) apparaissent PAR HASARD dans les
+// données compressées d'une image (≈ une fois tous les 64 Ko pour « <% ») : la plupart
+// des photos réelles étaient refusées. Ces deux motifs n'alertent désormais que s'ils
+// sont suivis d'une suite de texte imprimable (`trailingText`) — ce qui caractérise du
+// code réel et n'arrive quasiment jamais dans des octets aléatoires (≈ (95/256)^16).
+const DANGEROUS_BYTE_PATTERNS: { label: string; bytes: number[]; trailingText?: number }[] = [
   { label: "PHP", bytes: [0x3c, 0x3f, 0x70, 0x68, 0x70] }, // "<?php"
-  { label: "ASP/JSP", bytes: [0x3c, 0x25] }, // "<%"
+  { label: "ASP/JSP", bytes: [0x3c, 0x25], trailingText: 16 }, // "<%" + code
   { label: "script HTML", bytes: [0x3c, 0x73, 0x63, 0x72, 0x69, 0x70, 0x74] }, // "<script"
-  { label: "shebang", bytes: [0x23, 0x21, 0x2f] }, // "#!/"
+  { label: "shebang", bytes: [0x23, 0x21, 0x2f], trailingText: 12 }, // "#!/" + chemin/commande
   { label: "exécutable Windows (PE)", bytes: [0x4d, 0x5a, 0x90, 0x00] }, // "MZ\x90\x00"
   { label: "exécutable Linux (ELF)", bytes: [0x7f, 0x45, 0x4c, 0x46] }, // "\x7fELF"
 ];
@@ -83,10 +90,15 @@ const DANGEROUS_BYTE_PATTERNS: { label: string; bytes: number[] }[] = [
 /** Recherche naïve mais suffisante pour ces motifs COURTS (5-8 octets) sur des
  *  fichiers de quelques mégaoctets — une vraie recherche Boyer-Moore serait
  *  prématurée ici. */
-function containsBytes(buffer: Uint8Array, needle: number[]): boolean {
-  outer: for (let i = 0; i <= buffer.length - needle.length; i++) {
+const isText = (b: number) => (b >= 0x20 && b <= 0x7e) || b === 0x09 || b === 0x0a || b === 0x0d;
+
+function containsBytes(buffer: Uint8Array, needle: number[], trailingText = 0): boolean {
+  outer: for (let i = 0; i <= buffer.length - needle.length - trailingText; i++) {
     for (let j = 0; j < needle.length; j++) {
       if (buffer[i + j] !== needle[j]) continue outer;
+    }
+    for (let k = 0; k < trailingText; k++) {
+      if (!isText(buffer[i + needle.length + k]!)) continue outer;
     }
     return true;
   }
@@ -176,7 +188,7 @@ export function validateUploadedFile(input: FileValidationInput): FileValidation
   }
 
   for (const pattern of DANGEROUS_BYTE_PATTERNS) {
-    if (containsBytes(buffer, pattern.bytes)) {
+    if (containsBytes(buffer, pattern.bytes, pattern.trailingText)) {
       return {
         success: false,
         reason: "dangerous_content",

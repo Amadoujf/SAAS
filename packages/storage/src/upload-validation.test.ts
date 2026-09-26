@@ -107,4 +107,16 @@ describe("validateUploadedFile — rejets", () => {
     const result = validateUploadedFile(baseInput({ buffer: hugePng }));
     expect(result).toMatchObject({ success: false, reason: "decompression_bomb" });
   });
+
+  it("n'accuse jamais une vraie photo à cause de « <% » ou « #!/ » tombés par hasard dans les données compressées", () => {
+    const jpegHeader = [0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01];
+    // Octets pseudo-aléatoires (données JPEG compressées) contenant les deux motifs courts.
+    const noise = Array.from({ length: 4000 }, (_, i) => (i * 131 + 17) % 251);
+    const photo = new Uint8Array([...jpegHeader, ...noise.slice(0, 1000), 0x3c, 0x25, 0xa1, 0x00, 0xff, ...noise.slice(1000, 2000), 0x23, 0x21, 0x2f, 0x9c, 0x01, ...noise.slice(2000), 0xff, 0xd9]);
+    const result = validateUploadedFile({ buffer: photo, declaredMimeType: "image/jpeg", originalFileName: "robe.jpg", maxSizeBytes: 10_000_000 });
+    expect(result.success).toBe(true);
+    // Du vrai code ASP embarqué reste refusé.
+    const polyglot = new Uint8Array([...jpegHeader, ...noise.slice(0, 500), ...Array.from(new TextEncoder().encode('<% Response.Write("pwned") %>'))]);
+    expect(validateUploadedFile({ buffer: polyglot, declaredMimeType: "image/jpeg", originalFileName: "x.jpg", maxSizeBytes: 10_000_000 }).success).toBe(false);
+  });
 });
