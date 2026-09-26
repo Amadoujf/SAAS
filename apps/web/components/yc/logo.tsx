@@ -23,7 +23,7 @@ export function YcLogo({ tone = "dark", className = "" }: { tone?: "dark" | "lig
     <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <YcMark size={30} />
       <span className={`font-display text-[1.15rem] font-semibold tracking-tight ${tone === "light" ? "text-white" : "text-yc-ink"}`}>
-        Yama<span className="text-yc-electric">Commerce</span>
+        Yama<span className={tone === "light" ? "text-yc-cyan" : "text-yc-electric"}>Commerce</span>
       </span>
     </span>
   );

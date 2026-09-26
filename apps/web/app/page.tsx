@@ -2,7 +2,8 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { permanentRedirect } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant";
-import { DEFAULT_LOCALE, t } from "@/lib/i18n";
+import { withSuperAdminAccess } from "@yamacommerce/database";
+import { Landing } from "@/components/platform/landing";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
@@ -37,28 +38,36 @@ export default async function HomePage() {
     if (resolution.status === "ok") {
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
-    // "not_found" (déjà exclu par `tenant` non nul) ou "not_published" : repli sur le
-    // placeholder existant plutôt qu'une erreur, en attendant la première publication.
-    return (
-      <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-4 px-4 text-center">
-        <h1 className="text-brand text-3xl font-semibold">{tenant.name}</h1>
-        <p className="text-[var(--color-muted)]">
-          Le site de cette entreprise n&apos;a pas encore été publié.
-        </p>
-      </main>
-    );
+    // "not_published" : la boutique n'a pas encore publié son site — jamais une
+    // erreur : une page d'attente soignée, qui mène au catalogue s'il existe.
+    return <TenantComingSoon tenantName={tenant.name} />;
   }
 
+  const plans = await withSuperAdminAccess((tx) =>
+    tx.subscriptionPlan.findMany({ where: { status: "PUBLISHED" }, orderBy: { priceMonthly: "asc" } }),
+  );
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-6 px-4 text-center">
-      <h1 className="text-brand text-4xl font-semibold">YamaCommerce AI</h1>
-      <p className="text-lg text-[var(--color-muted)]">{t(DEFAULT_LOCALE, "landing.title")}</p>
-      <Link
-        href="/connexion"
-        className="bg-brand text-brand-foreground rounded-lg px-6 py-3 font-medium transition hover:opacity-90"
-      >
-        {t(DEFAULT_LOCALE, "landing.cta")}
-      </Link>
+    <Landing
+      plans={plans.map((p) => ({
+        name: p.name,
+        priceMonthly: p.priceMonthly,
+        priceYearly: p.priceYearly,
+        trialDays: p.trialDays,
+        maxProducts: p.maxProducts,
+        customDomainAllowed: p.customDomainAllowed,
+        features: Array.isArray(p.features) ? (p.features as string[]) : [],
+      }))}
+    />
+  );
+}
+
+function TenantComingSoon({ tenantName }: { tenantName: string }) {
+  return (
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-yc-ivory-50 px-6 text-center font-ui text-yc-ink">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-yc-ink-soft">Bientôt en ligne</p>
+      <h1 className="mt-4 font-display text-5xl font-semibold tracking-tight">{tenantName}</h1>
+      <p className="mt-4 max-w-md text-yc-ink-soft">Notre site se prépare. Vous pouvez déjà parcourir le catalogue et commander.</p>
+      <Link href="/catalogue" className="mt-8 rounded-full bg-yc-night-900 px-6 py-3 text-sm font-semibold text-white">Voir le catalogue</Link>
     </main>
   );
 }
