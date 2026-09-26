@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { IconArrowRight } from "@/components/yc/icons";
-import { SECTOR_LINKS } from "./site-header";
+import { SECTOR_LINKS, withAvailability } from "./site-header";
 
 type SectorKey = (typeof SECTOR_LINKS)[number]["key"];
 
@@ -16,23 +16,24 @@ const UNIVERSES: Record<SectorKey, { intro: string; card?: { img: string; title:
     card: { img: "/marketing/secteur-commerce.jpg", title: ["Boutiques en ligne", "qui ont du style."], text: "Mode, beauté, artisanat, déco…" },
   },
   immobilier: {
-    intro: "Des vitrines pour villas, appartements et terrains, avec demandes de visite. En préparation.",
+    intro: "Des vitrines pour villas, appartements et terrains, avec demandes de visite.",
     card: { img: "/marketing/secteur-immobilier.jpg", title: ["Immobilier", "en toute confiance."], text: "Villas, appartements, terrains…" },
   },
   voyage: {
-    intro: "Circuits, séjours et activités présentés comme une invitation au voyage. En préparation.",
+    intro: "Circuits, séjours et activités présentés comme une invitation au voyage.",
     card: { img: "/marketing/secteur-voyage.jpg", title: ["Voyages et séjours", "authentiques."], text: "Circuits, séjours, activités…" },
   },
-  restauration: { intro: "Menus, commandes à emporter et réservations pour restaurants et traiteurs. En préparation." },
-  services: { intro: "Prises de rendez-vous et devis pour les prestataires de services. En préparation." },
+  restauration: { intro: "Menus, commandes à emporter et réservations pour restaurants et traiteurs." },
+  services: { intro: "Prises de rendez-vous et devis pour les prestataires de services." },
 };
 
 const CARD_ORDER: SectorKey[] = ["commerce", "immobilier", "voyage"];
 
-export function SectorUniverses() {
+export function SectorUniverses({ availableSectors }: { availableSectors: string[] }) {
+  const sectors = withAvailability(availableSectors);
   const [active, setActive] = useState<SectorKey>("commerce");
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
-  const current = SECTOR_LINKS.find((s) => s.key === active)!;
+  const current = sectors.find((s) => s.key === active)!;
 
   const onKey = (e: React.KeyboardEvent, i: number) => {
     const dir = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
@@ -46,7 +47,7 @@ export function SectorUniverses() {
   return (
     <div>
       <div role="tablist" aria-label="Secteurs" className="-mx-4 flex overflow-x-auto border-b border-yc-navy/10 px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
-        {SECTOR_LINKS.map((s, i) => (
+        {sectors.map((s, i) => (
           <button
             key={s.key}
             id={`univers-${s.key}`}
@@ -78,7 +79,7 @@ export function SectorUniverses() {
         <div className="mt-8 grid gap-5 md:grid-cols-3">
           {CARD_ORDER.map((key) => {
             const u = UNIVERSES[key].card!;
-            const sector = SECTOR_LINKS.find((s) => s.key === key)!;
+            const sector = sectors.find((s) => s.key === key)!;
             return (
               <article key={key} className="group relative overflow-hidden rounded-md">
                 <div className="relative aspect-[349/238]">

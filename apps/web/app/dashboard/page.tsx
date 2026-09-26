@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { withTenant, getDashboardInsights, isDashboardPeriod, type DashboardPeriod, type PaymentBucket } from "@yamacommerce/database";
+import { withTenant, getDashboardInsights, isDashboardPeriod, planHasFeature, type DashboardPeriod, type PaymentBucket } from "@yamacommerce/database";
 import { auth } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
@@ -146,19 +146,31 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
     );
   }
 
+  // Un membre sans accès aux ventes (ex. livreur, stock) ne voit pas le chiffre
+  // d'affaires : seulement un accueil vers ses propres sections.
+  if (!session?.user?.isSuperAdmin && !membership.permissions.includes("orders.view")) {
+    return (
+      <>
+        <div className="mb-6"><Greeting name={firstName} /><p className="mt-1 text-yc-ink-soft">Bienvenue dans l&apos;espace de {membership.tenantName}. Vos sections sont dans le menu.</p></div>
+        <Panel className="p-5 text-sm text-yc-ink-soft">Les indicateurs de ventes sont réservés aux membres qui ont accès aux commandes.</Panel>
+      </>
+    );
+  }
+
   const period: DashboardPeriod = isDashboardPeriod(searchParams.periode) ? searchParams.periode : "month";
-  const { insights, setup, demo } = await withTenant(membership.tenantId, async (tx) => {
+  const { insights, setup, demo, stats } = await withTenant(membership.tenantId, async (tx) => {
     const tenantId = membership.tenantId;
-    const [insights, products, zones, wallets, orders, tenant] = await Promise.all([
+    const [insights, products, zones, wallets, orders, tenant, stats] = await Promise.all([
       getDashboardInsights(tx, tenantId, period),
       tx.product.count({ where: { tenantId, status: "PUBLISHED", deletedAt: null } }),
       tx.deliveryZone.count({ where: { tenantId, isActive: true } }),
       tx.paymentProviderConfig.count({ where: { tenantId, isEnabled: true, accountNumber: { not: null } } }),
       tx.order.count({ where: { tenantId } }),
       tx.tenant.findUnique({ where: { id: tenantId }, select: { branding: true } }),
+      planHasFeature(tx, tenantId, "statistics"),
     ]);
     const branding = (tenant?.branding ?? {}) as Record<string, unknown>;
-    return { insights, setup: { products, zones, wallets, orders }, demo: branding.demoData === true };
+    return { insights, setup: { products, zones, wallets, orders }, demo: branding.demoData === true, stats };
   });
 
   const steps = [
@@ -187,9 +199,9 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
       <div className="flex flex-col gap-4 sm:gap-5">
         {/* Indicateurs de la période, comparés à la période précédente de même durée. */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
-          <KpiCard href="/dashboard/commandes" icon={<IconChart size={22} />} label="Chiffre d'affaires" value={<>{formatAmount(kpis.revenue.value)} <span className="text-[0.62em] font-bold">FCFA</span></>} foot={<Trend value={kpis.revenue.trend} />} />
-          <KpiCard href="/dashboard/commandes" icon={<IconBag size={22} />} label="Commandes" value={formatAmount(kpis.orders.value)} foot={<Trend value={kpis.orders.trend} />} />
-          <KpiCard href="/dashboard/clients" icon={<IconUsers size={22} />} label="Clients" value={formatAmount(kpis.customers.value)} foot={<Trend value={kpis.customers.trend} />} />
+          <KpiCard href="/dashboard/commandes" icon={<IconChart size={22} />} label="Chiffre d'affaires" value={<>{formatAmount(kpis.revenue.value)} <span className="text-[0.62em] font-bold">FCFA</span></>} foot={stats ? <Trend value={kpis.revenue.trend} /> : <span className="text-[13px] text-yc-ink-soft">Sur la période</span>} />
+          <KpiCard href="/dashboard/commandes" icon={<IconBag size={22} />} label="Commandes" value={formatAmount(kpis.orders.value)} foot={stats ? <Trend value={kpis.orders.trend} /> : <span className="text-[13px] text-yc-ink-soft">Sur la période</span>} />
+          <KpiCard href="/dashboard/clients" icon={<IconUsers size={22} />} label="Clients" value={formatAmount(kpis.customers.value)} foot={stats ? <Trend value={kpis.customers.trend} /> : <span className="text-[13px] text-yc-ink-soft">Sur la période</span>} />
           <KpiCard href="/dashboard/commandes?file=a-traiter" icon={<IconBox size={22} />} tone="orange" label="À préparer" value={kpis.toPrepare} foot={<span className="text-[13px] text-yc-ink-soft">En ce moment</span>} />
         </div>
 
@@ -215,6 +227,15 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
           </Panel>
         )}
 
+        {!stats ? (
+          <Panel className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-[18px] font-bold tracking-[-0.015em]">Statistiques détaillées</h2>
+              <p className="mt-1 text-sm text-yc-ink-soft">Évolution des ventes, comparaison avec la période précédente et répartition des paiements : incluses à partir de la formule Business.</p>
+            </div>
+            <ButtonLink href="/dashboard/facturation" variant="secondary" className="shrink-0 rounded-lg">Voir les formules</ButtonLink>
+          </Panel>
+        ) : (
         <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[1.9fr_1fr]">
           <Panel className="min-w-0 p-4 sm:p-5">
             <SalesChart series={insights.series} />
@@ -232,6 +253,7 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
             )}
           </Panel>
         </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:gap-5 xl:grid-cols-[1.9fr_1fr]">
           <div className="flex min-w-0 flex-col gap-4 sm:gap-5">

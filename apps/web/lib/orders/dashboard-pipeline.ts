@@ -12,6 +12,8 @@ import {
   OrderOperationError,
   InvalidOrderTransitionError,
   OrderStatusConflictError,
+  assertPlanFeature,
+  PlanFeatureUnavailableError,
 } from "@yamacommerce/database";
 import type { Permission } from "@yamacommerce/auth";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
@@ -44,6 +46,7 @@ function toError(error: unknown): { ok: false; status: number; error: string } {
   if (error instanceof OrderOperationError || error instanceof InvalidOrderTransitionError) {
     return { ok: false, status: 409, error: error.message };
   }
+  if (error instanceof PlanFeatureUnavailableError) return { ok: false, status: 402, error: error.message };
   if (error instanceof OrderStatusConflictError) {
     return { ok: false, status: 409, error: "La commande vient d'être modifiée par quelqu'un d'autre — rechargez la page." };
   }
@@ -128,6 +131,7 @@ export async function issueInvoice(orderId: string): Promise<DashboardActionResu
   try {
     let planned: PlannedNotification[] = [];
     const invoice = await withTenant(ctx.tenantId, async (tx) => {
+      await assertPlanFeature(tx, ctx.tenantId, "invoices");
       const before = await tx.invoice.findFirst({ where: { orderId, tenantId: ctx.tenantId } });
       const created = await issueInvoiceForOrder(tx, ctx.tenantId, orderId);
       if (!before) planned = await planOrderNotifications(tx, ctx.tenantId, orderId, "invoice_available");

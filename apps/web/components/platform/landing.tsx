@@ -9,14 +9,10 @@ import { HeroStage } from "./hero-stage";
 import { BuilderDemo } from "./builder-demo";
 import { TemplateShowcase } from "./template-showcase";
 import { SectorUniverses } from "./sector-universes";
+import { QuoteForm } from "./quote-form";
+import { planPerks, FICHE_DEFINITIONS, NEVER_COUNTED } from "@/lib/billing/plan-catalog";
 
-export interface LandingPlan { name: string; priceMonthly: number; priceYearly: number; trialDays: number; maxProducts: number; customDomainAllowed: boolean; features: string[] }
-
-const FEATURE_LABELS: Record<string, string> = {
-  catalog: "Catalogue & stock", orders: "Commandes & livraisons", invoices: "Factures", cod_payment: "Paiement à la livraison",
-  online_payment: "Paiement en ligne", whatsapp: "Notifications WhatsApp", advanced_reports: "Rapports avancés", loyalty: "Fidélité",
-  multi_shop: "Plusieurs boutiques", own_merchant_credentials: "Votre compte marchand",
-};
+export interface LandingPlan { name: string; priceMonthly: number; priceYearly: number; trialDays: number; maxProducts: number; maxEmployees: number; maxCustomDomains: number; maxAIGenerationsPerMonth: number; isQuoteOnly: boolean }
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-SN").format(n);
 
@@ -28,10 +24,10 @@ const eyebrow = "text-[11px] font-semibold uppercase tracking-[0.24em] text-yc-i
  *  magazine, encre marine, photographie. Tous les faits affichés sont vrais
  *  (formules réelles en base, moyens de paiement branchés) ; les secteurs et
  *  fonctions non ouverts sont marqués « bientôt ». */
-export function Landing({ plans }: { plans: LandingPlan[] }) {
+export function Landing({ plans, sectorOptions, availableSectors }: { plans: LandingPlan[]; sectorOptions: { key: string; name: string }[]; availableSectors: string[] }) {
   return (
     <div className={`${ycFontVariables} bg-yc-paper font-ui text-yc-navy-ink antialiased`}>
-      <PlatformHeader />
+      <PlatformHeader availableSectors={availableSectors} />
 
       {/* HÉROS — la composition photo déborde jusqu'au bord droit de l'écran. */}
       <section className="relative overflow-x-clip">
@@ -71,7 +67,7 @@ export function Landing({ plans }: { plans: LandingPlan[] }) {
       {/* UNIVERS PAR SECTEUR */}
       <section id="univers" className="bg-yc-paper pb-20 sm:pb-24">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8">
-          <SectorUniverses />
+          <SectorUniverses availableSectors={availableSectors} />
         </div>
       </section>
 
@@ -154,36 +150,84 @@ export function Landing({ plans }: { plans: LandingPlan[] }) {
         </div>
       </section>
 
-      {/* TARIFS — formules réelles */}
+      {/* TARIFS — formules réelles (base de données) */}
       <section id="tarifs" className="scroll-mt-20 bg-yc-paper-deep/60 py-20 sm:py-28">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-8">
           <div className="mx-auto mb-14 max-w-2xl text-center">
             <p className={eyebrow}>Tarifs</p>
-            <h2 className="mt-4 font-editorial text-[40px] leading-[1.02] sm:text-[56px]">Une formule pour chaque étape.</h2>
-            <p className="mt-4 text-[15px] text-yc-ink-soft">Essai gratuit inclus. Renouvellement manuel : jamais de prélèvement automatique surprise.</p>
+            <h2 className="mt-4 font-editorial text-[40px] leading-[1.02] sm:text-[56px]">La même qualité, <em className="text-yc-royal">à chaque formule.</em></h2>
+            <p className="mt-4 text-[15px] text-yc-ink-soft">Toutes les formules ont un site premium et animé. Elles se distinguent par les fonctions, les quotas et l&apos;accompagnement. Essai gratuit, renouvellement manuel : jamais de prélèvement automatique.</p>
           </div>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {plans.map((p, i) => {
-              const featured = i === 1;
+            {plans.map((p) => {
+              const featured = p.name === "Business";
               return (
                 <div key={p.name} className={`relative flex flex-col rounded-xl p-7 ${featured ? "bg-yc-navy text-yc-paper shadow-[0_30px_60px_-30px_rgb(12_22_48/0.6)]" : "bg-white ring-1 ring-yc-navy/10"}`}>
                   {featured && <span className="absolute -top-3 left-7 rounded-full bg-yc-royal px-3 py-1 text-[11px] font-semibold text-white">Le plus choisi</span>}
                   <p className="font-editorial text-[28px] leading-none">{p.name}</p>
-                  <p className="mt-5 flex items-baseline gap-1.5"><span className="text-[34px] font-semibold tracking-tight yc-num">{fmt(p.priceMonthly)}</span><span className={`text-sm ${featured ? "text-yc-paper/70" : "text-yc-ink-soft"}`}>FCFA / mois</span></p>
-                  <p className={`mt-1 text-xs ${featured ? "text-yc-paper/60" : "text-yc-ink-soft"}`}>ou {fmt(p.priceYearly)} FCFA / an · {p.trialDays} jours d&apos;essai</p>
+                  {p.isQuoteOnly ? (
+                    <>
+                      <p className="mt-5 text-[34px] font-semibold tracking-tight">Sur devis</p>
+                      <p className={`mt-1 text-xs ${featured ? "text-yc-paper/60" : "text-yc-ink-soft"}`}>Adapté à votre organisation</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mt-5 flex items-baseline gap-1.5"><span className="text-[34px] font-semibold tracking-tight yc-num">{fmt(p.priceMonthly)}</span><span className={`text-sm ${featured ? "text-yc-paper/70" : "text-yc-ink-soft"}`}>FCFA / mois</span></p>
+                      <p className={`mt-1 text-xs ${featured ? "text-yc-paper/60" : "text-yc-ink-soft"}`}>ou {fmt(p.priceYearly)} FCFA / an · {p.trialDays} jours d&apos;essai</p>
+                    </>
+                  )}
                   <ul className={`mt-6 flex-1 space-y-2.5 border-t pt-6 text-sm ${featured ? "border-yc-paper/15 text-yc-paper/90" : "border-yc-navy/10"}`}>
-                    <li className="flex gap-2"><IconCheck size={17} className={featured ? "text-[#8FA9EE]" : "text-yc-royal"} /> Jusqu&apos;à {fmt(p.maxProducts)} produits</li>
-                    {p.customDomainAllowed && <li className="flex gap-2"><IconCheck size={17} className={featured ? "text-[#8FA9EE]" : "text-yc-royal"} /> Votre nom de domaine</li>}
-                    {p.features.slice(0, 6).map((f) => FEATURE_LABELS[f] ? <li key={f} className="flex gap-2"><IconCheck size={17} className={featured ? "text-[#8FA9EE]" : "text-yc-royal"} /> {FEATURE_LABELS[f]}</li> : null)}
+                    {planPerks(p.name, p).map((perk) => (
+                      <li key={perk.label} className="flex gap-2">
+                        <IconCheck size={17} className={`mt-0.5 shrink-0 ${perk.soon ? "opacity-40" : ""} ${featured ? "text-[#8FA9EE]" : "text-yc-royal"}`} />
+                        <span>
+                          {perk.label}
+                          {perk.soon && <span className={`ml-1.5 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase ${featured ? "bg-white/15" : "bg-yc-navy/[0.07] text-yc-ink-soft"}`}>À venir</span>}
+                          {perk.note && <span className={`block text-xs ${featured ? "text-yc-paper/60" : "text-yc-ink-soft"}`}>{perk.note}</span>}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
-                  <Link href={`/creer-ma-boutique?formule=${encodeURIComponent(p.name)}`}
+                  <Link href={p.isQuoteOnly ? "#devis" : `/creer-ma-boutique?formule=${encodeURIComponent(p.name)}`}
                     className={`mt-7 inline-flex w-full items-center justify-center rounded-lg px-5 py-3 text-sm font-semibold transition-colors ${featured ? "bg-white text-yc-navy hover:bg-yc-paper" : "border border-yc-royal/80 text-yc-royal hover:bg-yc-royal/5"}`}>
-                    Commencer l&apos;essai
+                    {p.isQuoteOnly ? "Demander un devis" : "Commencer l'essai"}
                   </Link>
                 </div>
               );
             })}
           </div>
+
+          <details className="group mx-auto mt-10 max-w-3xl rounded-xl bg-white ring-1 ring-yc-navy/10">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-6 py-4 font-semibold">
+              Qu&apos;est-ce qu&apos;une « fiche » ?
+              <span className="text-yc-royal transition-transform group-open:rotate-45" aria-hidden="true">+</span>
+            </summary>
+            <div className="px-6 pb-6 text-sm">
+              <p className="text-yc-ink-soft">Une fiche est un élément publiable de votre catalogue. Selon votre secteur :</p>
+              <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-[auto_1fr]">
+                {FICHE_DEFINITIONS.map((d) => (
+                  <div key={d.sector} className="contents">
+                    <dt className="font-semibold">{d.sector}</dt>
+                    <dd className="text-yc-ink-soft">{d.fiche}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-4 text-yc-ink-soft">{NEVER_COUNTED}</p>
+              <p className="mt-2 text-yc-ink-soft">La connexion d&apos;un domaine personnalisé n&apos;inclut ni son achat ni son renouvellement auprès d&apos;un registraire.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+      {/* DEVIS SUR MESURE */}
+      <section id="devis" className="scroll-mt-20 py-20 sm:py-28">
+        <div className="mx-auto grid max-w-[1200px] gap-10 px-4 sm:px-8 lg:grid-cols-[1fr_1.3fr] lg:items-start">
+          <div>
+            <p className={eyebrow}>Sur mesure</p>
+            <h2 className="mt-4 font-editorial text-[40px] leading-[1.02] sm:text-[52px]">Plusieurs établissements ? <em className="text-yc-royal">Parlons-en.</em></h2>
+            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-yc-ink-soft">Intégrations spécifiques, quotas adaptés, accompagnement dédié : décrivez votre besoin, l&apos;équipe vous répond avec une proposition.</p>
+          </div>
+          <QuoteForm sectors={sectorOptions} />
         </div>
       </section>
 

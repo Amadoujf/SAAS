@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { withTenant, getOrderDetailForTenant, listDeliverers, listNotificationsForOrder, ORDER_NOTIFICATION_EVENTS } from "@yamacommerce/database";
+import { withTenant, getOrderDetailForTenant, listDeliverers, listNotificationsForOrder, planHasFeature, ORDER_NOTIFICATION_EVENTS } from "@yamacommerce/database";
 import { hasPermission } from "@yamacommerce/auth";
 import { resolveDashboardTenant } from "@/lib/orders/dashboard-pipeline";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
@@ -31,18 +31,19 @@ export default async function OrderDetailPage({ params }: { params: { id: string
   const data = await withTenant(ctx.tenantId, async (tx) => {
     const order = await getOrderDetailForTenant(tx, ctx.tenantId, params.id);
     if (!order) return null;
-    const [deliverers, notifications, images] = await Promise.all([
+    const [deliverers, notifications, images, invoicesIncluded] = await Promise.all([
       listDeliverers(tx, ctx.tenantId),
       listNotificationsForOrder(tx, ctx.tenantId, order.id),
       tx.productVariant.findMany({
         where: { tenantId: ctx.tenantId, id: { in: order.items.map((i) => i.productVariantId) } },
         select: { id: true, product: { select: { images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 } } } },
       }),
+      planHasFeature(tx, ctx.tenantId, "invoices"),
     ]);
-    return { order, deliverers, notifications, images: new Map(images.map((v) => [v.id, v.product.images[0]?.url ?? null])) };
+    return { order, deliverers, notifications, invoicesIncluded, images: new Map(images.map((v) => [v.id, v.product.images[0]?.url ?? null])) };
   });
   if (!data) notFound();
-  const { order, deliverers, notifications, images } = data;
+  const { order, deliverers, notifications, images, invoicesIncluded } = data;
 
   const manualPending = order.payments.find((p) => p.status === "PENDING" && p.proofSubmittedAt && (p.provider === "wave_direct" || p.provider === "orange_money_direct"));
   const pickup = order.deliveryMethod === "pickup";
@@ -243,6 +244,8 @@ export default async function OrderDetailPage({ params }: { params: { id: string
               {!pickup && <a href={`/documents/commande/${order.id}?type=livraison`} target="_blank" className={buttonClasses("secondary", "sm")}><IconPrinter size={16} /> Bon de livraison</a>}
               {order.invoice ? (
                 <a href={`/documents/commande/${order.id}?type=facture`} target="_blank" className={buttonClasses("secondary", "sm")}><IconPrinter size={16} /> Facture {order.invoice.number}</a>
+              ) : !invoicesIncluded ? (
+                <p className="text-xs text-yc-ink-soft">Factures numérotées : incluses à partir de la formule <Link href="/dashboard/facturation" className="font-semibold text-yc-electric hover:underline">Business</Link>.</p>
               ) : order.paymentStatus === "PAID" && can("invoices.view") ? (
                 <InvoiceButton orderId={order.id} />
               ) : (

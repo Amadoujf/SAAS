@@ -44,9 +44,10 @@ export default async function HomePage() {
     return <TenantComingSoon tenantName={tenant.name} />;
   }
 
-  const plans = await withSuperAdminAccess((tx) =>
-    tx.subscriptionPlan.findMany({ where: { status: "PUBLISHED" }, orderBy: { priceMonthly: "asc" } }),
-  );
+  const { plans, sectors } = await withSuperAdminAccess(async (tx) => ({
+    plans: await tx.subscriptionPlan.findMany({ where: { status: "PUBLISHED" }, orderBy: [{ isQuoteOnly: "asc" }, { priceMonthly: "asc" }] }),
+    sectors: await tx.sector.findMany({ where: { isSystem: true, isActive: true }, orderBy: { name: "asc" } }),
+  }));
   return (
     <Landing
       plans={plans.map((p) => ({
@@ -55,9 +56,13 @@ export default async function HomePage() {
         priceYearly: p.priceYearly,
         trialDays: p.trialDays,
         maxProducts: p.maxProducts,
-        customDomainAllowed: p.customDomainAllowed,
-        features: Array.isArray(p.features) ? (p.features as string[]) : [],
+        maxEmployees: p.maxEmployees,
+        maxCustomDomains: p.maxCustomDomains,
+        maxAIGenerationsPerMonth: p.maxAIGenerationsPerMonth,
+        isQuoteOnly: p.isQuoteOnly,
       }))}
+      sectorOptions={sectors.map((s) => ({ key: s.key, name: s.name }))}
+      availableSectors={sectors.filter((s) => s.isAvailable).map((s) => s.key)}
     />
   );
 }

@@ -10,7 +10,7 @@ import { Field, Input } from "@/components/yc/field";
 import { IconArrowLeft, IconArrowRight, IconCheck, IconGlobe } from "@/components/yc/icons";
 import type { OnboardingState } from "@/app/creer-ma-boutique/actions";
 
-export interface SectorOption { key: string; name: string }
+export interface SectorOption { key: string; name: string; available: boolean }
 export interface TemplateOption { slug: string; name: string; tagline: string; bg: string; ink: string; accent: string; serif: boolean }
 
 const STEP_TITLES = ["Votre compte", "Votre boutique", "Votre secteur", "Votre style"];
@@ -161,10 +161,12 @@ export function OnboardingFlow({
 
                 {step === 2 && (
                   <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Secteur">
-                    {sectors.map((s) => (
-                      <button key={s.key} type="button" role="radio" aria-checked={v.sector === s.key} onClick={() => setV({ ...v, sector: s.key })}
-                        className={`yc-focus flex items-center justify-between gap-3 rounded-xl bg-white p-4 text-left text-[15px] font-semibold ring-1 ring-inset transition-all duration-300 hover:-translate-y-0.5 ${v.sector === s.key ? "ring-2 ring-yc-royal shadow-yc" : "ring-yc-ink/10"}`}>
+                    {[...sectors].sort((a, b) => Number(b.available) - Number(a.available)).map((s) => (
+                      <button key={s.key} type="button" role="radio" aria-checked={v.sector === s.key} aria-disabled={!s.available || undefined}
+                        disabled={!s.available} onClick={() => s.available && setV({ ...v, sector: s.key })}
+                        className={`yc-focus flex items-center justify-between gap-3 rounded-xl p-4 text-left text-[15px] font-semibold ring-1 ring-inset transition-all duration-300 ${s.available ? "bg-white hover:-translate-y-0.5" : "cursor-not-allowed bg-white/50 text-yc-ink-soft"} ${v.sector === s.key ? "ring-2 ring-yc-royal shadow-yc" : "ring-yc-ink/10"}`}>
                         {s.name}
+                        {!s.available && <span className="shrink-0 rounded-full bg-yc-ink/[0.06] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide">À venir</span>}
                         {v.sector === s.key && <span className="yc-pop grid h-6 w-6 shrink-0 place-items-center rounded-full bg-yc-royal text-white"><IconCheck size={14} /></span>}
                       </button>
                     ))}

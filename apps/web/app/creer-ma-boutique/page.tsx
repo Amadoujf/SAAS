@@ -18,13 +18,13 @@ export default async function CreateStorePage({ searchParams }: { searchParams: 
   if (session?.user && (await getCurrentTenantMembership())) redirect("/dashboard");
   const [sectors, plan] = await withSuperAdminAccess(async (tx) => [
     await tx.sector.findMany({ where: { isSystem: true }, orderBy: { name: "asc" } }),
-    searchParams.formule ? await tx.subscriptionPlan.findFirst({ where: { name: searchParams.formule, status: "PUBLISHED" } }) : null,
+    searchParams.formule ? await tx.subscriptionPlan.findFirst({ where: { name: searchParams.formule, status: "PUBLISHED", isQuoteOnly: false } }) : null,
   ] as const);
   return (
     <div className={ycFontVariables}>
     <OnboardingFlow
       loggedIn={!!session?.user}
-      sectors={sectors.map((s) => ({ key: s.key, name: s.name }))}
+      sectors={sectors.filter((s) => s.isActive && s.key !== "custom").map((s) => ({ key: s.key, name: s.name, available: s.isAvailable }))}
       templates={STORE_TEMPLATES.map((t) => ({ slug: t.slug, name: t.name, tagline: t.tagline, bg: t.tokens.colors.background, ink: t.tokens.colors.textPrimary, accent: t.tokens.colors.secondary, serif: /serif/i.test(t.tokens.typography.headingFont) && !/sans-serif/i.test(t.tokens.typography.headingFont) }))}
       plan={plan?.name ?? null}
       action={createStoreAction}

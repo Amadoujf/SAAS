@@ -38,6 +38,9 @@ export default async function AdminPage() {
         <Link href="/admin/subscriptions" className="text-brand text-sm font-medium underline">
           Gérer les abonnements SaaS
         </Link>
+        <Link href="/admin/demandes" className="text-brand text-sm font-medium underline">
+          Demandes de devis (formule Sur mesure)
+        </Link>
       </nav>
       <section>
         <h2 className="mb-3 text-lg font-medium">{t(DEFAULT_LOCALE, "admin.tenants")}</h2>

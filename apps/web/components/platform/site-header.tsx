@@ -8,19 +8,28 @@ import { IconArrowRight, IconMenu, IconX } from "@/components/yc/icons";
 /** Secteurs couverts : seul le commerce est ouvert aujourd'hui ; les autres sont
  *  annoncés honnêtement comme « bientôt », jamais proposés à la vente. */
 export const SECTOR_LINKS = [
-  { key: "commerce", label: "Commerce", note: "Boutiques en ligne", available: true },
-  { key: "immobilier", label: "Immobilier", note: "Bientôt", available: false },
-  { key: "voyage", label: "Voyage", note: "Bientôt", available: false },
-  { key: "restauration", label: "Restauration", note: "Bientôt", available: false },
-  { key: "services", label: "Services", note: "Bientôt", available: false },
+  { key: "commerce", label: "Commerce", sectorKeys: ["ecommerce", "fashion"], liveNote: "Boutiques en ligne" },
+  { key: "immobilier", label: "Immobilier", sectorKeys: ["real_estate"], liveNote: "Biens et locations" },
+  { key: "voyage", label: "Voyage", sectorKeys: ["travel_agency"], liveNote: "Offres et réservations" },
+  { key: "restauration", label: "Restauration", sectorKeys: ["restaurant"], liveNote: "Carte et réservations" },
+  { key: "services", label: "Services", sectorKeys: ["services"], liveNote: "Prestations et rendez-vous" },
 ] as const;
+
+/** Disponibilité d'un univers : ouvert si l'un de ses secteurs est opérationnel en base. */
+export function withAvailability(availableSectors: string[]) {
+  return SECTOR_LINKS.map((s) => {
+    const available = s.sectorKeys.some((k) => availableSectors.includes(k));
+    return { ...s, available, note: available ? s.liveNote : "À venir" };
+  });
+}
 
 const LINKS = [
   { href: "#templates", label: "Templates" },
   { href: "#tarifs", label: "Tarifs" },
 ];
 
-export function PlatformHeader() {
+export function PlatformHeader({ availableSectors }: { availableSectors: string[] }) {
+  const sectors = withAvailability(availableSectors);
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
   const [solutions, setSolutions] = useState(false);
@@ -65,7 +74,7 @@ export function PlatformHeader() {
             </button>
             {solutions && (
               <div id="yc-solutions" className="absolute left-0 top-full mt-2 w-72 rounded-xl border border-yc-navy/10 bg-white p-2 shadow-[0_24px_60px_-24px_rgb(12_22_48/0.35)]">
-                {SECTOR_LINKS.map((s) => (
+                {sectors.map((s) => (
                   <a key={s.key} href={`#univers-${s.key}`} onClick={() => setSolutions(false)} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-yc-paper">
                     <span className="font-medium text-yc-navy-ink">{s.label}</span>
                     <span className={`text-xs ${s.available ? "font-semibold text-yc-royal" : "text-yc-ink-soft"}`}>{s.note}</span>
@@ -97,7 +106,7 @@ export function PlatformHeader() {
           </div>
           <nav aria-label="Menu mobile" className="flex flex-1 flex-col px-4 pb-8 sm:px-8">
             <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.22em] text-yc-ink-soft">Solutions</p>
-            {SECTOR_LINKS.map((s) => (
+            {sectors.map((s) => (
               <a key={s.key} href={`#univers-${s.key}`} onClick={() => setOpen(false)} className="flex items-baseline justify-between border-b border-yc-navy/10 py-3.5">
                 <span className="font-editorial text-[28px] leading-none text-yc-navy-ink">{s.label}</span>
                 <span className={`text-xs ${s.available ? "font-semibold text-yc-royal" : "text-yc-ink-soft"}`}>{s.note}</span>

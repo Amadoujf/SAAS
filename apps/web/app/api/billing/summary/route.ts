@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { withTenant, withSuperAdminAccess, resolveEffectiveLimit, type QuotaResourceKey } from "@yamacommerce/database";
+import { withTenant, withSuperAdminAccess, resolveEffectiveLimit, countQuotaUsage, type QuotaResourceKey } from "@yamacommerce/database";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 
-const QUOTA_KEYS: QuotaResourceKey[] = ["products", "employees", "domains"];
+const QUOTA_KEYS: QuotaResourceKey[] = ["records", "employees", "domains"];
 
 /**
  * Données de la page « Abonnement et facturation » — voir
@@ -34,12 +34,7 @@ export async function GET() {
     const usageEntries = await Promise.all(
       QUOTA_KEYS.map(async (key) => {
         const limit = await resolveEffectiveLimit(tx, membership.tenantId, key);
-        const used =
-          key === "products"
-            ? await tx.product.count({ where: { tenantId: membership.tenantId, deletedAt: null } })
-            : key === "employees"
-              ? await tx.tenantUser.count({ where: { tenantId: membership.tenantId, status: { in: ["INVITED", "ACTIVE"] } } })
-              : await tx.domain.count({ where: { tenantId: membership.tenantId, lifecycleStatus: { not: "REMOVED" } } });
+        const used = await countQuotaUsage(tx, membership.tenantId, key);
         return [key, { used, limit }] as const;
       }),
     );
@@ -76,6 +71,8 @@ export async function GET() {
       priceMonthly: plan.priceMonthly,
       priceYearly: plan.priceYearly,
       trialDays: plan.trialDays,
+      isQuoteOnly: plan.isQuoteOnly,
+      maxAIGenerationsPerMonth: plan.maxAIGenerationsPerMonth,
       maxProducts: plan.maxProducts,
       maxEmployees: plan.maxEmployees,
       maxShops: plan.maxShops,

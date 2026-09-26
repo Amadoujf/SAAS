@@ -16,6 +16,7 @@ const SECTION_LABELS: [string, string][] = [
   ["/dashboard/stocks", "Stocks"],
   ["/dashboard/categories", "Catégories"],
   ["/dashboard/facturation", "Facturation"],
+  ["/dashboard/equipe", "Équipe"],
 ];
 
 export function sectionLabel(pathname: string) {

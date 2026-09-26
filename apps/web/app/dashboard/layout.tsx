@@ -46,28 +46,39 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
   const toProcess = queues ? queues.toProcess + queues.awaitingProof : 0;
 
-  const groups: NavGroup[] = [{ label: "Pilotage", items: [{ href: "/dashboard", label: "Vue d'ensemble", icon: "home" }] }];
+  // Chaque entrée n'apparaît que si le membre a la permission correspondante (le
+  // serveur la revérifie de toute façon sur chaque page et chaque action).
+  const perms = new Set(membership?.permissions ?? []);
+  const allowed = (permission?: string) => !permission || session.user.isSuperAdmin || perms.has(permission);
+  type Entry = NavGroup["items"][number] & { permission?: string };
+  const pilot: Entry[] = [{ href: "/dashboard", label: "Vue d'ensemble", icon: "home" }];
+  const manage: Entry[] = [];
   if (membership && catalogEnabled) {
-    groups[0]!.items.push(
-      { href: "/dashboard/commandes", label: "Commandes", icon: "orders", badge: toProcess || undefined },
-      { href: "/dashboard/produits", label: "Produits", icon: "products" },
-      { href: "/dashboard/clients", label: "Clients", icon: "customers" },
-      { href: "/dashboard/livraison", label: "Livraisons", icon: "delivery" },
+    pilot.push(
+      { href: "/dashboard/commandes", label: "Commandes", icon: "orders", badge: toProcess || undefined, permission: "orders.view" },
+      { href: "/dashboard/produits", label: "Produits", icon: "products", permission: "products.view" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
+      { href: "/dashboard/livraison", label: "Livraisons", icon: "delivery", permission: "delivery.view" },
     );
-    groups.push({
-      label: "Gestion",
-      items: [
-        ...(storeUrl ? [{ href: storeUrl, label: "Mon site", icon: "site" as const, external: true }] : []),
-        { href: "/dashboard/paiements", label: "Paiements", icon: "payments" },
-        { href: "/dashboard/stocks", label: "Stocks", icon: "stock" },
-        { href: "/dashboard/categories", label: "Catégories", icon: "categories" },
-        { href: "/dashboard/facturation", label: "Facturation", icon: "billing" },
-      ],
-    });
+    if (storeUrl) manage.push({ href: storeUrl, label: "Mon site", icon: "site", external: true });
+    manage.push(
+      { href: "/dashboard/paiements", label: "Paiements", icon: "payments", permission: "payments.view" },
+      { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
+      { href: "/dashboard/categories", label: "Catégories", icon: "categories", permission: "products.view" },
+    );
   } else if (membership) {
-    groups[0]!.items.push({ href: "/dashboard/clients", label: "Clients", icon: "customers" });
-    groups.push({ label: "Gestion", items: [{ href: "/dashboard/facturation", label: "Facturation", icon: "billing" }] });
+    pilot.push({ href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" });
   }
+  if (membership) {
+    manage.push(
+      { href: "/dashboard/equipe", label: "Équipe", icon: "customers", permission: "employees.view" },
+      { href: "/dashboard/facturation", label: "Facturation", icon: "billing", permission: "settings.subscription" },
+    );
+  }
+  const groups: NavGroup[] = [
+    { label: "Pilotage", items: pilot.filter((i) => allowed(i.permission)) },
+    { label: "Gestion", items: manage.filter((i) => allowed(i.permission)) },
+  ].filter((g) => g.items.length > 0);
 
   const alerts = queues
     ? [

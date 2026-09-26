@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { planPerks } from "@/lib/billing/plan-catalog";
 
 interface SubscriptionSummary {
   status: string;
@@ -21,6 +22,8 @@ interface PlanSummary {
   priceMonthly: number;
   priceYearly: number;
   trialDays: number;
+  isQuoteOnly: boolean;
+  maxAIGenerationsPerMonth: number;
   maxProducts: number;
   maxEmployees: number;
   maxShops: number;
@@ -48,7 +51,7 @@ interface PaymentEntry {
 interface BillingSummary {
   subscription: SubscriptionSummary | null;
   plans: PlanSummary[];
-  usage: Record<"products" | "employees" | "domains", UsageEntry>;
+  usage: Record<"records" | "employees" | "domains", UsageEntry>;
   payments: PaymentEntry[];
 }
 
@@ -73,8 +76,8 @@ const TONE_CLASSES: Record<"ok" | "warning" | "danger", string> = {
 };
 
 const QUOTA_LABELS: Record<keyof BillingSummary["usage"], string> = {
-  products: "Produits",
-  employees: "Employés",
+  records: "Fiches",
+  employees: "Utilisateurs",
   domains: "Domaines personnalisés",
 };
 
@@ -243,14 +246,19 @@ export function BillingPanel() {
                 <div key={plan.id} className={`flex flex-col gap-2 rounded-yc-lg border p-4 ${isCurrent ? "border-yc-ink/40" : "border-yc-ink/10"}`}>
                   <p className="font-medium text-yc-ink">{plan.name}</p>
                   <p className="text-2xl font-semibold text-yc-ink">
-                    {price.toLocaleString("fr-FR")} <span className="text-sm font-normal text-yc-ink-soft">{plan.currency}</span>
+                    {plan.isQuoteOnly ? "Sur devis" : <>{price.toLocaleString("fr-FR")} <span className="text-sm font-normal text-yc-ink-soft">FCFA</span></>}
                   </p>
-                  <ul className="flex-1 text-sm text-yc-ink/80">
-                    <li>{plan.maxProducts} produits</li>
-                    <li>{plan.maxEmployees} employés</li>
-                    <li>{plan.maxCustomDomains} domaine(s) personnalisé(s)</li>
-                    <li>{plan.storageMB} Mo de stockage</li>
+                  <ul className="flex-1 space-y-1 text-sm text-yc-ink/80">
+                    {planPerks(plan.name, plan).map((perk) => (
+                      <li key={perk.label} className="flex flex-wrap items-center gap-1.5">
+                        {perk.label}
+                        {perk.soon && <span className="rounded-full bg-yc-ink/[0.06] px-1.5 py-0.5 text-[10px] font-semibold uppercase text-yc-ink-soft">À venir</span>}
+                      </li>
+                    ))}
                   </ul>
+                  {plan.isQuoteOnly ? (
+                    <a href="/#devis" className="mt-2 rounded-xl border border-yc-ink/15 px-4 py-2 text-center text-sm font-medium text-yc-ink hover:bg-yc-ivory-100">Demander un devis</a>
+                  ) : (
                   <button
                     type="button"
                     disabled={pendingPlanId === plan.id}
@@ -265,6 +273,7 @@ export function BillingPanel() {
                           ? "Changer de formule"
                           : "Souscrire"}
                   </button>
+                  )}
                 </div>
               );
             })}

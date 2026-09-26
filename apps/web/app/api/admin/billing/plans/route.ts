@@ -29,6 +29,7 @@ const planSchema = z.object({
   maxEmailsPerMonth: z.number().int().nonnegative().nullable().optional(),
   maxWhatsAppMessagesPerMonth: z.number().int().nonnegative().nullable().optional(),
   maxAIGenerationsPerMonth: z.number().int().nonnegative(),
+  isQuoteOnly: z.boolean().default(false),
   maxAIImagesAnalyzedPerMonth: z.number().int().nonnegative(),
   maxAIProductsImportedPerMonth: z.number().int().nonnegative(),
   aiEstimatedCostCapXOF: z.number().int().nonnegative().nullable().optional(),

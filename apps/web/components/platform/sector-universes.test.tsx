@@ -9,7 +9,7 @@ vi.mock("next/image", () => ({
 
 describe("SectorUniverses — univers par secteur", () => {
   it("seul le commerce propose un lien ; les autres secteurs sont annoncés « bientôt »", () => {
-    render(<SectorUniverses />);
+    render(<SectorUniverses availableSectors={["ecommerce", "fashion"]} />);
     const links = screen.getAllByRole("link", { name: /Découvrir/ });
     expect(links).toHaveLength(1);
     expect(links[0]).toHaveAttribute("href", "/creer-ma-boutique");
@@ -17,7 +17,7 @@ describe("SectorUniverses — univers par secteur", () => {
   });
 
   it("les onglets se pilotent au clavier et mettent à jour la description", () => {
-    render(<SectorUniverses />);
+    render(<SectorUniverses availableSectors={["ecommerce", "fashion"]} />);
     const commerce = screen.getByRole("tab", { name: "Commerce" });
     expect(commerce).toHaveAttribute("aria-selected", "true");
     expect(within(screen.getByRole("tabpanel")).getByText(/· disponible/)).toBeInTheDocument();
