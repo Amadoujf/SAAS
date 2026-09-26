@@ -9,6 +9,7 @@ import {
   releaseExpiredReservationTx,
   findExpiredReservationCandidates,
   sweepExpiredReservations,
+  type ReleaseReservationOutcome,
 } from "../src/order-reservation";
 
 /**
@@ -237,6 +238,64 @@ describe.skipIf(!databaseAvailable)("Expiration des réservations de stock", () 
     const history = await withTenant(tenantId, (tx) => tx.orderStatusHistory.findMany({ where: { orderId: order.id } }));
     expect(history).toHaveLength(3);
     expect(history.filter((h) => h.toStatus === "CANCELED")).toHaveLength(1);
+  });
+
+  it("DEUX WORKERS (déterministe) : un second worker qui valide PENDANT l'annulation du premier ne fait jamais libérer le stock deux fois", async () => {
+    // Reproduit exactement l'entrelacement trouvé sur GitHub Actions, sans dépendre du
+    // hasard de l'ordonnanceur : le premier worker est interrompu juste avant la
+    // lecture de statut de `transitionOrderStatus`, et un second worker concurrent
+    // tente d'annuler la MÊME commande à ce moment précis. Sans verrou de ligne, le
+    // second validait son annulation, puis le premier la découvrait déjà faite… et
+    // relâchait quand même le stock une seconde fois (READ COMMITTED : son comptage
+    // d'historique voyait la ligne validée par l'autre). Avec le verrou, le second
+    // attend la fin du premier puis est proprement ignoré.
+    const order = await createExpiredOnlineOrder(2);
+    const before = await withTenant(tenantId, (tx) =>
+      tx.inventoryItem.findFirstOrThrow({ where: { productVariantId: variantId, shopId } }),
+    );
+
+    let competitor: Promise<ReleaseReservationOutcome> | undefined;
+    const first = await withTenant(tenantId, (tx) => {
+      let orderFindFirstCalls = 0;
+      const bind = (target: object, value: unknown) => (typeof value === "function" ? value.bind(target) : value);
+      const orderDelegate = new Proxy(tx.order, {
+        get(target, prop) {
+          if (prop === "findFirst") {
+            return async (...args: Parameters<typeof tx.order.findFirst>) => {
+              orderFindFirstCalls += 1;
+              if (orderFindFirstCalls === 2 && !competitor) {
+                competitor = releaseExpiredReservation(tenantId, order.id);
+                // Laisse au second worker le temps de terminer s'il n'est pas bloqué.
+                await Promise.race([competitor, new Promise((resolve) => setTimeout(resolve, 500))]);
+              }
+              return target.findFirst(...args);
+            };
+          }
+          return bind(target, Reflect.get(target, prop));
+        },
+      });
+      const hookedTx = new Proxy(tx, {
+        get(target, prop) {
+          if (prop === "order") return orderDelegate;
+          return bind(target, Reflect.get(target, prop));
+        },
+      });
+      return releaseExpiredReservationTx(hookedTx, tenantId, order.id);
+    });
+    expect(competitor).toBeDefined();
+    const second = await competitor!;
+
+    const outcomes = [first.outcome, second.outcome].sort();
+    expect(outcomes).toEqual(["released", "skipped"]);
+
+    const after = await withTenant(tenantId, (tx) =>
+      tx.inventoryItem.findFirstOrThrow({ where: { productVariantId: variantId, shopId } }),
+    );
+    expect(after.availableQuantity).toBe(before.availableQuantity + 2);
+    expect(after.reservedQuantity).toBe(before.reservedQuantity - 2);
+
+    const movements = await withTenant(tenantId, (tx) => tx.stockMovement.findMany({ where: { referenceId: order.id } }));
+    expect(movements).toHaveLength(1);
   });
 
   it("COURSE CRITIQUE : paiement et expiration exécutés SIMULTANÉMENT sur la même commande — un seul gagne, jamais un état incohérent", async () => {

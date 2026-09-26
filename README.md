@@ -2,7 +2,7 @@
 
 Plateforme SaaS multi-entreprises et **multi-secteurs** (e-commerce, mode, restauration, immobilier, voyage, automobile, hôtellerie, services, éducation, livraison — et au-delà, voir [doc 11](docs/11-secteurs-et-modules.md)) permettant à chaque entrepreneur de choisir son secteur, ses modules, son template et de publier son site professionnel au Sénégal.
 
-> **Statut actuel : Phase 0 (fondations) livrée ; Phase 1 en cours** — architecture multi-business validée (docs 11 et 12), registre secteurs/modules et extension du domaine personnalisé codés et testés (schéma + logique), CI GitHub Actions en place pour vérifier tout cela contre un vrai PostgreSQL. Voir [État de la Phase 0](#état-de-la-phase-0-fondations) et [Phase 1 — avancement](#phase-1--avancement) plus bas, et [09-plan-developpement.md](docs/09-plan-developpement.md) pour le détail complet.
+> **Statut actuel (26 septembre 2026) : Phase 1 en cours — facturation SaaS stabilisée** — éditeur visuel, médiathèque, publication, domaines personnalisés, catalogue, commandes/panier/livraison et abonnements SaaS (Chariow) codés et testés contre un vrai PostgreSQL en CI. La Phase 1 n'est **pas** terminée : envoi d'e-mails, factures PDF/QR, assistant IA fiche produit et import massif ne sont encore que des tâches `TODO` du worker (`apps/worker/src/index.ts`), et les critères de sortie de [09-plan-developpement.md](docs/09-plan-developpement.md) ne sont pas encore vérifiés. Côté facturation SaaS, le point bloqué est la vérification de l'adaptateur Chariow contre leur vraie API (clés sandbox requises). Voir [Stabilisation de la facturation SaaS](#stabilisation-de-la-facturation-saas-septembre-2026) et le [rapport complet](docs/15-rapport-stabilisation-facturation.md).
 
 ## Documentation de conception
 
@@ -20,6 +20,9 @@ Plateforme SaaS multi-entreprises et **multi-secteurs** (e-commerce, mode, resta
 | 10  | [docs/10-structure-dossiers.md](docs/10-structure-dossiers.md)                                               | Arborescence du monorepo                                                             |
 | 11  | [docs/11-secteurs-et-modules.md](docs/11-secteurs-et-modules.md)                                             | Registre des 10 secteurs, modules communs et sectoriels, gouvernance d'activation    |
 | 12  | [docs/12-systeme-templates-et-direction-artistique.md](docs/12-systeme-templates-et-direction-artistique.md) | Système de templates, éditeur visuel, animations, direction artistique par secteur   |
+| 13  | [docs/13-domaines-personnalises.md](docs/13-domaines-personnalises.md)                                       | Sous-domaines gratuits, domaines personnalisés, cycle DNS/TLS, suspension            |
+| 14  | [docs/14-facturation-saas-abonnements.md](docs/14-facturation-saas-abonnements.md)                           | Abonnements SaaS via Chariow, quotas, grâce/suspension, dérogations                  |
+| 15  | [docs/15-rapport-stabilisation-facturation.md](docs/15-rapport-stabilisation-facturation.md)                 | Rapport de stabilisation : bogues réels trouvés et corrigés, résultats de tests      |
 
 ## État de la Phase 0 (fondations)
 
@@ -62,7 +65,7 @@ pnpm db:generate
 pnpm db:migrate:deploy
 ```
 
-(`db:migrate:deploy` applique les quatre migrations existantes, dans l'ordre : création du schéma, activation de Row-Level Security + création du rôle `yamacommerce_app`, registre secteurs/modules + extension du domaine personnalisé, puis registre de templates. Utilise `pnpm db:migrate` — `prisma migrate dev` — uniquement en développement si tu ajoutes de nouveaux modèles au schéma.)
+(`db:migrate:deploy` applique, dans l'ordre, les 15 migrations de `packages/database/prisma/migrations` : création du schéma, activation de Row-Level Security + création du rôle `yamacommerce_app`, puis les migrations fonctionnelles successives (secteurs/modules, templates, éditeur, médias, publication, domaines, catalogue, commandes, facturation SaaS). Utilise `pnpm db:migrate` — `prisma migrate dev` — uniquement en développement si tu ajoutes de nouveaux modèles au schéma.)
 
 ### 5. Charger les données de démonstration
 
@@ -97,7 +100,9 @@ pnpm db:studio      # Prisma Studio (explorateur de données)
 pnpm --filter @yamacommerce/database run validate   # valide prisma/schema.prisma
 ```
 
-### Résultats vérifiés dans cet environnement (2026-09-13)
+### Résultats vérifiés dans cet environnement (2026-09-13 — historique Phase 0)
+
+> Résultats historiques de la Phase 0, conservés pour mémoire. Les résultats actuels (793 tests, 11/11 packages) sont dans [Stabilisation de la facturation SaaS](#stabilisation-de-la-facturation-saas-septembre-2026).
 
 | Vérification                                                                             | Résultat                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -120,7 +125,7 @@ pnpm --filter @yamacommerce/database run validate   # valide prisma/schema.prism
 
 Le workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) reproduit fidèlement les commandes ci-dessus contre un vrai PostgreSQL et un vrai Redis (services GitHub Actions), à chaque push et pull request :
 
-`pnpm install` → `pnpm db:generate` → `pnpm db:migrate:deploy` (les deux migrations, y compris l'activation de Row-Level Security) → `pnpm db:seed` → `pnpm lint` → `pnpm typecheck` → `pnpm test`.
+`pnpm install` → `pnpm db:generate` → `pnpm db:migrate:deploy` (toutes les migrations, y compris l'activation de Row-Level Security) → `pnpm db:seed` → `pnpm lint` → `pnpm typecheck` → `pnpm test` → `pnpm build`.
 
 **Le test d'isolation multi-tenant (`packages/database/tests/tenant-isolation.test.ts`) n'est jamais simulé ni désactivé en CI** : la variable `REQUIRE_DB_TESTS=true` y est positionnée, ce qui transforme une base injoignable en échec du job plutôt qu'en test ignoré silencieusement (vérifié localement : voir historique de commit — avec `REQUIRE_DB_TESTS=true` et sans PostgreSQL, le test échoue bien au lieu de passer). En local, sans cette variable, la suite reste ignorée (skip) si PostgreSQL n'est pas disponible — comportement inchangé, documenté dans le fichier de test lui-même.
 
@@ -145,8 +150,20 @@ Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url
 - Modèles `SiteTemplate`/`TenantSite` migrés (`prisma/migrations/20260913010000_template_registry`, remplace proprement les tables placeholder de la Phase 0 — jamais appliquées à une base réelle, aucune perte de données possible) ; `packages/database/src/templates-registry.ts` (créer/publier/archiver un template, attribuer un template à une entreprise, résoudre les tokens effectifs).
 - Nouveaux tests : `packages/design-tokens` (6/6 ✅), `packages/templates` (13/13 ✅), `packages/database/tests/templates-registry.test.ts` (6 tests, dont la preuve qu'un changement de template ne supprime jamais une donnée métier — exécuté réellement en CI).
 
-**Reste à construire pour compléter la Phase 1** (voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md)) : le moteur de rendu (composants React par section/variante), l'éditeur visuel par sections, la prévisualisation responsive, les templates e-commerce complets, l'assistant de domaine dans le dashboard et les pages Super Admin de gestion des domaines.
+**Reste à construire pour compléter la Phase 1** (voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md) pour la liste et le critère de sortie) : envoi réel des e-mails et notifications, facturation PDF séquentielle + QR code, assistant IA fiche produit, import massif, PayDunya en production, filtrage réel du dashboard par modules actifs, puis vérification des critères d'acceptation du MVP. Le moteur de rendu, l'éditeur visuel, la prévisualisation responsive, les templates e-commerce et l'assistant de domaines sont désormais construits (voir l'historique des commits et les docs 12 et 13).
+
+## Stabilisation de la facturation SaaS (septembre 2026)
+
+Validation réelle de la facturation SaaS avant toute nouvelle fonctionnalité — détail complet dans [docs/15-rapport-stabilisation-facturation.md](docs/15-rapport-stabilisation-facturation.md).
+
+- **792 tests réels sur `4645347`** (CI GitHub verte), **793 avec le test de régression ajouté par `ca6d6d1`** — 0 échec, 0 skip, 11/11 packages verts ; `pnpm build` réussi (apps/web + apps/worker).
+- **8 bogues réels corrigés** : RLS de connexion (`fb7cee7`), suspension automatique vs paiement concurrent (`eefa8ba`), quota dépassable sous concurrence (`cfee5ea`), double libération de stock + rejet non géré à l'annulation (`9950bad`, correctif rendu fiable par verrou de ligne dans `ca6d6d1`), dédoublonnage client non atomique (`32e4cef`), interblocage (`26078f6`), « créer puis rattraper » corrigé par `SAVEPOINT` (`4645347`).
+- **Plus d'accès illimité par défaut** : sans abonnement, quotas à zéro et site public suspendu ; seule exception, la dérogation Super Admin tracée `Tenant.billingExemptedAt`.
 
 ## Prochaine étape
 
-Valider ce socle (registre + domaine) une fois la CI verte sur GitHub, puis enchaîner sur le prochain élément de la Phase 1 — voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md).
+1. **Bac à sable Chariow réel** — vérifier `packages/billing/src/adapters/chariow.adapter.ts` contre leur vraie API (`CHARIOW_SECRET_KEY`, `CHARIOW_WEBHOOK_SECRET`).
+2. **Envoi réel des notifications d'échéance** (e-mail/WhatsApp) — seule la mise en file est implémentée.
+3. **Menu mobile du dashboard** (barre latérale non repliable) et charte graphique de l'interface.
+
+Voir [docs/09-plan-developpement.md](docs/09-plan-developpement.md).
