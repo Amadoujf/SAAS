@@ -57,6 +57,9 @@ export interface NotificationJobData {
   templateType: string;
   recipient: string;
   variables: Record<string, unknown>;
+  /** Ligne `NotificationLog` à mettre à jour avec le résultat RÉEL de l'envoi —
+   *  présente pour les notifications de commande (voir order-operations). */
+  notificationLogId?: string;
 }
 
 /**

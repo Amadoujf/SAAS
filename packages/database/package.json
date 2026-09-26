@@ -16,7 +16,8 @@
     "studio": "dotenv -e ../../.env -- prisma studio",
     "lint": "eslint . --ext .ts",
     "typecheck": "dotenv -e ../../.env -- tsc --noEmit",
-    "test": "dotenv -e ../../.env -- vitest run"
+    "test": "dotenv -e ../../.env -- vitest run",
+    "seed:commerce-demo": "dotenv -e ../../.env -- tsx src/seed-commerce-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
