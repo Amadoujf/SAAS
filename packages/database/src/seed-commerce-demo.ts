@@ -51,8 +51,9 @@ async function main() {
     return;
   }
 
-  // Style de boutique choisi (comme à l'onboarding) : Atelier.
-  await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(tenant.branding as object), templatePreference: "teranga-atelier" } } }));
+  // Style de boutique choisi (comme à l'onboarding) : Atelier. `demoData` affiche le
+  // bandeau « Données de démonstration » dans le dashboard : jamais présenté comme réel.
+  await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(tenant.branding as object), templatePreference: "teranga-atelier", demoData: true } } }));
 
   const variantIds: Record<string, string[]> = {};
   await withTenant(tenantId, async (tx) => {
@@ -129,6 +130,20 @@ async function main() {
     { daysAgo: 12, lines: [["sandales-cuir-ngor", 3, 1]], method: "manual_wave", path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"], proof: "approved" },
     { daysAgo: 13, lines: [["coupon-wax-6-yards", 0, 3]], method: "cod", path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"] },
   ];
+  // Deux mois d'historique livré (J-15 à J-60) : une courbe de ventes lisible et une
+  // période précédente réelle pour les tendances du dashboard.
+  const HISTORY_LINES: [string, number, number][] = [["bracelet-laiton-sahel", 0, 1], ["huile-karite-baobab", 0, 1], ["sac-wax-teranga", 0, 1], ["huile-karite-baobab", 1, 1]];
+  const HISTORY_METHODS: OrderPaymentMethod[] = ["cod", "manual_wave", "cod", "manual_orange_money"];
+  for (let k = 0; k < 26; k += 1) {
+    const method = HISTORY_METHODS[k % 4]!;
+    scenarios.push({
+      daysAgo: 15 + Math.round(k * 1.75),
+      lines: [HISTORY_LINES[k % 10 < 4 ? k % 4 : k % 2]!],
+      method,
+      path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"],
+      ...(method === "cod" ? {} : { proof: "approved" as const }),
+    });
+  }
 
   for (const [i, s] of scenarios.entries()) {
     const [firstName, lastName] = CUSTOMERS[i % CUSTOMERS.length]!;

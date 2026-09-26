@@ -27,6 +27,7 @@ import {
   submitManualPaymentProof,
 } from "../src/order-operations";
 import { markNotificationOutcome, recordNotification } from "../src/notification-registry";
+import { getDashboardInsights } from "../src/dashboard-insights";
 import { getCustomerForTenant, listCustomers } from "../src/customer-registry";
 
 /**
@@ -572,6 +573,26 @@ describe.skipIf(!databaseAvailable)("Opérations commerce (livraison, paiement m
     expect(overview.revenue30).toBeGreaterThan(0);
     expect(overview.series).toHaveLength(14);
     expect(overview.series.at(-1)!.orders).toBeGreaterThan(0);
+  });
+
+  it("VUE D'ENSEMBLE PAR PÉRIODE : chiffres réels, paiements répartis, isolée par entreprise", async () => {
+    await order({ paymentMethod: "cod" });
+    const insights = await withTenant(tenantId, (tx) => getDashboardInsights(tx, tenantId, "30d"));
+    expect(insights.kpis.revenue.value).toBeGreaterThan(0);
+    expect(insights.kpis.orders.value).toBeGreaterThan(0);
+    expect(insights.kpis.customers.value).toBeGreaterThan(0);
+    expect(insights.series).toHaveLength(90);
+    expect(insights.series.at(-1)!.orders).toBeGreaterThan(0);
+    expect(insights.payments.items.find((p) => p.method === "cod")?.count).toBeGreaterThan(0);
+    expect(insights.payments.items.reduce((s, p) => s + p.percent, 0)).toBe(100);
+    expect(insights.recent.length).toBeGreaterThan(0);
+    // Toutes les commandes datent d'aujourd'hui : aucune base de comparaison, donc aucune tendance inventée.
+    expect(insights.kpis.revenue.trend).toBeNull();
+
+    const foreign = await withTenant(otherTenantId, (tx) => getDashboardInsights(tx, otherTenantId, "30d"));
+    expect(foreign.kpis.orders.value).toBe(0);
+    expect(foreign.recent).toHaveLength(0);
+    expect(foreign.payments.items).toHaveLength(0);
   });
 
   it("NOTIFICATIONS : « en file » n'est jamais « envoyée » sans résultat réel du worker", async () => {
