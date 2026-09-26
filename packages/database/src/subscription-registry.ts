@@ -92,6 +92,21 @@ export async function confirmSubscriptionPaymentSuccess(
     return { subscription, payment: existingPayment, outcome: "already_confirmed" };
   }
 
+  // Verrou EXCLUSIF pris ICI, AVANT toute écriture référençant cet abonnement —
+  // CORRECTION DE STABILISATION, DEADLOCK RÉEL trouvé en exécutant ce test sur GitHub
+  // Actions (jamais reproduit localement) : `SubscriptionPayment.subscriptionId` est
+  // une clé étrangère vers `TenantSubscription` — la CRÉER prend un verrou de PARTAGE
+  // implicite sur la ligne référencée (garantie standard PostgreSQL : le parent ne
+  // peut pas disparaître pendant l'insertion de l'enfant). Avec le verrou EXCLUSIF de
+  // `applyRenewalExtension` posé APRÈS cette création (version précédente), deux
+  // ventes concurrentes prenaient chacune ce partage AVANT de tenter de le faire
+  // monter en exclusif — cycle share-puis-exclusif classique, cassé par PostgreSQL
+  // (erreur 40P01, "deadlock detected"), jamais une simple attente. Acquérir
+  // l'exclusif ICI, avant la moindre écriture, garantit qu'une seule des deux ventes
+  // tient TOUT le temps un verrou sur cette ligne — l'autre attend simplement son
+  // tour, jamais un cycle.
+  await tx.$queryRaw`SELECT "id" FROM "TenantSubscription" WHERE "id" = ${input.subscriptionId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+
   const plan = await tx.subscriptionPlan.findUniqueOrThrow({ where: { id: input.planId } });
   const durationDays = input.billingCycle === "YEARLY" ? plan.yearlyDurationDays : plan.monthlyDurationDays;
 
@@ -165,14 +180,16 @@ async function applyRenewalExtension(
   actor: ConfirmSubscriptionPaymentActor,
   attempt = 1,
 ): Promise<TenantSubscription> {
-  // Verrou BLOQUANT — un paiement réel ne doit JAMAIS céder face au balayage
-  // automatique de fin de grâce (`subscription-lifecycle.ts`) : voir "COURSE CRITIQUE"
-  // dans subscription-lifecycle.test.ts. Attend que toute transaction concurrente sur
-  // CETTE ligne (typiquement le balayage, qui lui utilise `FOR UPDATE NOWAIT` et cède
-  // immédiatement s'il nous trouve déjà là) libère le verrou, puis relit un état
-  // garanti frais — jamais une décision prise sur une lecture qui pourrait devenir
-  // obsolète avant l'écriture.
-  await tx.$queryRaw`SELECT "id" FROM "TenantSubscription" WHERE "id" = ${subscriptionId} AND "tenantId" = ${tenantId} FOR UPDATE`;
+  // Le verrou BLOQUANT (`FOR UPDATE`) protégeant cette ligne contre le balayage
+  // automatique de fin de grâce (`subscription-lifecycle.ts`, "COURSE CRITIQUE" dans
+  // subscription-lifecycle.test.ts) est pris par l'APPELANT
+  // (`confirmSubscriptionPaymentSuccess`), AVANT la création du `SubscriptionPayment`
+  // — jamais ici : le reprendre à ce niveau, une fois par tentative de relecture,
+  // provoquait un DEADLOCK réel entre deux ventes concurrentes distinctes (voir le
+  // commentaire dans `confirmSubscriptionPaymentSuccess`). Toujours tenu pour toute la
+  // durée de la transaction (retries inclus), donc cette lecture est déjà garantie
+  // fraîche — jamais une décision prise sur un état qui pourrait devenir obsolète
+  // avant l'écriture.
   const subscription = await tx.tenantSubscription.findFirstOrThrow({ where: { id: subscriptionId, tenantId } });
 
   if (subscription.status !== "ACTIVE" && !isValidSubscriptionTransition(subscription.status, "ACTIVE")) {
