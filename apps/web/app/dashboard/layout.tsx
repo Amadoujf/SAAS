@@ -60,8 +60,9 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
       { href: "/dashboard/livraison", label: "Livraisons", icon: "delivery", permission: "delivery.view" },
     );
-    if (storeUrl) manage.push({ href: storeUrl, label: "Mon site", icon: "site", external: true });
     manage.push(
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Paiements", icon: "payments", permission: "payments.view" },
       { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
       { href: "/dashboard/categories", label: "Catégories", icon: "categories", permission: "products.view" },

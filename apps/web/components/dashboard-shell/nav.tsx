@@ -10,11 +10,14 @@ import {
   IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
 } from "@/components/yc/icons";
 
-export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site";
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media";
 
 const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
   categories: IconTag, stock: IconStack, delivery: IconTruck, settings: IconSettings, billing: IconCard, chart: IconChart, site: IconGlobe,
+  media: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m21 16-5-5-9 9" /></svg>
+  ),
 };
 
 export interface NavItem { href: string; label: string; icon: NavIcon; badge?: number; external?: boolean }
