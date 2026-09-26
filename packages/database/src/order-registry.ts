@@ -3,7 +3,7 @@ import type { Order, Prisma } from "@prisma/client";
 import { getOrCreateMainShop, InsufficientStockError } from "./catalog-registry";
 import { resolveOrCreateCustomer, addCustomerAddress, type CustomerInput, type CustomerAddressInput } from "./customer-registry";
 import { nextCounterValue, orderScope, formatOrderNumber } from "./counters";
-import { transitionOrderStatus, STOCK_COMMIT_STATUS, OrderStatusConflictError } from "./order-status";
+import { transitionOrderStatus, STOCK_COMMIT_STATUS, OrderStatusConflictError, InvalidOrderTransitionError } from "./order-status";
 
 /**
  * Persistance des commandes — étape 2 (clients/panier/commandes/livraison, 19
@@ -368,8 +368,32 @@ export async function cancelOrder(tx: Prisma.TransactionClient, tenantId: string
   const order = await tx.order.findFirst({ where: { id: orderId, tenantId } });
   if (!order) throw new Error(`cancelOrder : commande "${orderId}" introuvable pour ce tenant.`);
 
+  if (order.status === "CANCELED") {
+    // Déjà annulée — no-op sûr, le stock a déjà été libéré/restocké par la PREMIÈRE
+    // annulation réussie. Ne jamais le refaire (voir la course ci-dessous).
+    return order;
+  }
+
   const wasCommitted = !STATUSES_BEFORE_STOCK_COMMIT.has(order.status);
 
+  // CORRECTION DE STABILISATION — bogue réel trouvé en exécutant la suite réelle sur
+  // GitHub Actions (jamais reproduit localement, révélé par un ordonnancement
+  // différent) : `transitionOrderStatus` court-circuite silencieusement (retourne
+  // l'ordre SANS lever ni écrire d'historique) quand la commande est DÉJÀ dans l'état
+  // cible — un no-op légitime pour un rejeu simple, mais dangereux ici, car plusieurs
+  // appels CONCURRENTS de `cancelOrder` (ex. deux workers sur le même job expiré,
+  // voir order-reservation.test.ts « DEUX WORKERS ») peuvent chacun lire un statut PAS
+  // ENCORE annulé, puis découvrir — seulement au moment de l'appel interne et frais de
+  // `transitionOrderStatus` — que l'un d'eux a déjà gagné entre-temps. Sans détecter
+  // ce no-op, CHAQUE appelant relâchait/restockait le stock une fois de plus, jamais
+  // gardé par aucune contrainte DB (contrairement à `commitReservedStock`), d'où un
+  // dépassement réel constaté (3 libérations pour une seule commande annulée une
+  // fois). `transitionOrderStatus` n'écrit une ligne `OrderStatusHistory` QUE sur une
+  // vraie transition (jamais sur le court-circuit) — compter avant/après dans la MÊME
+  // transaction est donc un signal fiable, sans toucher à la signature publique de
+  // `transitionOrderStatus` (utilisée par des appelants qui, eux, n'ont pas cette
+  // classe de bogue).
+  const cancelHistoryBefore = await tx.orderStatusHistory.count({ where: { orderId, tenantId, toStatus: "CANCELED" } });
   await transitionOrderStatus(tx, tenantId, {
     orderId,
     toStatus: "CANCELED",
@@ -377,11 +401,15 @@ export async function cancelOrder(tx: Prisma.TransactionClient, tenantId: string
     changedByType: actor.changedByType,
     note: actor.note,
   });
+  const cancelHistoryAfter = await tx.orderStatusHistory.count({ where: { orderId, tenantId, toStatus: "CANCELED" } });
 
-  if (wasCommitted) {
-    await restockAfterPostConfirmationCancel(tx, tenantId, orderId);
-  } else {
-    await releaseReservedStock(tx, tenantId, orderId, actor.note ?? "Réservation libérée (commande annulée avant confirmation)");
+  if (cancelHistoryAfter > cancelHistoryBefore) {
+    // CET appel a réellement effectué la transition — lui seul relâche/restocke.
+    if (wasCommitted) {
+      await restockAfterPostConfirmationCancel(tx, tenantId, orderId);
+    } else {
+      await releaseReservedStock(tx, tenantId, orderId, actor.note ?? "Réservation libérée (commande annulée avant confirmation)");
+    }
   }
 
   if (order.reservationExpiresAt) {
@@ -465,7 +493,17 @@ export async function confirmOrderPaymentSuccess(
       note: "Confirmation automatique après paiement reçu.",
     });
   } catch (error) {
-    if (error instanceof OrderStatusConflictError && attempt < 3) {
+    // CORRECTION DE STABILISATION — bogue réel trouvé sur GitHub Actions : la garde
+    // anti-TOCTOU de `transitionOrderStatus` ne lève pas TOUJOURS
+    // `OrderStatusConflictError` en cas de course perdue. Si l'annulation concurrente
+    // (`releaseExpiredReservation`) a DÉJÀ commis avant que cette fonction ne relise
+    // l'état frais, la commande est maintenant `CANCELED` — une cible `PAID`/
+    // `CONFIRMED` depuis `CANCELED` n'est pas seulement "en conflit", elle est
+    // INVALIDE (voir `isValidOrderTransition`), donc `InvalidOrderTransitionError` est
+    // levée à la place. Le commentaire ci-dessus annonçait déjà l'intention ("on relit
+    // l'état FRAIS et on redécide") : il manquait seulement ce second type d'erreur
+    // dans la condition qui déclenche cette relecture.
+    if ((error instanceof OrderStatusConflictError || error instanceof InvalidOrderTransitionError) && attempt < 3) {
       return confirmOrderPaymentSuccess(tx, tenantId, orderId, note, attempt + 1);
     }
     throw error;
