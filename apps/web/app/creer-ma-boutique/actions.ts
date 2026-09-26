@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { AuthError } from "next-auth";
 import { normalizeSubdomain, validateSubdomainFormat } from "@yamacommerce/domains";
-import { createOwnerAccount, provisionTenantForOwner, ProvisioningError, isSubdomainTaken } from "@yamacommerce/database";
+import { provisionTenantForOwner, signUpAndProvision, ProvisioningError, isSubdomainTaken } from "@yamacommerce/database";
 import { auth, signIn } from "@/lib/auth";
 
 export interface OnboardingState {
@@ -22,23 +22,21 @@ export async function createStoreAction(_prev: OnboardingState, form: FormData):
   if (!validateSubdomainFormat(subdomain).valid) return { error: "Adresse de boutique invalide.", field: "subdomain" };
   if (await isSubdomainTaken(subdomain, SUFFIX)) return { error: "Cette adresse est déjà prise.", field: "subdomain" };
 
-  let userId = session?.user?.id ?? null;
   const email = get("email");
   const password = String(form.get("password") ?? "");
+  const tenantInput = {
+    name: get("storeName"),
+    subdomain,
+    subdomainSuffix: SUFFIX,
+    sectorKey: get("sector"),
+    planName: get("plan") || null,
+    templatePreference: get("template") || null,
+  };
   try {
-    if (!userId) {
-      const user = await createOwnerAccount({ email, fullName: get("fullName"), password });
-      userId = user.id;
-    }
-    await provisionTenantForOwner({
-      ownerUserId: userId,
-      name: get("storeName"),
-      subdomain,
-      subdomainSuffix: SUFFIX,
-      sectorKey: get("sector"),
-      planName: get("plan") || null,
-      templatePreference: get("template") || null,
-    });
+    // Visiteur non connecté : compte ET entreprise dans une seule transaction — un
+    // échec ne laisse jamais un compte orphelin qui bloquerait un nouvel essai.
+    if (session?.user) await provisionTenantForOwner({ ...tenantInput, ownerUserId: session.user.id });
+    else await signUpAndProvision({ email, fullName: get("fullName"), password }, tenantInput);
   } catch (error) {
     if (error instanceof ProvisioningError) return { error: error.message, field: error.field };
     throw error;

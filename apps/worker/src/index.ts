@@ -118,6 +118,13 @@ const notificationsWorker = new Worker<NotificationJobData>(
       resendApiKey: process.env.RESEND_API_KEY ?? null,
       emailFrom: process.env.EMAIL_FROM ?? null,
     });
+    // Panne transitoire (réseau, 429, 5xx) avec des tentatives restantes : on lève
+    // l'erreur pour que BullMQ relance le job (backoff) — la notification reste
+    // « en file » ; elle n'est notée « échouée » qu'à la dernière tentative.
+    const lastAttempt = job.attemptsMade + 1 >= (job.opts.attempts ?? 1);
+    if (outcome.status === "failed" && outcome.retryable && !lastAttempt) {
+      throw new Error(`[notifications] échec transitoire, nouvelle tentative : ${outcome.error}`);
+    }
     if (job.data.notificationLogId) {
       await withTenant(job.data.tenantId, (tx) =>
         markNotificationOutcome(tx, job.data.tenantId, job.data.notificationLogId!, { status: outcome.status, error: outcome.error ?? null }),

@@ -64,9 +64,13 @@ export async function changeOrderStatus(orderId: string, toStatus: OrderStatus, 
   try {
     let planned: PlannedNotification[] = [];
     const order = await withTenant(ctx.tenantId, async (tx) => {
+      // Verrou puis lecture du statut AVANT la transition : une requête rejouée
+      // (délai dépassé, double clic) est un succès idempotent, mais elle ne doit
+      // jamais renvoyer une seconde fois les notifications du changement de statut.
+      const [before] = await tx.$queryRaw<{ status: OrderStatus }[]>`SELECT "status" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${ctx.tenantId} FOR UPDATE`;
       const updated = await advanceOrderStatus(tx, ctx.tenantId, orderId, toStatus, ctx.actor, note);
       const event = notificationEventForStatus(toStatus);
-      if (event) planned = await planOrderNotifications(tx, ctx.tenantId, orderId, event);
+      if (event && before && before.status !== updated.status) planned = await planOrderNotifications(tx, ctx.tenantId, orderId, event);
       return updated;
     });
     await dispatchPlannedNotifications(ctx.tenantId, planned);

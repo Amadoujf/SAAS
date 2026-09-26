@@ -12,7 +12,11 @@ export function useOrderAction(orderId: string) {
   const [success, setSuccess] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
-  async function run(key: string, body: Record<string, unknown>, successMessage: string) {
+  async function run(
+    key: string,
+    body: Record<string, unknown>,
+    successMessage: string | ((data: unknown) => { success: string } | { warning: string }),
+  ) {
     setPending(key);
     setError(null);
     setSuccess(null);
@@ -22,12 +26,16 @@ export function useOrderAction(orderId: string) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
       });
-      const json = (await response.json().catch(() => ({}))) as { error?: string };
+      const json = (await response.json().catch(() => ({}))) as { error?: string; data?: unknown };
       if (!response.ok) {
         setError(json.error ?? "L'action a échoué.");
         return false;
       }
-      setSuccess(successMessage);
+      // Le message dépend du RÉSULTAT réel renvoyé par le serveur (ex. un paiement
+      // mis en rapprochement n'est jamais annoncé comme « validé »).
+      const message = typeof successMessage === "string" ? { success: successMessage } : successMessage(json.data);
+      if ("warning" in message) setError(message.warning);
+      else setSuccess(message.success);
       startTransition(() => router.refresh());
       return true;
     } catch {

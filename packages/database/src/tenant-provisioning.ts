@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { hashPassword } from "@yamacommerce/auth";
 import { prisma } from "./client";
 import { withSuperAdminAccess } from "./tenant-context";
@@ -26,16 +27,27 @@ export interface OwnerAccountInput {
   password: string;
 }
 
-/** Crée le compte du propriétaire. Refuse un e-mail déjà utilisé (jamais de prise de
- *  contrôle d'un compte existant par l'onboarding). */
-export async function createOwnerAccount(input: OwnerAccountInput) {
+function validateAccount(input: OwnerAccountInput) {
   const email = input.email.trim().toLowerCase();
   if (!/^\S+@\S+\.\S+$/.test(email)) throw new ProvisioningError("email", "Adresse e-mail invalide.");
   if (input.fullName.trim().length < 2) throw new ProvisioningError("name", "Indiquez votre nom.");
   if (input.password.length < 8) throw new ProvisioningError("password", "Le mot de passe doit contenir au moins 8 caractères.");
-  const existing = await prisma.user.findUnique({ where: { email } });
+  return email;
+}
+
+export async function createAccountIn(tx: Prisma.TransactionClient, input: OwnerAccountInput, passwordHash: string) {
+  const email = validateAccount(input);
+  const existing = await tx.user.findUnique({ where: { email } });
   if (existing) throw new ProvisioningError("email", "Un compte existe déjà avec cet e-mail : connectez-vous.");
-  return prisma.user.create({ data: { email, fullName: input.fullName.trim(), passwordHash: await hashPassword(input.password) } });
+  return tx.user.create({ data: { email, fullName: input.fullName.trim(), passwordHash } });
+}
+
+/** Crée le compte du propriétaire. Refuse un e-mail déjà utilisé (jamais de prise de
+ *  contrôle d'un compte existant par l'onboarding). */
+export async function createOwnerAccount(input: OwnerAccountInput) {
+  validateAccount(input);
+  const passwordHash = await hashPassword(input.password);
+  return prisma.$transaction((tx) => createAccountIn(tx, input, passwordHash));
 }
 
 export interface ProvisionTenantInput {
@@ -59,9 +71,28 @@ export async function isSubdomainTaken(subdomain: string, suffix: string): Promi
 }
 
 export async function provisionTenantForOwner(input: ProvisionTenantInput) {
+  return withSuperAdminAccess((tx) => provisionIn(tx, input));
+}
+
+/**
+ * Inscription complète (compte + entreprise) en UNE transaction : si la création de
+ * l'entreprise échoue (adresse prise entre-temps, formule ou secteur refusé), le compte
+ * n'est pas créé non plus — l'utilisateur peut corriger et renvoyer le formulaire.
+ */
+export async function signUpAndProvision(account: OwnerAccountInput, tenant: Omit<ProvisionTenantInput, "ownerUserId">) {
+  validateAccount(account);
+  const passwordHash = await hashPassword(account.password);
+  return withSuperAdminAccess(async (tx) => {
+    const user = await createAccountIn(tx, account, passwordHash);
+    const result = await provisionIn(tx, { ...tenant, ownerUserId: user.id });
+    return { ...result, userId: user.id };
+  });
+}
+
+async function provisionIn(tx: Prisma.TransactionClient, input: ProvisionTenantInput) {
   const name = input.name.trim();
   if (name.length < 2 || name.length > 80) throw new ProvisioningError("name", "Le nom de l'entreprise doit contenir 2 à 80 caractères.");
-  return withSuperAdminAccess(async (tx) => {
+  {
     const sector = await tx.sector.findUnique({ where: { key: input.sectorKey } });
     if (!sector) throw new ProvisioningError("sector", "Secteur inconnu.");
     // Seuls les secteurs réellement opérationnels sont ouverts à la création.
@@ -120,5 +151,5 @@ export async function provisionTenantForOwner(input: ProvisionTenantInput) {
     });
     await tx.shop.create({ data: { tenantId: tenant.id, name: "Boutique principale", isMain: true } });
     return { tenantId: tenant.id, domain: domainName, trialEndsAt: trialEnd, planName: plan.name };
-  });
+  }
 }

@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/client";
 import { withTenant } from "../src/tenant-context";
 import { testOwnerClient } from "./test-owner-client";
-import { createOwnerAccount, isSubdomainTaken, provisionTenantForOwner, ProvisioningError } from "../src/tenant-provisioning";
+import { createOwnerAccount, isSubdomainTaken, provisionTenantForOwner, ProvisioningError, signUpAndProvision } from "../src/tenant-provisioning";
 
 /** Onboarding public contre PostgreSQL réel : entreprise complète créée en une
  *  transaction, adresse et e-mail uniques, isolation du nouveau tenant. */
@@ -79,5 +79,18 @@ describe.skipIf(!databaseAvailable)("Provisionnement d'une entreprise (onboardin
       provisionTenantForOwner({ ownerUserId: other.id, name: "Groupe", subdomain: `${subdomain}-grp`, subdomainSuffix: "yamacommerce.ai", sectorKey: "ecommerce", planName: "Sur mesure" }),
     ).rejects.toThrow(/devis/);
     expect(await testOwnerClient().tenant.count()).toBe(before);
+  });
+
+  it("inscription atomique : si l'entreprise ne peut être créée, le compte ne l'est pas non plus (nouvel essai possible)", async () => {
+    const orphanEmail = `orphelin-${email}`;
+    await expect(
+      signUpAndProvision({ email: orphanEmail, fullName: "Fatou Essai", password: "motdepasse-solide" }, { name: "Doublon", subdomain, subdomainSuffix: "yamacommerce.ai", sectorKey: "fashion" }),
+    ).rejects.toBeInstanceOf(ProvisioningError);
+    expect(await testOwnerClient().user.findUnique({ where: { email: orphanEmail } })).toBeNull();
+    // Le même e-mail peut réessayer avec une autre adresse de boutique.
+    const ok = await signUpAndProvision({ email: orphanEmail, fullName: "Fatou Essai", password: "motdepasse-solide" }, { name: "Boutique Fatou", subdomain: `${subdomain}-fatou`, subdomainSuffix: "yamacommerce.ai", sectorKey: "fashion" });
+    tenantIds.push(ok.tenantId);
+    userIds.push(ok.userId);
+    expect(ok.userId).toBeTruthy();
   });
 });

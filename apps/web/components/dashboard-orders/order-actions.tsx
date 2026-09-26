@@ -78,15 +78,29 @@ export function StatusActions({ orderId, status, pickup, canCancel, canRefund, o
   );
 }
 
-export function ManualPaymentReview({ orderId }: { orderId: string }) {
+const approvalMessage = (data: unknown) => {
+  const outcome = (data as { outcome?: string } | undefined)?.outcome;
+  if (outcome === "flagged_for_manual_reconciliation") {
+    return { warning: "Paiement enregistré pour rapprochement : la commande avait été annulée, elle reste annulée et aucun stock n'est engagé. Remboursez le client ou contactez-le." };
+  }
+  if (outcome === "already_approved") return { success: "Ce paiement avait déjà été validé." };
+  return { success: "Paiement validé : commande confirmée, stock engagé." };
+};
+
+export function ManualPaymentReview({ orderId, canceled = false }: { orderId: string; canceled?: boolean }) {
   const { run, pending, error, success } = useOrderAction(orderId);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState("");
   return (
     <div>
       <div className="flex flex-wrap gap-2">
-        <Button variant="primary" loading={pending === "approve"} onClick={() => run("approve", { action: "payment", decision: "approve" }, "Paiement validé : commande confirmée, stock engagé.")}>
-          <IconCheck size={18} /> Valider le paiement
+        {canceled && (
+          <p className="w-full rounded-lg bg-yc-warning/[0.12] px-3 py-2 text-sm">
+            Le client a annulé la commande après avoir envoyé sa preuve. Si l&apos;argent a bien été reçu, enregistrez-le pour rapprochement puis remboursez le client : la commande ne sera pas relancée.
+          </p>
+        )}
+        <Button variant="primary" loading={pending === "approve"} onClick={() => run("approve", { action: "payment", decision: "approve" }, approvalMessage)}>
+          <IconCheck size={18} /> {canceled ? "Enregistrer le paiement reçu" : "Valider le paiement"}
         </Button>
         <Button variant="danger" onClick={() => setRejecting(true)}>
           <IconX size={18} /> Refuser

@@ -97,7 +97,7 @@ export default async function OrderDetailPage({ params }: { params: { id: string
                 {manualPending.proofImageUrl && (
                   <a href={manualPending.proofImageUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-yc-electric underline sm:col-span-3">Voir la capture envoyée</a>
                 )}
-                <div className="sm:col-span-3"><ManualPaymentReview orderId={order.id} /></div>
+                <div className="sm:col-span-3"><ManualPaymentReview orderId={order.id} canceled={order.status === "CANCELED"} /></div>
               </div>
             </Panel>
           )}
