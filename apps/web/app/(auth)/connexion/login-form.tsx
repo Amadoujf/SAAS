@@ -6,7 +6,7 @@ import { Field, Input } from "@/components/yc/field";
 
 function Submit() {
   const { pending } = useFormStatus();
-  return <Button type="submit" size="lg" loading={pending} className="mt-2 w-full rounded-full">{pending ? "Connexion…" : "Se connecter"}</Button>;
+  return <Button type="submit" variant="royal" size="lg" loading={pending} className="mt-2 w-full rounded-lg">{pending ? "Connexion…" : "Se connecter"}</Button>;
 }
 
 export function LoginForm({ action, next }: { action: (form: FormData) => Promise<void>; next: string }) {

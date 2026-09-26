@@ -17,7 +17,7 @@ const STEP_TITLES = ["Votre compte", "Votre boutique", "Votre secteur", "Votre s
 
 function Submit() {
   const { pending } = useFormStatus();
-  return <Button type="submit" size="lg" variant="glow" loading={pending} className="rounded-full">{pending ? "Création en cours…" : "Créer ma boutique"}</Button>;
+  return <Button type="submit" size="lg" variant="royal" loading={pending} className="rounded-lg">{pending ? "Création en cours…" : "Créer ma boutique"}</Button>;
 }
 
 export function OnboardingFlow({
@@ -85,7 +85,7 @@ export function OnboardingFlow({
   };
 
   const preview = useMemo(() => (
-    <div className="relative w-full max-w-[380px] overflow-hidden rounded-[28px] shadow-[0_50px_120px_-30px_rgb(0_0_0/0.6)] ring-1 ring-white/15 transition-colors duration-500" style={{ background: template.bg, color: template.ink }} aria-hidden="true">
+    <div className="relative w-full max-w-[380px] overflow-hidden rounded-xl shadow-[0_50px_120px_-30px_rgb(0_0_0/0.6)] ring-1 ring-white/15 transition-colors duration-500" style={{ background: template.bg, color: template.ink }} aria-hidden="true">
       <div className="flex items-center gap-2 bg-black/5 px-4 py-2.5 text-[11px] opacity-80"><IconGlobe size={12} /><span className="truncate">{(v.subdomain || "votre-boutique")}.{check?.suffix ?? "yamacommerce.ai"}</span></div>
       <div className="p-6">
         <p className={`text-2xl font-semibold tracking-tight ${template.serif ? "font-serif" : "font-display"}`}>{v.storeName || "Votre boutique"}</p>
@@ -104,20 +104,18 @@ export function OnboardingFlow({
   return (
     <div className="grid min-h-screen font-ui lg:grid-cols-[1fr_1.1fr]">
       {/* Aperçu vivant : la boutique se dessine à mesure qu'on la décrit. */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-yc-night-950 p-10 text-white lg:flex">
-        <div className="pointer-events-none absolute inset-0 yc-glow" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-0 yc-grid" aria-hidden="true" />
+      <aside className="relative hidden flex-col justify-between overflow-hidden bg-yc-navy p-10 text-yc-paper lg:flex">
         <Link href="/" className="relative w-fit"><YcLogo tone="light" /></Link>
         <div className="relative flex justify-center">{preview}</div>
-        <p className="relative text-sm text-white/55">Essai gratuit{plan ? ` · formule ${plan}` : ""}. Aucun prélèvement automatique.</p>
+        <p className="relative text-sm text-yc-paper/70">Essai gratuit{plan ? ` · formule ${plan}` : ""}. Aucun prélèvement automatique.</p>
       </aside>
 
-      <main className="flex flex-col bg-yc-ivory-50 px-5 py-8 text-yc-ink sm:px-10 lg:px-16 lg:py-12">
+      <main className="flex flex-col bg-yc-paper px-4 py-8 text-yc-navy-ink sm:px-10 lg:px-16 lg:py-12">
         <div className="mb-10 flex items-center justify-between lg:hidden"><Link href="/"><YcLogo /></Link></div>
         <ol className="mb-10 grid grid-cols-4 gap-2" aria-label="Étapes">
           {STEP_TITLES.map((t, i) => (
             <li key={t} className={i < first ? "hidden" : ""} aria-current={i === step ? "step" : undefined}>
-              <span className="block h-1 overflow-hidden rounded-full bg-yc-ink/10"><span className="block h-full bg-gradient-to-r from-yc-cyan to-yc-electric transition-all duration-500" style={{ width: i <= step ? "100%" : "0%" }} /></span>
+              <span className="block h-1 overflow-hidden rounded-full bg-yc-ink/10"><span className="block h-full bg-yc-royal transition-all duration-500" style={{ width: i <= step ? "100%" : "0%" }} /></span>
               <span className={`mt-2 hidden text-xs font-semibold sm:block ${i === step ? "text-yc-ink" : "text-yc-ink-soft"}`}>{t}</span>
             </li>
           ))}
@@ -129,8 +127,8 @@ export function OnboardingFlow({
           <div className="flex-1">
             <AnimatePresence mode="wait" custom={dir} initial={false}>
               <motion.div key={step} initial={reduce ? { opacity: 0 } : { opacity: 0, x: dir * 40 }} animate={{ opacity: 1, x: 0 }} exit={reduce ? { opacity: 0 } : { opacity: 0, x: dir * -40 }} transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-yc-electric">Étape {step - first + 1} sur {4 - first}</p>
-                <h1 className="mt-2 font-display text-[34px] font-semibold leading-[1.05] tracking-[-0.025em] sm:text-[42px]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-yc-ink-soft">Étape {step - first + 1} sur {4 - first}</p>
+                <h1 className="mt-3 font-editorial text-[36px] leading-[1.04] sm:text-[46px]">
                   {["Créons votre compte", "Comment s'appelle votre boutique ?", "Que vendez-vous ?", "Quel style vous ressemble ?"][step]}
                 </h1>
 
@@ -139,7 +137,7 @@ export function OnboardingFlow({
                     <Field label="Nom complet" error={errors.fullName}>{(p) => <Input {...p} autoComplete="name" value={v.fullName} onChange={(e) => setV({ ...v, fullName: e.target.value })} />}</Field>
                     <Field label="E-mail" error={errors.email}>{(p) => <Input {...p} type="email" autoComplete="email" value={v.email} onChange={(e) => setV({ ...v, email: e.target.value })} />}</Field>
                     <Field label="Mot de passe" hint="8 caractères minimum." error={errors.password}>{(p) => <Input {...p} type="password" autoComplete="new-password" value={v.password} onChange={(e) => setV({ ...v, password: e.target.value })} />}</Field>
-                    <p className="text-sm text-yc-ink-soft">Déjà un compte ? <Link href="/connexion?suite=/creer-ma-boutique" className="font-semibold text-yc-electric underline-offset-4 hover:underline">Connectez-vous</Link></p>
+                    <p className="text-sm text-yc-ink-soft">Déjà un compte ? <Link href="/connexion?suite=/creer-ma-boutique" className="font-semibold text-yc-royal underline-offset-4 hover:underline">Connectez-vous</Link></p>
                   </div>
                 )}
 
@@ -148,14 +146,14 @@ export function OnboardingFlow({
                     <Field label="Nom de la boutique" error={errors.storeName}>{(p) => <Input {...p} value={v.storeName} onChange={(e) => setV({ ...v, storeName: e.target.value })} placeholder="Boutique Aïda" />}</Field>
                     <Field label="Adresse de votre site" error={errors.subdomain} hint={check?.available ? <span className="font-semibold text-[rgb(4_120_87)]">✓ Disponible</span> : check?.message ?? undefined}>
                       {(p) => (
-                        <div className="flex items-stretch overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-yc-ink/12 focus-within:ring-2 focus-within:ring-yc-electric">
+                        <div className="flex items-stretch overflow-hidden rounded-xl bg-white ring-1 ring-inset ring-yc-ink/12 focus-within:ring-2 focus-within:ring-yc-royal">
                           <input {...p} value={v.subdomain} onChange={(e) => { setTouchedSub(true); setV({ ...v, subdomain: e.target.value }); }} className="h-11 min-w-0 flex-1 bg-transparent px-3.5 text-[15px] outline-none" />
                           <span className="flex items-center bg-yc-ivory-100 px-3 text-sm text-yc-ink-soft">.{check?.suffix ?? "yamacommerce.ai"}</span>
                         </div>
                       )}
                     </Field>
                     {check && !check.available && (check.suggestions?.length ?? 0) > 0 && (
-                      <div className="flex flex-wrap gap-2">{check.suggestions!.map((s) => <button key={s} type="button" onClick={() => { setTouchedSub(true); setV({ ...v, subdomain: s }); }} className="yc-focus rounded-full bg-white px-3 py-1.5 text-sm font-semibold ring-1 ring-yc-ink/10 hover:ring-yc-electric">{s}</button>)}</div>
+                      <div className="flex flex-wrap gap-2">{check.suggestions!.map((s) => <button key={s} type="button" onClick={() => { setTouchedSub(true); setV({ ...v, subdomain: s }); }} className="yc-focus rounded-full bg-white px-3 py-1.5 text-sm font-semibold ring-1 ring-yc-ink/10 hover:ring-yc-royal">{s}</button>)}</div>
                     )}
                     <p className="text-sm text-yc-ink-soft">Vous pourrez connecter votre propre nom de domaine plus tard.</p>
                   </div>
@@ -165,9 +163,9 @@ export function OnboardingFlow({
                   <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Secteur">
                     {sectors.map((s) => (
                       <button key={s.key} type="button" role="radio" aria-checked={v.sector === s.key} onClick={() => setV({ ...v, sector: s.key })}
-                        className={`yc-focus flex items-center justify-between gap-3 rounded-2xl bg-white p-4 text-left text-[15px] font-semibold ring-1 ring-inset transition-all duration-300 hover:-translate-y-0.5 ${v.sector === s.key ? "ring-2 ring-yc-electric shadow-yc" : "ring-yc-ink/10"}`}>
+                        className={`yc-focus flex items-center justify-between gap-3 rounded-xl bg-white p-4 text-left text-[15px] font-semibold ring-1 ring-inset transition-all duration-300 hover:-translate-y-0.5 ${v.sector === s.key ? "ring-2 ring-yc-royal shadow-yc" : "ring-yc-ink/10"}`}>
                         {s.name}
-                        {v.sector === s.key && <span className="yc-pop grid h-6 w-6 shrink-0 place-items-center rounded-full bg-yc-electric text-white"><IconCheck size={14} /></span>}
+                        {v.sector === s.key && <span className="yc-pop grid h-6 w-6 shrink-0 place-items-center rounded-full bg-yc-royal text-white"><IconCheck size={14} /></span>}
                       </button>
                     ))}
                     {errors.sector && <p role="alert" className="text-sm text-yc-danger sm:col-span-2">{errors.sector}</p>}
@@ -178,11 +176,11 @@ export function OnboardingFlow({
                   <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Template">
                     {templates.map((t) => (
                       <button key={t.slug} type="button" role="radio" aria-checked={v.template === t.slug} onClick={() => setV({ ...v, template: t.slug })}
-                        className={`yc-focus overflow-hidden rounded-2xl text-left ring-1 ring-inset transition-all duration-300 hover:-translate-y-0.5 ${v.template === t.slug ? "ring-2 ring-yc-electric shadow-yc-float" : "ring-yc-ink/10"}`}>
+                        className={`yc-focus overflow-hidden rounded-xl text-left ring-1 ring-inset transition-all duration-300 hover:-translate-y-0.5 ${v.template === t.slug ? "ring-2 ring-yc-royal shadow-yc-float" : "ring-yc-ink/10"}`}>
                         <span className="block h-24" style={{ background: `linear-gradient(135deg, ${t.bg} 0%, ${t.bg} 45%, ${t.accent} 140%)` }}>
                           <span className={`block p-4 text-lg font-semibold ${t.serif ? "font-serif" : "font-display"}`} style={{ color: t.ink }}>{t.name}</span>
                         </span>
-                        <span className="flex items-center justify-between bg-white px-4 py-3 text-sm"><span className="text-yc-ink-soft">{t.tagline}</span>{v.template === t.slug && <IconCheck size={16} className="text-yc-electric" />}</span>
+                        <span className="flex items-center justify-between bg-white px-4 py-3 text-sm"><span className="text-yc-ink-soft">{t.tagline}</span>{v.template === t.slug && <IconCheck size={16} className="text-yc-royal" />}</span>
                       </button>
                     ))}
                   </div>
@@ -194,9 +192,9 @@ export function OnboardingFlow({
           {state.error && <p role="alert" className="mt-6 rounded-xl bg-yc-danger/[0.07] px-4 py-3 text-sm font-medium text-[rgb(185_28_28)]">{state.error}</p>}
 
           <div className="mt-10 flex items-center gap-3 border-t border-yc-ink/10 pt-6">
-            {step > first && <Button type="button" variant="secondary" size="lg" className="rounded-full" onClick={() => go(step - 1)} aria-label="Étape précédente"><IconArrowLeft size={18} /></Button>}
+            {step > first && <Button type="button" variant="secondary" size="lg" className="rounded-lg" onClick={() => go(step - 1)} aria-label="Étape précédente"><IconArrowLeft size={18} /></Button>}
             {step < 3 ? (
-              <Button type="button" size="lg" className="rounded-full" onClick={() => go(step + 1)}>Continuer <IconArrowRight size={18} /></Button>
+              <Button type="button" variant="royal" size="lg" className="rounded-lg" onClick={() => go(step + 1)}>Continuer <IconArrowRight size={18} /></Button>
             ) : (
               <Submit />
             )}

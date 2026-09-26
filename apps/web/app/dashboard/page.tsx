@@ -70,7 +70,7 @@ export default async function DashboardHome() {
           <>
             {greeting()} {firstName}
             <span className="text-yc-ink-soft/60"> — </span>
-            <span className="yc-text-gradient">{membership.tenantName}</span>
+            <em className="text-yc-electric">{membership.tenantName}</em>
           </>
         }
         description={overview && overview.queues.toProcess + overview.queues.awaitingProof > 0

@@ -1,4 +1,5 @@
 import { ycFontVariables } from "@/lib/yc-fonts";
+import Image from "next/image";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthError } from "next-auth";
@@ -29,32 +30,33 @@ export default function ConnexionPage({ searchParams }: { searchParams: { error?
   }
 
   return (
-    <div className={`${ycFontVariables} grid min-h-screen font-ui lg:grid-cols-2`}>
-      <aside className="relative hidden overflow-hidden bg-yc-night-950 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="pointer-events-none absolute inset-0 yc-glow" aria-hidden="true" />
-        <div className="pointer-events-none absolute inset-0 yc-grid" aria-hidden="true" />
-        <Link href="/" className="relative w-fit"><YcLogo tone="light" /></Link>
-        <div className="relative">
-          <p className="font-display text-5xl font-semibold leading-[1.02] tracking-[-0.03em]">Vos commandes<br /><span className="yc-text-gradient">vous attendent.</span></p>
-          <ul className="mt-8 space-y-3 text-white/70">
+    <div className={`${ycFontVariables} grid min-h-screen bg-yc-paper font-ui text-yc-navy-ink lg:grid-cols-[1fr_1.05fr]`}>
+      <main className="flex flex-col px-4 py-6 sm:px-12 lg:py-8">
+        <Link href="/" className="w-fit"><YcLogo /></Link>
+        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-yc-ink-soft">Espace marchand</p>
+          <h1 className="mt-4 font-editorial text-[44px] leading-[1.02] sm:text-[52px]">Bon retour<br /><em className="text-yc-royal">parmi nous.</em></h1>
+          <p className="mt-3 text-yc-ink-soft">Connectez-vous pour gérer votre boutique.</p>
+          {searchParams.cree && <p role="status" className="mt-6 rounded-lg bg-yc-success/10 px-4 py-3 text-sm font-medium text-[rgb(4_120_87)]">Votre boutique est créée. Connectez-vous pour y accéder.</p>}
+          {searchParams.error && <p role="alert" className="mt-6 rounded-lg bg-yc-danger/[0.07] px-4 py-3 text-sm font-medium text-[rgb(185_28_28)]">E-mail ou mot de passe incorrect.</p>}
+          <LoginForm action={authenticate} next={next} />
+          <p className="mt-8 text-sm text-yc-ink-soft">Pas encore de site ? <Link href="/creer-ma-boutique" className="font-semibold text-yc-royal underline-offset-4 hover:underline">Créer mon site</Link></p>
+        </div>
+        <p className="text-xs text-yc-ink-soft">Données isolées par entreprise, sessions chiffrées.</p>
+      </main>
+      <aside className="relative hidden flex-col justify-center gap-12 overflow-hidden bg-yc-navy px-12 py-12 text-yc-paper lg:flex" aria-hidden="true">
+        <div className="relative aspect-[1410/852] w-full max-w-[720px] overflow-hidden rounded-lg shadow-[0_40px_80px_-30px_rgb(0_0_0/0.6)]">
+          <Image src="/marketing/hero-templates.jpg" alt="" fill priority sizes="(min-width: 1024px) 720px, 0px" className="object-cover" />
+        </div>
+        <div>
+          <p className="font-editorial text-[44px] leading-[1.02]">Vos commandes <em>vous attendent.</em></p>
+          <ul className="mt-6 space-y-2.5 text-[15px] text-yc-paper/80">
             {["Preuves Wave et Orange Money à valider", "Colis à préparer et à expédier", "Clients prévenus à chaque étape"].map((t) => (
-              <li key={t} className="flex items-center gap-3"><span className="grid h-6 w-6 place-items-center rounded-full bg-yc-cyan/15 text-yc-cyan"><IconCheck size={14} /></span>{t}</li>
+              <li key={t} className="flex items-center gap-3"><IconCheck size={16} className="text-[#8FA9EE]" />{t}</li>
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-white/40">Données isolées par entreprise, sessions chiffrées.</p>
       </aside>
-      <main className="flex flex-col justify-center bg-yc-ivory-50 px-6 py-12 text-yc-ink sm:px-12">
-        <div className="mx-auto w-full max-w-sm">
-          <Link href="/" className="mb-10 inline-block lg:hidden"><YcLogo /></Link>
-          <h1 className="font-display text-[34px] font-semibold tracking-[-0.025em]">Bon retour parmi nous</h1>
-          <p className="mt-2 text-yc-ink-soft">Connectez-vous pour gérer votre boutique.</p>
-          {searchParams.cree && <p role="status" className="mt-6 rounded-xl bg-yc-success/10 px-4 py-3 text-sm font-medium text-[rgb(4_120_87)]">Votre boutique est créée. Connectez-vous pour y accéder.</p>}
-          {searchParams.error && <p role="alert" className="mt-6 rounded-xl bg-yc-danger/[0.07] px-4 py-3 text-sm font-medium text-[rgb(185_28_28)]">E-mail ou mot de passe incorrect.</p>}
-          <LoginForm action={authenticate} next={next} />
-          <p className="mt-8 text-sm text-yc-ink-soft">Pas encore de boutique ? <Link href="/creer-ma-boutique" className="font-semibold text-yc-electric underline-offset-4 hover:underline">Créer ma boutique</Link></p>
-        </div>
-      </main>
     </div>
   );
 }

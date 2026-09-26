@@ -44,15 +44,15 @@ export function AreaChart({
       >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stopColor="rgb(59 91 255)" stopOpacity="0.28" />
-            <stop offset="1" stopColor="rgb(34 211 238)" stopOpacity="0" />
+            <stop offset="0" stopColor="rgb(12 61 186)" stopOpacity="0.28" />
+            <stop offset="1" stopColor="rgb(143 169 238)" stopOpacity="0" />
           </linearGradient>
         </defs>
         {[0.25, 0.5, 0.75].map((f) => (
           <line key={f} x1="0" x2={width} y1={height * f} y2={height * f} stroke="rgb(15 20 44 / 0.06)" strokeDasharray="4 6" />
         ))}
         <path d={area} fill={`url(#${gradientId})`} />
-        <path d={line} fill="none" stroke="rgb(59 91 255)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" className="yc-draw" style={{ ["--yc-dash" as string]: 2000 }} />
+        <path d={line} fill="none" stroke="rgb(12 61 186)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" className="yc-draw" style={{ ["--yc-dash" as string]: 2000 }} />
         {coords.map((c, i) => (
           <g key={i}>
             <rect
@@ -68,8 +68,8 @@ export function AreaChart({
             />
             {active === i && (
               <>
-                <line x1={c.x} x2={c.x} y1="0" y2={height} stroke="rgb(59 91 255 / 0.3)" />
-                <circle cx={c.x} cy={c.y} r="5" fill="white" stroke="rgb(59 91 255)" strokeWidth="2.5" />
+                <line x1={c.x} x2={c.x} y1="0" y2={height} stroke="rgb(12 61 186 / 0.3)" />
+                <circle cx={c.x} cy={c.y} r="5" fill="white" stroke="rgb(12 61 186)" strokeWidth="2.5" />
               </>
             )}
           </g>

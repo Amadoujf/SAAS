@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
-type Variant = "primary" | "secondary" | "ghost" | "danger" | "glow" | "inverse";
+type Variant = "primary" | "secondary" | "ghost" | "danger" | "glow" | "inverse" | "royal";
 type Size = "sm" | "md" | "lg";
 
 const VARIANTS: Record<Variant, string> = {
@@ -13,6 +13,7 @@ const VARIANTS: Record<Variant, string> = {
     "bg-white text-yc-ink ring-1 ring-inset ring-yc-ink/10 shadow-[0_1px_2px_rgb(10_16_42/0.06)] hover:ring-yc-ink/25 hover:bg-yc-ivory-50",
   ghost: "text-yc-ink-soft hover:text-yc-ink hover:bg-yc-ink/5",
   danger: "bg-white text-yc-danger ring-1 ring-inset ring-yc-danger/30 hover:bg-yc-danger/5",
+  royal: "bg-yc-royal text-white shadow-[0_12px_24px_-12px_rgb(12_61_186/0.9)] hover:bg-yc-royal-strong active:translate-y-px",
   inverse: "bg-white/10 text-white ring-1 ring-inset ring-white/20 backdrop-blur hover:bg-white/15",
 };
 
