@@ -27,6 +27,7 @@ import {
   submitManualPaymentProof,
 } from "../src/order-operations";
 import { markNotificationOutcome, recordNotification } from "../src/notification-registry";
+import { getCustomerForTenant, listCustomers } from "../src/customer-registry";
 
 /**
  * Parcours e-commerce opérationnel (1er octobre 2026) contre PostgreSQL réel :
@@ -504,6 +505,19 @@ describe.skipIf(!databaseAvailable)("Opérations commerce (livraison, paiement m
     expect(first.order.customerId).toBe(second.order.customerId);
     const found = await withTenant(tenantId, (tx) => findOrderForGuest(tx, tenantId, first.order.orderNumber, local));
     expect(found?.orderId).toBe(first.order.id);
+  });
+
+  it("HISTORIQUE CLIENT : nombre de commandes et montant dépensé calculés depuis les commandes engagées réelles", async () => {
+    const phone = nextPhone();
+    const a = await order({ customer: { firstName: "Oumy", phone } });
+    await order({ customer: { firstName: "Oumy", phone } });
+    const pending = await manualOrderWithPayment();
+    void pending;
+    const detail = await withTenant(tenantId, (tx) => getCustomerForTenant(tx, tenantId, a.order.customerId));
+    expect(detail!.ordersCount).toBe(2);
+    expect(detail!.totalSpent).toBe(a.order.total * 2);
+    const list = await withTenant(tenantId, (tx) => listCustomers(tx, tenantId, { search: phone.slice(4) }));
+    expect(list[0]!.ordersCount).toBe(2);
   });
 
   it("VUE CLIENT : jeton obligatoire, notes internes jamais exposées", async () => {
