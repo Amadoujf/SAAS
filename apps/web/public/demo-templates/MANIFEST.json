@@ -1,0 +1,138 @@
+{
+ "notice": "Visuels de DÉMONSTRATION provisoires : recadrages des maquettes conceptuelles fournies par le client, agrandis x2/x3. À remplacer par des photographies HD sous licence (mêmes noms de fichiers) avant toute mise en production. Ne jamais les présenter comme les produits d'une entreprise réelle.",
+ "files": [
+  {
+   "file": "demo-templates/sunu-marche/hero-objets.webp",
+   "width": 1040,
+   "height": 720,
+   "bytes": 54292,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/hero-objets-mobile.webp",
+   "width": 576,
+   "height": 720,
+   "bytes": 28014,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client (recadrage mobile)"
+  },
+  {
+   "file": "demo-templates/sunu-marche/hero-quotidien.webp",
+   "width": 570,
+   "height": 356,
+   "bytes": 23770,
+   "source": "Maquette « Collection de templates 01/02 » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/hero-quotidien-mobile.webp",
+   "width": 356,
+   "height": 356,
+   "bytes": 15016,
+   "source": "Maquette « Collection de templates 01/02 » fournie par le client (recadrage mobile)"
+  },
+  {
+   "file": "demo-templates/sunu-marche/univers-maison.webp",
+   "width": 256,
+   "height": 200,
+   "bytes": 5402,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/univers-decoration.webp",
+   "width": 256,
+   "height": 200,
+   "bytes": 3632,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/univers-high-tech.webp",
+   "width": 256,
+   "height": 200,
+   "bytes": 5564,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/univers-sacs.webp",
+   "width": 256,
+   "height": 200,
+   "bytes": 3568,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/univers-art-de-la-table.webp",
+   "width": 320,
+   "height": 200,
+   "bytes": 6224,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/produit-lampe-aura.webp",
+   "width": 378,
+   "height": 294,
+   "bytes": 2870,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/produit-casque-sonar.webp",
+   "width": 390,
+   "height": 294,
+   "bytes": 3690,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/produit-sac-elena.webp",
+   "width": 390,
+   "height": 294,
+   "bytes": 5024,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/produit-vase-terre-bleue.webp",
+   "width": 396,
+   "height": 294,
+   "bytes": 3994,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/sunu-marche/produit-plaid-nofi.webp",
+   "width": 438,
+   "height": 294,
+   "bytes": 12332,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/atelier-naya/hero-allure.webp",
+   "width": 524,
+   "height": 888,
+   "bytes": 33086,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/atelier-naya/hero-portefeuille.webp",
+   "width": 376,
+   "height": 548,
+   "bytes": 18480,
+   "source": "Maquette « Collection de templates 01/02 » fournie par le client"
+  },
+  {
+   "file": "demo-templates/atelier-naya/collection-terres.webp",
+   "width": 512,
+   "height": 516,
+   "bytes": 21382,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/atelier-naya/collection-horizons.webp",
+   "width": 512,
+   "height": 354,
+   "bytes": 16282,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/atelier-naya/bijoux-martele.webp",
+   "width": 408,
+   "height": 660,
+   "bytes": 24100,
+   "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  }
+ ]
+}

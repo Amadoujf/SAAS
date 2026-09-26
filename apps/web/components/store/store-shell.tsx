@@ -5,16 +5,22 @@ import type { StoreContext } from "@/lib/storefront/store-context";
 import { StoreCartProvider } from "./cart-provider";
 import { StoreHeader } from "./store-header";
 import { LazyCartDrawer } from "./lazy-cart-drawer";
+import { templateFontVariables } from "@/lib/storefront/template-fonts";
 
 /** Coque des pages commerce d'une boutique : TOUTES les couleurs, polices et rayons
  *  viennent des design tokens de l'entreprise (template + personnalisation). Rien de
  *  l'identité YamaCommerce n'y fuit, hormis la mention discrète en pied de page. */
 export function StoreShell({ store, children }: { store: StoreContext; children: ReactNode }) {
   return (
-    <div style={designTokensToStyle(store.tokens)} className="flex min-h-screen flex-col bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]">
+    <div style={designTokensToStyle(store.tokens)} className={`${templateFontVariables} flex min-h-screen flex-col bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}>
       <StoreCartProvider>
         <a href="#contenu-boutique" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2">Aller au contenu</a>
-        <StoreHeader tenantName={store.tenantName} logoUrl={store.logoUrl} categories={store.categories} />
+        {store.announcement && (
+          <p className="bg-[var(--color-primary)] px-4 py-2 text-center text-[13px] font-medium text-white">
+            {store.announcement.href ? <Link href={store.announcement.href} className="underline-offset-4 hover:underline">{store.announcement.text}</Link> : store.announcement.text}
+          </p>
+        )}
+        <StoreHeader tenantName={store.tenantName} logoUrl={store.logoUrl} categories={store.categories} layout={store.layout} />
         <main id="contenu-boutique" className="flex-1">{children}</main>
         <footer className="mt-16 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
           <div className="mx-auto grid max-w-[var(--content-max-width,1280px)] gap-8 px-4 py-10 sm:grid-cols-3 sm:px-6">

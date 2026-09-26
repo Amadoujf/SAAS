@@ -5,6 +5,9 @@ import { permanentRedirect } from "next/navigation";
 import { getCurrentTenant } from "@/lib/tenant";
 import { withSuperAdminAccess } from "@yamacommerce/database";
 import { Landing } from "@/components/platform/landing";
+import { StoreHome } from "@/components/store/store-home";
+import { resolveStore } from "@/lib/storefront/store-context";
+import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
@@ -39,8 +42,13 @@ export default async function HomePage() {
     if (resolution.status === "ok") {
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
-    // "not_published" : la boutique n'a pas encore publié son site — jamais une
-    // erreur : une page d'attente soignée, qui mène au catalogue s'il existe.
+    // "not_published" : aucun site publié depuis l'éditeur. Une boutique (module
+    // catalogue actif) affiche l'accueil de SON template avec ses contenus mis en
+    // avant ; sinon, une page d'attente soignée — jamais une erreur.
+    if (await isCatalogModuleEnabled(tenant.id)) {
+      const store = await resolveStore("/");
+      if (store.status === "ok") return <StoreHome store={store.store} />;
+    }
     return <TenantComingSoon tenantName={tenant.name} />;
   }
 

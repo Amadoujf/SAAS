@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { QuickViewButton } from "./quick-view";
 
 export interface StoreProductCard {
+  id?: string;
   slug: string;
   name: string;
   price: number;
@@ -12,10 +14,13 @@ export interface StoreProductCard {
 
 const fmt = (n: number) => new Intl.NumberFormat("fr-SN").format(n);
 
-export function ProductCard({ product, priority = false }: { product: StoreProductCard; priority?: boolean }) {
+/** Carte produit : lien vers la fiche + bouton d'aperçu rapide (frère du lien, jamais
+ *  imbriqué dedans). Réagit au survol (zoom de l'image, bouton qui apparaît). */
+export function ProductCard({ product, priority = false, quickView = true }: { product: StoreProductCard; priority?: boolean; quickView?: boolean }) {
   const discount = product.compareAtPrice && product.compareAtPrice > product.price ? Math.round((1 - product.price / product.compareAtPrice) * 100) : 0;
   return (
-    <Link href={`/p/${product.slug}`} className="group flex flex-col gap-3 rounded-[var(--radius-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-4">
+    <div className="group relative">
+    <Link href={`/p/${product.slug}`} className="flex flex-col gap-3 rounded-[var(--radius-lg)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-4">
       <span className="relative block aspect-[4/5] overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-muted)]">
         {product.imageUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -35,5 +40,9 @@ export function ProductCard({ product, priority = false }: { product: StoreProdu
         </span>
       </span>
     </Link>
+    {quickView && !product.soldOut && (
+      <QuickViewButton slug={product.slug} name={product.name} className="absolute right-3 top-3 sm:translate-y-1 sm:opacity-0 sm:group-hover:translate-y-0 sm:group-hover:opacity-100 sm:focus-visible:translate-y-0 sm:focus-visible:opacity-100" />
+    )}
+    </div>
   );
 }

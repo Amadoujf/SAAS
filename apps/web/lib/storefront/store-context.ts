@@ -4,14 +4,20 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import { withTenant, resolveEffectiveDesignTokens, listCategories } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
-import { templateTokens } from "./store-templates";
+import { templateLayout, templateTokens, type StoreLayout } from "./store-templates";
+import { applyBranding, parseHomeContent } from "./home-content";
 
 export interface StoreContext {
   tenantId: string;
   tenantName: string;
   tokens: DesignTokens;
-  categories: { slug: string; name: string }[];
+  categories: { id: string; slug: string; name: string; imageUrl: string | null }[];
   logoUrl: string | null;
+  /** Template choisi (aucun site publié depuis l'éditeur) : composition de l'accueil. */
+  templateSlug: string | null;
+  layout: StoreLayout;
+  demoData: boolean;
+  announcement: { text: string; href: string } | null;
 }
 
 export type StoreResolution =
@@ -29,11 +35,15 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const { tokens, categories, branding, hasSite } = await withTenant(active.tenantId, async (tx) => ({
+  const { tokens, categories, branding, hasSite, content } = await withTenant(active.tenantId, async (tx) => ({
+    content: (await tx.storefrontContent.findUnique({ where: { tenantId: active.tenantId } }))?.content ?? null,
     tokens: await resolveEffectiveDesignTokens(tx, active.tenantId),
-    hasSite: (await tx.tenantSite.count({ where: { tenantId: active.tenantId } })) > 0,
+    // Seul un site PUBLIÉ depuis l'éditeur impose ses tokens ; sinon le template choisi.
+    hasSite: (await tx.tenantSite.count({ where: { tenantId: active.tenantId, isPublished: true } })) > 0,
     categories: await listCategories(tx, active.tenantId),
-    branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as { logoUrl?: string; templatePreference?: string } | null,
+    branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as
+      | { logoUrl?: string; templatePreference?: string; primaryColor?: string; accentColor?: string; demoData?: boolean }
+      | null,
   }));
   return {
     status: "ok",
@@ -42,9 +52,13 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
       tenantName: active.tenantName,
       // Site publié depuis l'éditeur : ses tokens font foi. Sinon, le style choisi à
       // l'onboarding (template complet), sinon les tokens par défaut.
-      tokens: hasSite ? tokens : templateTokens(branding?.templatePreference) ?? tokens,
-      categories: categories.map((c) => ({ slug: c.slug, name: c.name })),
+      tokens: hasSite ? tokens : applyBranding(templateTokens(branding?.templatePreference) ?? tokens, branding ?? {}),
+      categories: categories.map((c) => ({ id: c.id, slug: c.slug, name: c.name, imageUrl: c.imageUrl })),
       logoUrl: branding?.logoUrl ?? null,
+      templateSlug: branding?.templatePreference ?? null,
+      layout: templateLayout(branding?.templatePreference),
+      demoData: branding?.demoData === true,
+      announcement: parseHomeContent(content, active.tenantName).announcement,
     },
   };
 }

@@ -12,21 +12,22 @@ export const metadata: Metadata = { title: "Catalogue" };
 
 /** Catalogue public RÉEL — mêmes protections domaine/tenant suspendu que le reste du
  *  site (voir `resolveStore`), design tokens de l'entreprise. */
-export default async function CataloguePage({ searchParams }: { searchParams: { categorie?: string } }) {
+export default async function CataloguePage({ searchParams }: { searchParams: { categorie?: string; q?: string } }) {
   const resolution = await resolveStore(`/catalogue`);
   if (resolution.status === "suspended") return <PublicSiteSuspended tenantName={resolution.tenantName} />;
   if (resolution.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;
   const { store } = resolution;
   const categories = await withTenant(store.tenantId, (tx) => listCategories(tx, store.tenantId));
   const category = searchParams.categorie ? categories.find((c) => c.slug === searchParams.categorie) : undefined;
-  const products = await loadProductCards(store.tenantId, { categoryId: category?.id });
+  const search = searchParams.q?.trim().slice(0, 80) || undefined;
+  const products = await loadProductCards(store.tenantId, { categoryId: category?.id, search });
 
   return (
     <StoreShell store={store}>
       <section className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 pb-6 pt-10 sm:px-6 sm:pt-14">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">{store.tenantName}</p>
         <h1 className="mt-2 font-[family-name:var(--font-heading)] text-[length:var(--text-heading-xl,2.5rem)] font-semibold leading-[1.05] tracking-tight">
-          {category ? category.name : "Toute la collection"}
+          {search ? `« ${search} »` : category ? category.name : "Toute la collection"}
         </h1>
         <p className="mt-2 text-[var(--color-text-muted)]">{products.length} pièce{products.length > 1 ? "s" : ""}</p>
         {categories.length > 0 && (
