@@ -54,6 +54,11 @@ async function main() {
   // Style de boutique choisi (comme à l'onboarding) : Atelier. `demoData` affiche le
   // bandeau « Données de démonstration » dans le dashboard : jamais présenté comme réel.
   await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(tenant.branding as object), templatePreference: "teranga-atelier", demoData: true } } }));
+  // La démonstration montre les fonctions de la formule Business (factures, statistiques).
+  await withSuperAdminAccess(async (tx) => {
+    const business = await tx.subscriptionPlan.findUniqueOrThrow({ where: { name: "Business" } });
+    await tx.tenantSubscription.updateMany({ where: { tenantId }, data: { planId: business.id } });
+  });
 
   const variantIds: Record<string, string[]> = {};
   await withTenant(tenantId, async (tx) => {

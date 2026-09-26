@@ -67,4 +67,17 @@ describe.skipIf(!databaseAvailable)("Provisionnement d'une entreprise (onboardin
     expect(await testOwnerClient().tenant.count()).toBe(before);
     await expect(createOwnerAccount({ email: email.toUpperCase(), fullName: "Doublon", password: "motdepasse-solide" })).rejects.toThrow(/existe déjà/);
   });
+
+  it("refuse un secteur « à venir » et la formule sur devis : seuls les secteurs opérationnels et les formules en libre-service", async () => {
+    const other = await createOwnerAccount({ email: `secteur-${email}`, fullName: "Secteur", password: "motdepasse-solide" });
+    userIds.push(other.id);
+    const before = await testOwnerClient().tenant.count();
+    await expect(
+      provisionTenantForOwner({ ownerUserId: other.id, name: "Agence", subdomain: `${subdomain}-immo`, subdomainSuffix: "yamacommerce.ai", sectorKey: "real_estate" }),
+    ).rejects.toThrow(/bientôt/);
+    await expect(
+      provisionTenantForOwner({ ownerUserId: other.id, name: "Groupe", subdomain: `${subdomain}-grp`, subdomainSuffix: "yamacommerce.ai", sectorKey: "ecommerce", planName: "Sur mesure" }),
+    ).rejects.toThrow(/devis/);
+    expect(await testOwnerClient().tenant.count()).toBe(before);
+  });
 });

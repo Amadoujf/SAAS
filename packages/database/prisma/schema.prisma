@@ -73,6 +73,7 @@ model Tenant {
 
   domains                  Domain[]
   users                    TenantUser[]
+  invitations              TenantInvitation[]
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -309,6 +310,9 @@ model SubscriptionPlan {
 
   features Json    @default("[]")
   isActive Boolean @default(true)
+  /// Formule « sur devis » (ex. Sur mesure) : jamais souscrite en libre-service, jamais
+  /// envoyée au checkout — le prix est négocié et la formule attribuée par un Super Admin.
+  isQuoteOnly Boolean @default(false)
 
   /// Mode de renouvellement par défaut des abonnements souscrits à cette formule —
   /// copié sur `TenantSubscription.renewalMode` à la souscription (voir RenewalMode).
@@ -443,7 +447,7 @@ model SubscriptionEntitlement {
   id          String    @id @default(uuid())
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  resourceKey String // "products" | "employees" | "domains" | "emails" | "whatsapp_messages" | ...
+  resourceKey String // "records" (fiches) | "employees" | "domains" | "emails" | "whatsapp_messages" | ...
   limitValue  Int? // null = illimité pour cette dérogation
   resetPeriod String    @default("none") // "monthly" | "none"
   reason      String?
@@ -523,6 +527,10 @@ model Sector {
   customFieldSchema      Json?
   isSystem               Boolean  @default(true)
   isActive               Boolean  @default(true)
+  /// Secteur réellement opérationnel (templates, fonctions métier et dashboard livrés
+  /// et testés) — seuls ceux-ci sont proposés à la création d'entreprise ; les autres
+  /// sont présentés « À venir », jamais vendus.
+  isAvailable            Boolean  @default(false)
   createdBy              String?
   createdAt              DateTime @default(now())
 
@@ -830,6 +838,42 @@ model TenantUser {
 
   @@unique([tenantId, userId])
   @@index([tenantId])
+}
+
+/// Invitation d'un membre de l'équipe. Le jeton n'est JAMAIS stocké en clair (seule
+/// son empreinte SHA-256) ; une invitation en attente compte dans le quota
+/// d'utilisateurs de la formule, comme un membre actif.
+model TenantInvitation {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  email       String
+  roleName    String
+  tokenHash   String    @unique
+  invitedBy   String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, email])
+}
+
+/// Demande de devis (formule Sur mesure) ou de contact commercial — donnée PLATEFORME,
+/// visible uniquement par le Super Admin (RLS), jamais par une entreprise.
+model PlatformInquiry {
+  id           String   @id @default(uuid())
+  kind         String   @default("custom_plan") // custom_plan | contact
+  fullName     String
+  email        String
+  phone        String?
+  companyName  String?
+  sectorKey    String?
+  message      String
+  status       String   @default("new") // new | contacted | closed
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt])
 }
 
 model ImpersonationSession {

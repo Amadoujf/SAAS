@@ -20,150 +20,53 @@ async function main() {
   // ---------------------------------------------------------------------
   // 1. Formules d'abonnement
   // ---------------------------------------------------------------------
-  const plans = await Promise.all([
-    prisma.subscriptionPlan.upsert({
-      where: { name: "Essentiel" },
-      update: {},
-      create: {
-        name: "Essentiel",
-        status: "PUBLISHED",
-        priceMonthly: 15_000,
-        priceYearly: 150_000,
-        trialDays: 14,
-        maxProducts: 50,
-        maxEmployees: 2,
-        maxShops: 1,
-        // Limites de médiathèque mises à jour le 21 septembre 2026 (voir docs/12 §12.2,
-        // « médiathèque R2 ») : storageMB passe de 500 à 2 048 (2 Go).
-        storageMB: 2_048,
-        maxImageFileMB: 10,
-        maxVideoFileMB: 200,
-        maxDocumentFileMB: 10,
-        maxMediaFileCount: 2_000,
-        monthlyUploadMB: 2_048,
-        customDomainAllowed: false,
-        advancedReports: false,
-        whatsappAutomation: false,
-        commissionRate: 1.5,
-        maxAIGenerationsPerMonth: 20,
-        maxAIImagesAnalyzedPerMonth: 20,
-        maxAIProductsImportedPerMonth: 50,
-        aiEstimatedCostCapXOF: 5_000,
-        features: ["catalog", "orders", "invoices", "cod_payment"],
-      },
-    }),
-    prisma.subscriptionPlan.upsert({
-      where: { name: "Business" },
-      update: {},
-      create: {
-        name: "Business",
-        status: "PUBLISHED",
-        priceMonthly: 35_000,
-        priceYearly: 350_000,
-        trialDays: 14,
-        maxProducts: 500,
-        maxEmployees: 8,
-        maxShops: 2,
-        storageMB: 10_240, // 10 Go — voir docs/12 §12.2 (21 septembre 2026)
-        maxImageFileMB: 20,
-        maxVideoFileMB: 500,
-        maxDocumentFileMB: 20,
-        maxMediaFileCount: 10_000,
-        monthlyUploadMB: 10_240,
-        customDomainAllowed: true,
-        advancedReports: false,
-        whatsappAutomation: true,
-        commissionRate: 1,
-        maxAIGenerationsPerMonth: 150,
-        maxAIImagesAnalyzedPerMonth: 150,
-        maxAIProductsImportedPerMonth: 500,
-        aiEstimatedCostCapXOF: 20_000,
-        features: ["catalog", "orders", "invoices", "cod_payment", "online_payment", "whatsapp"],
-      },
-    }),
-    prisma.subscriptionPlan.upsert({
-      where: { name: "Premium" },
-      update: {},
-      create: {
-        name: "Premium",
-        status: "PUBLISHED",
-        priceMonthly: 75_000,
-        priceYearly: 750_000,
-        trialDays: 14,
-        maxProducts: 5_000,
-        maxEmployees: 25,
-        maxShops: 5,
-        storageMB: 51_200, // 50 Go — voir docs/12 §12.2 (21 septembre 2026)
-        maxImageFileMB: 30,
-        maxVideoFileMB: 1_024,
-        maxDocumentFileMB: 50,
-        maxMediaFileCount: 50_000,
-        monthlyUploadMB: 51_200,
-        customDomainAllowed: true,
-        advancedReports: true,
-        whatsappAutomation: true,
-        commissionRate: 0.5,
-        maxAIGenerationsPerMonth: 600,
-        maxAIImagesAnalyzedPerMonth: 600,
-        maxAIProductsImportedPerMonth: 5_000,
-        aiEstimatedCostCapXOF: 60_000,
-        features: [
-          "catalog",
-          "orders",
-          "invoices",
-          "cod_payment",
-          "online_payment",
-          "whatsapp",
-          "advanced_reports",
-          "loyalty",
-        ],
-      },
-    }),
-    prisma.subscriptionPlan.upsert({
-      where: { name: "Entreprise" },
-      update: {},
-      create: {
-        name: "Entreprise",
-        status: "PUBLISHED",
-        priceMonthly: 150_000,
-        priceYearly: 1_500_000,
-        trialDays: 30,
-        maxProducts: 100_000,
-        maxEmployees: 200,
-        maxShops: 50,
-        // "Configurable" (voir docs/12 §12.2) : valeur par défaut généreuse, ajustée
-        // au cas par cas par contrat — même convention que maxProducts/maxEmployees
-        // ci-dessus pour cette formule.
-        storageMB: 200_000,
-        maxImageFileMB: 50,
-        maxVideoFileMB: 2_048,
-        maxDocumentFileMB: 100,
-        maxMediaFileCount: 500_000,
-        monthlyUploadMB: 200_000,
-        customDomainAllowed: true,
-        advancedReports: true,
-        whatsappAutomation: true,
-        commissionRate: 0,
-        maxAIGenerationsPerMonth: 5_000,
-        maxAIImagesAnalyzedPerMonth: 5_000,
-        maxAIProductsImportedPerMonth: 100_000,
-        aiEstimatedCostCapXOF: null,
-        features: [
-          "catalog",
-          "orders",
-          "invoices",
-          "cod_payment",
-          "online_payment",
-          "whatsapp",
-          "advanced_reports",
-          "loyalty",
-          "multi_shop",
-          "own_merchant_credentials",
-        ],
-      },
-    }),
-  ]);
-  const essentiel = plans[0];
+  // Formules commerciales (octobre 2026) — voir docs/14 §« Formules ». La qualité
+  // visuelle (templates premium, animations) est identique pour toutes : seules les
+  // fonctions, les quotas et l'accompagnement changent. `maxProducts` = nombre de
+  // FICHES (voir docs/14, « Ce que compte une fiche ») ; les quotas d'IA sont une
+  // proposition chiffrée à valider (coût estimé), configurables par le Super Admin.
+  const PLAN_DEFINITIONS = [
+    {
+      name: "Essentiel", priceMonthly: 9_900, priceYearly: 99_000, trialDays: 14, isQuoteOnly: false,
+      maxProducts: 100, maxEmployees: 1, maxShops: 1, customDomainAllowed: false, maxCustomDomains: 0,
+      storageMB: 2_048, maxImageFileMB: 10, maxVideoFileMB: 200, maxDocumentFileMB: 10, maxMediaFileCount: 2_000, monthlyUploadMB: 2_048,
+      advancedReports: false, whatsappAutomation: false, commissionRate: 0,
+      maxAIGenerationsPerMonth: 0, maxAIImagesAnalyzedPerMonth: 0, maxAIProductsImportedPerMonth: 0, aiEstimatedCostCapXOF: 0,
+      features: ["premium_site", "template_customization", "orders", "customer_requests", "cod_payment", "manual_mobile_money"],
+    },
+    {
+      name: "Business", priceMonthly: 24_900, priceYearly: 249_000, trialDays: 14, isQuoteOnly: false,
+      maxProducts: 1_000, maxEmployees: 5, maxShops: 1, customDomainAllowed: true, maxCustomDomains: 1,
+      storageMB: 10_240, maxImageFileMB: 20, maxVideoFileMB: 500, maxDocumentFileMB: 20, maxMediaFileCount: 10_000, monthlyUploadMB: 10_240,
+      advancedReports: false, whatsappAutomation: false, commissionRate: 0,
+      maxAIGenerationsPerMonth: 300, maxAIImagesAnalyzedPerMonth: 100, maxAIProductsImportedPerMonth: 500, aiEstimatedCostCapXOF: 2_500,
+      features: ["premium_site", "template_customization", "orders", "customer_requests", "cod_payment", "manual_mobile_money", "custom_domain", "business_management", "invoices", "statistics", "ai_quota"],
+    },
+    {
+      name: "Premium", priceMonthly: 49_900, priceYearly: 499_000, trialDays: 14, isQuoteOnly: false,
+      maxProducts: 5_000, maxEmployees: 15, maxShops: 1, customDomainAllowed: true, maxCustomDomains: 3,
+      storageMB: 51_200, maxImageFileMB: 30, maxVideoFileMB: 1_024, maxDocumentFileMB: 50, maxMediaFileCount: 50_000, monthlyUploadMB: 51_200,
+      advancedReports: true, whatsappAutomation: true, commissionRate: 0,
+      maxAIGenerationsPerMonth: 1_500, maxAIImagesAnalyzedPerMonth: 500, maxAIProductsImportedPerMonth: 5_000, aiEstimatedCostCapXOF: 10_000,
+      features: ["premium_site", "template_customization", "orders", "customer_requests", "cod_payment", "manual_mobile_money", "custom_domain", "business_management", "invoices", "statistics", "ai_quota", "advanced_management", "automations", "priority_support", "advanced_reports"],
+    },
+    {
+      name: "Sur mesure", priceMonthly: 0, priceYearly: 0, trialDays: 30, isQuoteOnly: true,
+      maxProducts: 100_000, maxEmployees: 200, maxShops: 50, customDomainAllowed: true, maxCustomDomains: 20,
+      storageMB: 200_000, maxImageFileMB: 50, maxVideoFileMB: 2_048, maxDocumentFileMB: 100, maxMediaFileCount: 500_000, monthlyUploadMB: 200_000,
+      advancedReports: true, whatsappAutomation: true, commissionRate: 0,
+      maxAIGenerationsPerMonth: 5_000, maxAIImagesAnalyzedPerMonth: 2_000, maxAIProductsImportedPerMonth: 100_000, aiEstimatedCostCapXOF: null,
+      features: ["premium_site", "template_customization", "orders", "customer_requests", "cod_payment", "manual_mobile_money", "custom_domain", "business_management", "invoices", "statistics", "ai_quota", "advanced_management", "automations", "priority_support", "advanced_reports", "multi_establishment", "integrations", "dedicated_onboarding"],
+    },
+  ];
+  // Une base créée avant octobre 2026 appelait « Sur mesure » « Entreprise ».
+  await prisma.subscriptionPlan.updateMany({ where: { name: "Entreprise" }, data: { name: "Sur mesure" } });
+  const plans = await Promise.all(
+    PLAN_DEFINITIONS.map((def) =>
+      prisma.subscriptionPlan.upsert({ where: { name: def.name }, update: def, create: { ...def, status: "PUBLISHED" } }),
+    ),
+  );
+  const essentiel = plans[0]!;
   console.info(`  ✓ ${plans.length} formules d'abonnement`);
 
   // ---------------------------------------------------------------------
@@ -525,15 +428,19 @@ async function seedSectorAndModuleRegistry() {
     });
   }
 
+  // Secteurs livrés et testés de bout en bout — les seuls proposés à la création
+  // d'entreprise (les autres sont affichés « À venir »). Tenu à jour à chaque secteur livré.
+  const OPERATIONAL_SECTOR_KEYS: string[] = ["ecommerce", "fashion"];
   for (const sectorDef of SECTORS) {
     await prisma.sector.upsert({
       where: { key: sectorDef.key },
-      update: { name: sectorDef.name, defaultModuleKeys: sectorDef.defaultModuleKeys },
+      update: { name: sectorDef.name, defaultModuleKeys: sectorDef.defaultModuleKeys, isAvailable: OPERATIONAL_SECTOR_KEYS.includes(sectorDef.key) },
       create: {
         key: sectorDef.key,
         name: sectorDef.name,
         defaultModuleKeys: sectorDef.defaultModuleKeys,
         isSystem: true,
+        isAvailable: OPERATIONAL_SECTOR_KEYS.includes(sectorDef.key),
       },
     });
   }

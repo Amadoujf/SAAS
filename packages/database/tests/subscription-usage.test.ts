@@ -101,55 +101,55 @@ describe.skipIf(!databaseAvailable)("Quotas de formule (réel, PostgreSQL)", () 
 
   it("autorise la création jusqu'à la limite, puis refuse le (N+1)ᵉ appel — jamais un simple masquage UI", async () => {
     await withTenant(tenantWithPlanId, async (tx) => {
-      await assertQuotaAvailable(tx, tenantWithPlanId, "products"); // 0/2, OK.
+      await assertQuotaAvailable(tx, tenantWithPlanId, "records"); // 0/2, OK.
       await tx.product.create({ data: { tenantId: tenantWithPlanId, name: "Produit 1", slug: `p1-${suffix}`, basePrice: 1000, status: "PUBLISHED" } });
 
-      await assertQuotaAvailable(tx, tenantWithPlanId, "products"); // 1/2, OK.
+      await assertQuotaAvailable(tx, tenantWithPlanId, "records"); // 1/2, OK.
       await tx.product.create({ data: { tenantId: tenantWithPlanId, name: "Produit 2", slug: `p2-${suffix}`, basePrice: 1000, status: "PUBLISHED" } });
     });
 
     await withTenant(tenantWithPlanId, async (tx) => {
       // 2/2 atteint : le TROISIÈME appel doit échouer côté serveur, jamais un succès silencieux.
-      await expect(assertQuotaAvailable(tx, tenantWithPlanId, "products")).rejects.toThrow(QuotaExceededError);
+      await expect(assertQuotaAvailable(tx, tenantWithPlanId, "records")).rejects.toThrow(QuotaExceededError);
     });
   });
 
   it("une dérogation Super Admin (SubscriptionEntitlement) prévaut TOUJOURS sur la limite de la formule", async () => {
     await withSuperAdminAccess((tx) =>
       tx.subscriptionEntitlement.create({
-        data: { tenantId: tenantWithPlanId, resourceKey: "products", limitValue: 10, grantedBy: "super-admin-test" },
+        data: { tenantId: tenantWithPlanId, resourceKey: "records", limitValue: 10, grantedBy: "super-admin-test" },
       }),
     );
 
-    const limit = await withTenant(tenantWithPlanId, (tx) => resolveEffectiveLimit(tx, tenantWithPlanId, "products"));
+    const limit = await withTenant(tenantWithPlanId, (tx) => resolveEffectiveLimit(tx, tenantWithPlanId, "records"));
     expect(limit).toBe(10); // pas 2 (la formule) : la dérogation gagne.
 
     // Déjà à 2 produits réels (test précédent) — sous la dérogation (10), un
     // troisième doit maintenant être accepté.
-    await withTenant(tenantWithPlanId, (tx) => assertQuotaAvailable(tx, tenantWithPlanId, "products"));
+    await withTenant(tenantWithPlanId, (tx) => assertQuotaAvailable(tx, tenantWithPlanId, "records"));
 
-    await withSuperAdminAccess((tx) => tx.subscriptionEntitlement.deleteMany({ where: { tenantId: tenantWithPlanId, resourceKey: "products" } }));
+    await withSuperAdminAccess((tx) => tx.subscriptionEntitlement.deleteMany({ where: { tenantId: tenantWithPlanId, resourceKey: "records" } }));
   });
 
   it("une dérogation EXPIRÉE retombe silencieusement sur la limite de la formule", async () => {
     await withSuperAdminAccess((tx) =>
       tx.subscriptionEntitlement.create({
-        data: { tenantId: tenantWithPlanId, resourceKey: "products", limitValue: 10, expiresAt: new Date(Date.now() - 60_000) },
+        data: { tenantId: tenantWithPlanId, resourceKey: "records", limitValue: 10, expiresAt: new Date(Date.now() - 60_000) },
       }),
     );
 
-    const limit = await withTenant(tenantWithPlanId, (tx) => resolveEffectiveLimit(tx, tenantWithPlanId, "products"));
+    const limit = await withTenant(tenantWithPlanId, (tx) => resolveEffectiveLimit(tx, tenantWithPlanId, "records"));
     expect(limit).toBe(2); // dérogation expirée ignorée, formule fait foi.
 
-    await withSuperAdminAccess((tx) => tx.subscriptionEntitlement.deleteMany({ where: { tenantId: tenantWithPlanId, resourceKey: "products" } }));
+    await withSuperAdminAccess((tx) => tx.subscriptionEntitlement.deleteMany({ where: { tenantId: tenantWithPlanId, resourceKey: "records" } }));
   });
 
   it("un tenant SANS TenantSubscription est BLOQUÉ par défaut (limite = 0) — jamais un accès illimité par simple suppression de la ligne d'abonnement", async () => {
-    const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "products"));
+    const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "records"));
     expect(limit).toBe(0);
 
     await withTenant(tenantWithoutSubscriptionId, async (tx) => {
-      await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "products")).rejects.toThrow(QuotaExceededError);
+      await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "records")).rejects.toThrow(QuotaExceededError);
     });
   });
 
@@ -182,7 +182,7 @@ describe.skipIf(!databaseAvailable)("Quotas de formule (réel, PostgreSQL)", () 
       const attempts = await Promise.allSettled(
         Array.from({ length: 5 }, (_, i) =>
           withTenant(tenant.id, async (tx) => {
-            await assertQuotaAvailable(tx, tenant.id, "products");
+            await assertQuotaAvailable(tx, tenant.id, "records");
             return tx.product.create({
               data: { tenantId: tenant.id, name: `Concurrent ${i}`, slug: `concurrent-${suffix}-${i}`, basePrice: 1000, status: "PUBLISHED" },
             });
@@ -218,11 +218,11 @@ describe.skipIf(!databaseAvailable)("Quotas de formule (réel, PostgreSQL)", () 
       tx.tenant.update({ where: { id: tenantWithoutSubscriptionId }, data: { billingExemptedAt: new Date() } }),
     );
 
-    const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "products"));
+    const limit = await withTenant(tenantWithoutSubscriptionId, (tx) => resolveEffectiveLimit(tx, tenantWithoutSubscriptionId, "records"));
     expect(limit).toBeNull();
 
     await withTenant(tenantWithoutSubscriptionId, async (tx) => {
-      await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "products", 999)).resolves.toBeUndefined();
+      await expect(assertQuotaAvailable(tx, tenantWithoutSubscriptionId, "records", 999)).resolves.toBeUndefined();
     });
 
     await withSuperAdminAccess((tx) =>

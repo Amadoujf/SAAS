@@ -15,18 +15,44 @@ import type { Prisma } from "@prisma/client";
  * sans jamais toucher `assertQuotaAvailable` — aucune entrée n'est pré-remplie pour
  * des entités métier qui n'existent pas encore (voir décision #5, hors périmètre).
  */
-export type QuotaResourceKey = "products" | "employees" | "domains";
+export type QuotaResourceKey = "records" | "employees" | "domains";
 
 type QuotaCounter = (tx: Prisma.TransactionClient, tenantId: string) => Promise<number>;
 
+/**
+ * « Fiches » — l'unité du quota catalogue de chaque formule (voir docs/14, « Ce que
+ * compte une fiche »). Une fiche est un élément PUBLIABLE du catalogue de l'entreprise,
+ * quel que soit son secteur : produit ou plat (commerce, mode, restauration), bien
+ * (immobilier), offre (voyage), véhicule, chambre ou logement, prestation, formation,
+ * zone ou formule de livraison. Ne sont JAMAIS comptés : commandes, réservations,
+ * rendez-vous, paiements, factures, clients, historiques, révisions, médias. Chaque
+ * secteur livré ajoute ici le décompte de SA table de catalogue.
+ */
+export const RECORD_COUNTERS: { label: string; count: QuotaCounter }[] = [
+  { label: "Produits", count: (tx, tenantId) => tx.product.count({ where: { tenantId, deletedAt: null } }) },
+];
+
 const QUOTA_COUNTERS: Record<QuotaResourceKey, QuotaCounter> = {
-  products: (tx, tenantId) => tx.product.count({ where: { tenantId, deletedAt: null } }),
-  employees: (tx, tenantId) => tx.tenantUser.count({ where: { tenantId, status: { in: ["INVITED", "ACTIVE"] } } }),
+  records: async (tx, tenantId) => {
+    let total = 0;
+    for (const counter of RECORD_COUNTERS) total += await counter.count(tx, tenantId);
+    return total;
+  },
+  // Une invitation en attente (non acceptée, non révoquée, non expirée) réserve une
+  // place : sinon on pourrait inviter au-delà du quota puis tout faire accepter.
+  employees: async (tx, tenantId) =>
+    (await tx.tenantUser.count({ where: { tenantId, status: { in: ["INVITED", "ACTIVE"] } } })) +
+    (await tx.tenantInvitation.count({ where: { tenantId, acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } } })),
   domains: (tx, tenantId) => tx.domain.count({ where: { tenantId, lifecycleStatus: { not: "REMOVED" } } }),
 };
 
+/** Consommation actuelle d'une ressource (affichage des quotas dans le dashboard). */
+export function countQuotaUsage(tx: Prisma.TransactionClient, tenantId: string, resourceKey: QuotaResourceKey) {
+  return QUOTA_COUNTERS[resourceKey](tx, tenantId);
+}
+
 const PLAN_LIMIT_FIELD: Record<QuotaResourceKey, "maxProducts" | "maxEmployees" | "maxCustomDomains"> = {
-  products: "maxProducts",
+  records: "maxProducts",
   employees: "maxEmployees",
   domains: "maxCustomDomains",
 };
@@ -116,4 +142,29 @@ export async function assertQuotaAvailable(
   if (current + increment > limit) {
     throw new QuotaExceededError(resourceKey, limit, current);
   }
+}
+
+/**
+ * Fonctions réservées à certaines formules (`SubscriptionPlan.features`). Même règle que
+ * les quotas : vérifié CÔTÉ SERVEUR, dérogation Super Admin (`billingExemptedAt`) =
+ * tout autorisé, aucun abonnement = rien d'optionnel.
+ */
+export type PlanFeature = "invoices" | "statistics" | "custom_domain" | "advanced_reports" | "automations" | "ai_quota";
+
+export async function planHasFeature(tx: Prisma.TransactionClient, tenantId: string, feature: PlanFeature): Promise<boolean> {
+  const subscription = await tx.tenantSubscription.findUnique({ where: { tenantId }, include: { plan: true } });
+  if (subscription) return Array.isArray(subscription.plan.features) && (subscription.plan.features as unknown[]).includes(feature);
+  const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { billingExemptedAt: true } });
+  return !!tenant?.billingExemptedAt;
+}
+
+export class PlanFeatureUnavailableError extends Error {
+  constructor(public readonly feature: PlanFeature) {
+    super(`Cette fonction n'est pas incluse dans votre formule actuelle — passez à une formule supérieure pour l'utiliser.`);
+    this.name = "PlanFeatureUnavailableError";
+  }
+}
+
+export async function assertPlanFeature(tx: Prisma.TransactionClient, tenantId: string, feature: PlanFeature) {
+  if (!(await planHasFeature(tx, tenantId, feature))) throw new PlanFeatureUnavailableError(feature);
 }

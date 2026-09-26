@@ -64,10 +64,12 @@ export async function provisionTenantForOwner(input: ProvisionTenantInput) {
   return withSuperAdminAccess(async (tx) => {
     const sector = await tx.sector.findUnique({ where: { key: input.sectorKey } });
     if (!sector) throw new ProvisioningError("sector", "Secteur inconnu.");
+    // Seuls les secteurs réellement opérationnels sont ouverts à la création.
+    if (!sector.isAvailable || !sector.isActive) throw new ProvisioningError("sector", "Ce secteur arrive bientôt : il n'est pas encore ouvert.");
     const plan = input.planName
-      ? await tx.subscriptionPlan.findFirst({ where: { name: input.planName, status: "PUBLISHED" } })
-      : await tx.subscriptionPlan.findFirst({ where: { status: "PUBLISHED" }, orderBy: { priceMonthly: "asc" } });
-    if (!plan) throw new ProvisioningError("plan", "Formule indisponible.");
+      ? await tx.subscriptionPlan.findFirst({ where: { name: input.planName, status: "PUBLISHED", isQuoteOnly: false } })
+      : await tx.subscriptionPlan.findFirst({ where: { status: "PUBLISHED", isQuoteOnly: false, priceMonthly: { gt: 0 } }, orderBy: { priceMonthly: "asc" } });
+    if (!plan) throw new ProvisioningError("plan", "Formule indisponible (la formule Sur mesure se demande sur devis).");
     const ownerRole = await tx.role.findFirst({ where: { tenantId: null, name: "OWNER" } });
     if (!ownerRole) throw new Error("Rôle système OWNER absent — lancez le seed de base.");
 
