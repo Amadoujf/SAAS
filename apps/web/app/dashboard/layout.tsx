@@ -1,22 +1,20 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { auth } from "@/lib/auth";
+import { withTenant, countOrdersByQueue } from "@yamacommerce/database";
+import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
+import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 
 /**
- * Habillage commun du dashboard commerçant — voir docs/08 §8.2. Premier layout réel
- * pour `/dashboard/**` (jusqu'ici seule `app/dashboard/page.tsx` existait, sans
- * navigation). La navigation Produits/Catégories/Stocks n'apparaît QUE si le module
- * "catalog" est activé pour ce tenant (voir la revue du 18 septembre 2026, « le
- * catalogue est un module métier activable, pas une obligation pour tous les
- * secteurs ») — l'immobilier/le voyage gardent leurs propres modèles "listings",
- * jamais forcés vers ce menu.
+ * Habillage du dashboard commerçant — univers « précis, rapide, dense mais lisible » :
+ * navigation nuit profonde à gauche (bureau), barre supérieure + tiroir animé + barre
+ * d'onglets au pouce (mobile). Le contenu vit sur un fond ivoire chaud. Aucune
+ * personnalisation de la boutique (design tokens) ne s'applique ici.
  *
- * Un utilisateur sans adhésion ACTIVE (pas encore rattaché à une entreprise) voit
- * quand même ses pages (`/dashboard` affiche déjà ce cas), juste sans navigation
- * métier — jamais une redirection en boucle vers `/dashboard` lui-même.
+ * Les entrées Produits/Catégories/Stocks/Commandes/Livraison n'apparaissent QUE si
+ * le module "catalog" est activé pour ce tenant (immobilier/voyage ont leurs propres
+ * modules, jamais forcés vers ce menu).
  */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const session = await auth();
@@ -25,44 +23,64 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const membership = await getCurrentTenantMembership();
   const catalogEnabled = membership ? await isCatalogModuleEnabled(membership.tenantId) : false;
 
+  let toProcess = 0;
+  let storeUrl: string | null = null;
+  if (membership) {
+    const data = await withTenant(membership.tenantId, async (tx) => {
+      const queues = catalogEnabled ? await countOrdersByQueue(tx, membership.tenantId) : null;
+      const domain = await tx.domain.findFirst({
+        where: { tenantId: membership.tenantId, lifecycleStatus: "ACTIVE" },
+        orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }],
+      });
+      return { queues, domain };
+    });
+    toProcess = data.queues ? data.queues.toProcess + data.queues.awaitingProof : 0;
+    storeUrl = data.domain ? `https://${data.domain.domain}` : null;
+  }
+
+  const groups: NavGroup[] = [{ label: "Pilotage", items: [{ href: "/dashboard", label: "Accueil", icon: "home" }] }];
+  if (membership && catalogEnabled) {
+    groups.push({
+      label: "Ventes",
+      items: [
+        { href: "/dashboard/commandes", label: "Commandes", icon: "orders", badge: toProcess || undefined },
+        { href: "/dashboard/clients", label: "Clients", icon: "customers" },
+        { href: "/dashboard/livraison", label: "Livraison", icon: "delivery" },
+        { href: "/dashboard/paiements", label: "Paiements", icon: "payments" },
+      ],
+    });
+    groups.push({
+      label: "Catalogue",
+      items: [
+        { href: "/dashboard/produits", label: "Produits", icon: "products" },
+        { href: "/dashboard/categories", label: "Catégories", icon: "categories" },
+        { href: "/dashboard/stocks", label: "Stocks", icon: "stock" },
+      ],
+    });
+  } else if (membership) {
+    groups[0]!.items.push({ href: "/dashboard/clients", label: "Clients", icon: "customers" });
+  }
+  if (membership) {
+    groups.push({ label: "Compte", items: [{ href: "/dashboard/facturation", label: "Abonnement", icon: "billing" }] });
+  }
+
+  async function doSignOut() {
+    "use server";
+    await signOut({ redirectTo: "/" });
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex min-h-screen">
-        <aside className="w-56 shrink-0 border-r border-gray-200 bg-white px-4 py-6">
-          <p className="mb-6 truncate text-sm font-semibold text-gray-900">
-            {membership?.tenantName ?? "YamaCommerce AI"}
-          </p>
-          <nav className="flex flex-col gap-1 text-sm">
-            <Link href="/dashboard" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-              Accueil
-            </Link>
-            {membership && (
-              <Link href="/dashboard/clients" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-                Clients
-              </Link>
-            )}
-            {membership && (
-              <Link href="/dashboard/facturation" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-                Facturation
-              </Link>
-            )}
-            {catalogEnabled && (
-              <>
-                <Link href="/dashboard/produits" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-                  Produits
-                </Link>
-                <Link href="/dashboard/categories" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-                  Catégories
-                </Link>
-                <Link href="/dashboard/stocks" className="rounded px-3 py-2 text-gray-700 hover:bg-gray-100">
-                  Stocks
-                </Link>
-              </>
-            )}
-          </nav>
-        </aside>
-        <main className="flex-1">{children}</main>
-      </div>
+    <div className="min-h-screen bg-yc-ivory-50 font-ui text-yc-ink lg:flex">
+      <DashboardSidebar
+        groups={groups}
+        tenantName={membership?.tenantName ?? "YamaCommerce"}
+        roleName={membership?.roleName ?? null}
+        storeUrl={storeUrl}
+        signOut={doSignOut}
+      />
+      <main id="contenu" className="min-w-0 flex-1 px-4 pb-28 pt-6 sm:px-6 lg:px-10 lg:pb-12 lg:pt-10">
+        <div className="mx-auto w-full max-w-[1240px]">{children}</div>
+      </main>
     </div>
   );
 }

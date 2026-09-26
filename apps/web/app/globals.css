@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * Deux périmètres de style STRICTEMENT séparés :
+ * - `--yc-*` : identité YamaCommerce (site plateforme, connexion, onboarding,
+ *   dashboard). Jamais surchargé par la personnalisation d'une entreprise.
+ * - `--color-*`, `--font-heading`, … : design tokens d'une entreprise, injectés
+ *   uniquement à l'intérieur de `<SiteShell>` / `<StoreShell>` (voir
+ *   lib/design-tokens-to-css.ts). Une boutique ne peut donc jamais modifier
+ *   l'interface interne du dashboard.
+ */
 :root {
   --color-bg: #ffffff;
   --color-fg: #0f172a;
@@ -9,6 +18,32 @@
   --color-brand-foreground: #ffffff;
   --color-muted: #64748b;
   --color-border: #e2e8f0;
+
+  /* Identité YamaCommerce */
+  --yc-night-950: 6 9 26;
+  --yc-night-900: 10 16 42;
+  --yc-night-800: 17 26 62;
+  --yc-night-700: 29 41 88;
+  --yc-night-600: 49 64 120;
+  --yc-ivory-50: 252 250 245;
+  --yc-ivory-100: 247 243 234;
+  --yc-ivory-200: 236 230 216;
+  --yc-ink: 15 20 44;
+  --yc-ink-soft: 71 80 112;
+  --yc-cyan: 34 211 238;
+  --yc-cyan-strong: 6 182 212;
+  --yc-electric: 59 91 255;
+  --yc-violet: 139 92 246;
+  --yc-success: 16 185 129;
+  --yc-warning: 245 158 11;
+  --yc-danger: 239 68 68;
+
+  --yc-radius-sm: 10px;
+  --yc-radius: 16px;
+  --yc-radius-lg: 24px;
+  --yc-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --yc-shadow-card: 0 1px 0 rgb(255 255 255 / 0.6) inset, 0 1px 2px rgb(10 16 42 / 0.06), 0 8px 24px -12px rgb(10 16 42 / 0.18);
+  --yc-shadow-float: 0 24px 60px -24px rgb(6 9 26 / 0.45);
 }
 
 .dark {
@@ -21,4 +56,79 @@
 body {
   background-color: var(--color-bg);
   color: var(--color-fg);
+}
+
+@layer components {
+  /* Texture légère : grain + grille lumineuse, sans image externe. */
+  .yc-grid {
+    background-image:
+      linear-gradient(rgb(255 255 255 / 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 50% 0%, black 30%, transparent 75%);
+  }
+  .yc-glow {
+    background:
+      radial-gradient(60% 50% at 20% 10%, rgb(var(--yc-cyan) / 0.22), transparent 60%),
+      radial-gradient(50% 45% at 85% 20%, rgb(var(--yc-violet) / 0.25), transparent 60%),
+      radial-gradient(70% 60% at 50% 100%, rgb(var(--yc-electric) / 0.18), transparent 70%);
+  }
+  .yc-text-gradient {
+    background: linear-gradient(100deg, rgb(var(--yc-cyan)) 0%, rgb(var(--yc-electric)) 45%, rgb(var(--yc-violet)) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .yc-focus {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--yc-cyan))] focus-visible:ring-offset-2 focus-visible:ring-offset-[rgb(var(--yc-ivory-50))];
+  }
+  .yc-num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes yc-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes yc-shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+@keyframes yc-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes yc-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes yc-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes yc-draw {
+  from { stroke-dashoffset: var(--yc-dash, 400); }
+  to { stroke-dashoffset: 0; }
+}
+
+.yc-rise { animation: yc-rise 0.7s var(--yc-ease) both; }
+.yc-float { animation: yc-float 6s ease-in-out infinite; }
+.yc-pop { animation: yc-pop 0.5s var(--yc-ease) both; }
+.yc-draw { stroke-dasharray: var(--yc-dash, 400); animation: yc-draw 1.2s var(--yc-ease) both; }
+.yc-skeleton {
+  background: linear-gradient(90deg, rgb(var(--yc-ivory-200)) 0%, rgb(var(--yc-ivory-100)) 50%, rgb(var(--yc-ivory-200)) 100%);
+  background-size: 200% 100%;
+  animation: yc-shimmer 1.4s linear infinite;
+}
+
+/* Aucune animation décorative pour qui la refuse : les actions restent immédiates. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

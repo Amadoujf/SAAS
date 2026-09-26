@@ -1,11 +1,13 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Configuration Tailwind de base. Le thème par entreprise (couleurs de marque, mode
- * clair/sombre par défaut — voir Tenant.branding) sera appliqué via des variables CSS
- * injectées au niveau du layout tenant, pas en dupliquant cette configuration — voir
- * docs/02-architecture-fonctionnelle.md#24-modèles-de-site-par-secteur.
+ * Configuration Tailwind. Deux familles de couleurs strictement séparées :
+ * - `yc-*` : identité YamaCommerce (plateforme + dashboard), variables `--yc-*`.
+ * - `brand` et les `var(--color-*)` arbitraires : design tokens d'une entreprise,
+ *   actifs uniquement sous `SiteShell`/`StoreShell` (voir app/globals.css).
  */
+const rgb = (name: string) => `rgb(var(${name}) / <alpha-value>)`;
+
 const config: Config = {
   darkMode: "class",
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./lib/**/*.{ts,tsx}"],
@@ -16,7 +18,31 @@ const config: Config = {
           DEFAULT: "var(--color-brand, #0F766E)",
           foreground: "var(--color-brand-foreground, #ffffff)",
         },
+        yc: {
+          night: {
+            950: rgb("--yc-night-950"),
+            900: rgb("--yc-night-900"),
+            800: rgb("--yc-night-800"),
+            700: rgb("--yc-night-700"),
+            600: rgb("--yc-night-600"),
+          },
+          ivory: { 50: rgb("--yc-ivory-50"), 100: rgb("--yc-ivory-100"), 200: rgb("--yc-ivory-200") },
+          ink: { DEFAULT: rgb("--yc-ink"), soft: rgb("--yc-ink-soft") },
+          cyan: { DEFAULT: rgb("--yc-cyan"), strong: rgb("--yc-cyan-strong") },
+          electric: rgb("--yc-electric"),
+          violet: rgb("--yc-violet"),
+          success: rgb("--yc-success"),
+          warning: rgb("--yc-warning"),
+          danger: rgb("--yc-danger"),
+        },
       },
+      fontFamily: {
+        display: ["var(--font-yc-display)", "ui-sans-serif", "system-ui", "sans-serif"],
+        ui: ["var(--font-yc-ui)", "ui-sans-serif", "system-ui", "sans-serif"],
+      },
+      borderRadius: { yc: "var(--yc-radius)", "yc-sm": "var(--yc-radius-sm)", "yc-lg": "var(--yc-radius-lg)" },
+      boxShadow: { yc: "var(--yc-shadow-card)", "yc-float": "var(--yc-shadow-float)" },
+      transitionTimingFunction: { yc: "cubic-bezier(0.22, 1, 0.36, 1)" },
     },
   },
   plugins: [],
