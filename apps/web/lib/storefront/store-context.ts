@@ -4,6 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import { withTenant, resolveEffectiveDesignTokens, listCategories } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
+import { templateTokens } from "./store-templates";
 
 export interface StoreContext {
   tenantId: string;
@@ -28,17 +29,20 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const { tokens, categories, branding } = await withTenant(active.tenantId, async (tx) => ({
+  const { tokens, categories, branding, hasSite } = await withTenant(active.tenantId, async (tx) => ({
     tokens: await resolveEffectiveDesignTokens(tx, active.tenantId),
+    hasSite: (await tx.tenantSite.count({ where: { tenantId: active.tenantId } })) > 0,
     categories: await listCategories(tx, active.tenantId),
-    branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as { logoUrl?: string } | null,
+    branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as { logoUrl?: string; templatePreference?: string } | null,
   }));
   return {
     status: "ok",
     store: {
       tenantId: active.tenantId,
       tenantName: active.tenantName,
-      tokens,
+      // Site publié depuis l'éditeur : ses tokens font foi. Sinon, le style choisi à
+      // l'onboarding (template complet), sinon les tokens par défaut.
+      tokens: hasSite ? tokens : templateTokens(branding?.templatePreference) ?? tokens,
       categories: categories.map((c) => ({ slug: c.slug, name: c.name })),
       logoUrl: branding?.logoUrl ?? null,
     },

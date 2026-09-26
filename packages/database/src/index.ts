@@ -28,3 +28,4 @@ export * from "./subscription-registry";
 export * from "./subscription-lifecycle";
 export * from "./subscription-usage";
 export * from "./subscription-reminders";
+export * from "./tenant-provisioning";

@@ -51,6 +51,9 @@ async function main() {
     return;
   }
 
+  // Style de boutique choisi (comme à l'onboarding) : Atelier.
+  await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(tenant.branding as object), templatePreference: "teranga-atelier" } } }));
+
   const variantIds: Record<string, string[]> = {};
   await withTenant(tenantId, async (tx) => {
     const shop = (await tx.shop.findFirst({ where: { tenantId, isMain: true } })) ?? (await tx.shop.create({ data: { tenantId, name: "Boutique principale", isMain: true } }));

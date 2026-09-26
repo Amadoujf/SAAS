@@ -11,7 +11,7 @@ import { CountUp } from "@/components/yc/count-up";
 import { AreaChart } from "@/components/yc/area-chart";
 import { OrderStatusPill } from "@/components/yc/status-pill";
 import { EmptyState } from "@/components/yc/empty-state";
-import { IconAlert, IconArrowRight, IconClock, IconPlus, IconTruck, IconWallet } from "@/components/yc/icons";
+import { IconAlert, IconArrowRight, IconCheck, IconClock, IconPlus, IconTruck, IconWallet } from "@/components/yc/icons";
 
 export const metadata: Metadata = { title: "Accueil — YamaCommerce", robots: { index: false, follow: false } };
 
@@ -42,6 +42,23 @@ export default async function DashboardHome() {
 
   const catalogEnabled = await isCatalogModuleEnabled(membership.tenantId);
   const overview = catalogEnabled ? await withTenant(membership.tenantId, (tx) => getCommerceOverview(tx, membership.tenantId)) : null;
+  const setup = catalogEnabled
+    ? await withTenant(membership.tenantId, async (tx) => ({
+        products: await tx.product.count({ where: { tenantId: membership.tenantId, status: "PUBLISHED", deletedAt: null } }),
+        zones: await tx.deliveryZone.count({ where: { tenantId: membership.tenantId, isActive: true } }),
+        wallets: await tx.paymentProviderConfig.count({ where: { tenantId: membership.tenantId, isEnabled: true, accountNumber: { not: null } } }),
+        orders: await tx.order.count({ where: { tenantId: membership.tenantId } }),
+      }))
+    : null;
+  const steps = setup
+    ? [
+        { done: setup.products > 0, label: "Publier un premier produit", href: "/dashboard/produits/nouveau" },
+        { done: setup.zones > 0, label: "Définir vos zones de livraison", href: "/dashboard/livraison" },
+        { done: setup.wallets > 0, label: "Ajouter votre numéro Wave ou Orange Money", href: "/dashboard/paiements" },
+        { done: setup.orders > 0, label: "Recevoir votre première commande", href: "/catalogue" },
+      ]
+    : [];
+  const remaining = steps.filter((s) => !s.done).length;
 
   const today = new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Dakar" }).format(new Date());
 
@@ -71,6 +88,27 @@ export default async function DashboardHome() {
         <Panel><EmptyState title="Module commerce non activé" description="Votre secteur n'utilise pas le catalogue produits." /></Panel>
       ) : (
         <div className="flex flex-col gap-5">
+          {remaining > 0 && (
+            <Panel className="overflow-hidden">
+              <div className="grid gap-6 p-5 sm:p-6 lg:grid-cols-[1fr_1.4fr] lg:items-center">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-yc-electric">Premiers pas</p>
+                  <h2 className="mt-1 font-display text-2xl font-semibold tracking-tight">Encore {remaining} étape{remaining > 1 ? "s" : ""} avant de vendre</h2>
+                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-yc-ink/[0.07]"><div className="h-full rounded-full bg-gradient-to-r from-yc-cyan to-yc-electric transition-all duration-700" style={{ width: `${((steps.length - remaining) / steps.length) * 100}%` }} /></div>
+                </div>
+                <ol className="grid gap-2 sm:grid-cols-2">
+                  {steps.map((st, i) => (
+                    <li key={st.label}>
+                      <Link href={st.href} className={`yc-focus flex items-center gap-3 rounded-2xl p-3.5 text-sm font-semibold ring-1 ring-inset transition-colors ${st.done ? "bg-yc-success/[0.06] text-yc-ink-soft ring-yc-success/20" : "bg-white ring-yc-ink/10 hover:ring-yc-electric"}`}>
+                        <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs ${st.done ? "bg-yc-success text-white" : "bg-yc-ink/[0.06] text-yc-ink"}`}>{st.done ? <IconCheck size={14} /> : i + 1}</span>
+                        <span className={st.done ? "line-through decoration-yc-ink/30" : ""}>{st.label}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </Panel>
+          )}
           {/* Files d'action : ce qui demande une décision maintenant. */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <QueueCard href="/dashboard/commandes?file=a-traiter" label="À préparer" value={overview.queues.toProcess} icon={<IconClock size={20} />} tone="violet" hint="Confirmées, en attente d'expédition" />
