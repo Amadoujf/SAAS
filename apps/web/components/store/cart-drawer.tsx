@@ -70,9 +70,18 @@ export function CartDrawer() {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     document.addEventListener("keydown", onKey);
     document.body.style.overflow = "hidden";
-    const t = setTimeout(() => panel.current?.querySelector<HTMLElement>("button, a")?.focus(), 50);
+    // Le panneau est monté par l'animation : on attend qu'il existe pour y placer
+    // le focus (bouton Fermer), sans délai arbitraire.
+    let frame = 0;
+    let tries = 0;
+    const focusInside = () => {
+      const target = panel.current?.querySelector<HTMLElement>("[data-autofocus]");
+      if (target) target.focus();
+      else if (tries++ < 30) frame = requestAnimationFrame(focusInside);
+    };
+    frame = requestAnimationFrame(focusInside);
     return () => {
-      clearTimeout(t);
+      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       (opener.current as HTMLElement | null)?.focus?.();
@@ -102,7 +111,7 @@ export function CartDrawer() {
               <h2 className="font-[family-name:var(--font-heading)] text-xl font-semibold">
                 Panier {cart && cart.itemCount > 0 && <span className="text-[var(--color-text-muted)]">({cart.itemCount})</span>}
               </h2>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+              <button type="button" data-autofocus onClick={() => setOpen(false)} aria-label="Fermer" className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
                 <IconX size={20} />
               </button>
             </header>

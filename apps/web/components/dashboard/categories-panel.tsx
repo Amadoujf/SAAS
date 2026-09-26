@@ -70,12 +70,13 @@ export function CategoriesPanel() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nom de la catégorie"
-          className="flex-1 rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
+          aria-label="Nom de la nouvelle catégorie"
+          className="h-11 min-w-0 flex-1 bg-white rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
         />
         <button
           type="button"
           onClick={() => void handleCreate()}
-          className="rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
+          className="h-11 shrink-0 rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 text-sm font-semibold text-white hover:bg-yc-night-800"
         >
           Ajouter
         </button>

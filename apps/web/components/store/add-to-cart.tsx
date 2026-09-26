@@ -58,8 +58,13 @@ export function AddToCart({ variants, lowStockThreshold = 3 }: { variants: Varia
         </div>
         <button
           type="button"
-          disabled={soldOut || busy}
+          // Jamais `disabled` pendant l'envoi : un bouton désactivé perd le focus
+          // clavier (il retombait sur la page). On bloque le double envoi par la garde.
+          disabled={soldOut}
+          aria-disabled={busy || undefined}
+          aria-busy={busy || undefined}
           onClick={async () => {
+            if (busy) return;
             const ok = await add(selected, qty);
             if (ok) { setAdded(true); setTimeout(() => setAdded(false), 2200); }
           }}
