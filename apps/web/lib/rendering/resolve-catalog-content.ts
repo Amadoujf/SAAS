@@ -7,6 +7,8 @@ import type {
   ResolvedProductsContent,
 } from "@/components/sections/content-types";
 import type { ResolvedContentBySectionId } from "@/components/sections/section-renderer";
+import { SHOWCASE_POOL_KEY } from "@/lib/showcase/showcase";
+import { buildShowcasePool } from "./showcase-pool";
 
 /**
  * Résout le contenu catalogue RÉEL (produits/catégories) pour les sections qui en
@@ -28,6 +30,12 @@ export async function resolveCatalogContentForManifest(
   manifest: TemplateManifest,
 ): Promise<ResolvedContentBySectionId> {
   const result: ResolvedContentBySectionId = {};
+
+  // Carrousels immersifs : un seul réservoir pour toutes leurs instances (produits et
+  // fiches publiés), la sélection de chacune est faite au rendu (lib/showcase).
+  if (manifest.pages.some((page) => page.sections.some((section) => section.sectionKey === "immersive_showcase"))) {
+    result[SHOWCASE_POOL_KEY] = await buildShowcasePool(tx, tenantId);
+  }
 
   const categorySections = manifest.pages.flatMap((page) =>
     page.sections.filter((section) => section.sectionKey === "categories"),

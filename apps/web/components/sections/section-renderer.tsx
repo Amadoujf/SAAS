@@ -34,6 +34,10 @@ import { LookbookSection } from "./lookbook";
 import { DesignersSection } from "./designers";
 import { ProvenanceSection } from "./provenance";
 import { CatalogSearchSection } from "./catalog-search";
+import { ImmersiveHeroSection } from "./immersive/immersive-hero";
+import { ImmersiveShowcaseSection } from "./immersive/immersive-showcase";
+import { ScrollStorySection } from "./immersive/scroll-story";
+import { SHOWCASE_POOL_KEY, isShowcasePool, selectShowcaseItems, type ShowcasePool } from "@/lib/showcase/showcase";
 import type {
   ResolvedCategoriesContent,
   ResolvedProductsContent,
@@ -55,6 +59,8 @@ export type ResolvedContentBySectionId = Record<
   | ResolvedPromotionsContent
   | ResolvedLookbookContent
   | ResolvedDesignersContent
+  /** Réservoir des produits et fiches publiés (clé `SHOWCASE_POOL_KEY`) — voir lib/showcase. */
+  | ShowcasePool
 >;
 
 /**
@@ -283,6 +289,21 @@ function renderByKey(
 
     case "catalog_search":
       return <CatalogSearchSection variant={instance.variant} params={instance.params as any} />;
+
+    case "immersive_hero":
+      return <ImmersiveHeroSection variant={instance.variant} params={instance.params as any} />;
+
+    case "immersive_showcase": {
+      // Sélection calculée ici (fonction pure), depuis le réservoir fourni par le serveur
+      // ou l'éditeur — un carrousel tout juste ajouté dans l'éditeur affiche donc déjà
+      // les vrais contenus de l'entreprise, sans aller-retour serveur.
+      const pool = resolvedContent?.[SHOWCASE_POOL_KEY];
+      const items = selectShowcaseItems(instance.params as any, isShowcasePool(pool) ? pool : undefined);
+      return <ImmersiveShowcaseSection variant={instance.variant} params={instance.params as any} items={items} />;
+    }
+
+    case "scroll_story":
+      return <ScrollStorySection variant={instance.variant} params={instance.params as any} />;
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être
