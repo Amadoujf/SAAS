@@ -12,3 +12,8 @@ export async function getTenantModuleKeys(tenantId: string): Promise<Set<string>
 export function isRealEstate(modules: Set<string>) {
   return modules.has("listings") && (modules.has("leases") || modules.has("visit_requests"));
 }
+
+/** Voyage : les voyages (module "listings") et le calendrier des départs. */
+export function isTravel(modules: Set<string>) {
+  return modules.has("listings") && modules.has("departures");
+}

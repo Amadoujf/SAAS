@@ -99,6 +99,11 @@ export const PERMISSIONS = [
   "leases.view",
   "leases.manage",
   "rents.record",
+
+  // Voyage : voyageurs (identité, pièces, visas) et encaissements d'acomptes et de soldes
+  // (argent réel — permission distincte, accordée au comptable).
+  "travelers.manage",
+  "reservation_payments.record",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -136,6 +141,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "reservations.view",
     "reservations.update_status",
     "leases.view",
+    "travelers.manage",
   ],
   INVENTORY_MANAGER: [
     "products.view",
@@ -165,6 +171,8 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "payments.view",
     "leases.view",
     "rents.record",
+    "reservations.view",
+    "reservation_payments.record",
   ],
   DELIVERY_STAFF: ["delivery.view", "delivery.update_status"],
 };

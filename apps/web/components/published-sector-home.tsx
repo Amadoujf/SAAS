@@ -5,6 +5,8 @@ import { RenderTemplatePage } from "@/components/render-template-page";
 import { SiteShell } from "@/components/site-shell";
 import { StoreShell } from "@/components/store/store-shell";
 import { EstateShell } from "@/components/estate/estate-shell";
+import type { TravelContext } from "@/lib/travel/travel-context";
+import { TravelShell } from "@/components/travel/travel-shell";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -13,7 +15,7 @@ import { EstateShell } from "@/components/estate/estate-shell";
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; annotate?: boolean }) {
+export function PublishedSectorHome({ site, store, estate, travel, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
@@ -23,5 +25,6 @@ export function PublishedSectorHome({ site, store, estate, annotate = false }: {
   );
   if (store) return <StoreShell store={store} preview={annotate}>{content}</StoreShell>;
   if (estate) return <EstateShell estate={estate}>{content}</EstateShell>;
+  if (travel) return <TravelShell travel={travel}>{content}</TravelShell>;
   return content;
 }

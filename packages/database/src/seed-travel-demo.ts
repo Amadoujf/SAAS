@@ -166,6 +166,16 @@ async function main() {
     });
   });
 
+  // Comptes de paiement déclarés par l'agence (page Paiements) : Wave et Orange Money.
+  await withTenant(tenantId, async (tx) => {
+    await tx.paymentProviderConfig.createMany({
+      data: [
+        { tenantId, provider: "wave_direct", isEnabled: true, mode: "live", label: "Wave", accountNumber: "77 123 45 67", accountHolderName: "Baobab Voyages", publicInstructions: "Envoyez le montant puis gardez la confirmation Wave." },
+        { tenantId, provider: "orange_money_direct", isEnabled: true, mode: "live", label: "Orange Money", accountNumber: "78 765 43 21", accountHolderName: "Baobab Voyages", publicInstructions: null },
+      ],
+    });
+  });
+
   const inDays = (d: number) => new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth(), new Date().getUTCDate() + d, 7));
   const ids: Record<string, string> = {};
   const departures: Record<string, string[]> = {};

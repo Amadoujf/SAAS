@@ -10,6 +10,8 @@ import { resolveStore } from "@/lib/storefront/store-context";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { isEstateTenant, resolveEstate } from "@/lib/real-estate/estate-context";
 import { EstateHome } from "@/components/estate/estate-home";
+import { isTravelTenant, resolveTravel } from "@/lib/travel/travel-context";
+import { TravelHome } from "@/components/travel/travel-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -50,6 +52,9 @@ export default async function HomePage() {
       } else if (await isEstateTenant(tenant.id)) {
         const estate = await resolveEstate("/");
         if (estate.status === "ok") return <PublishedSectorHome site={resolution.site} estate={estate.estate} />;
+      } else if (await isTravelTenant(tenant.id)) {
+        const travel = await resolveTravel("/");
+        if (travel.status === "ok") return <PublishedSectorHome site={resolution.site} travel={travel.travel} />;
       }
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
@@ -64,6 +69,11 @@ export default async function HomePage() {
     if (await isEstateTenant(tenant.id)) {
       const estate = await resolveEstate("/");
       if (estate.status === "ok") return <EstateHome estate={estate.estate} />;
+    }
+    // Agence de voyage : accueil de son template (« Horizons » par défaut).
+    if (await isTravelTenant(tenant.id)) {
+      const travel = await resolveTravel("/");
+      if (travel.status === "ok") return <TravelHome travel={travel.travel} />;
     }
     return <TenantComingSoon tenantName={tenant.name} />;
   }
