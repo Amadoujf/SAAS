@@ -266,6 +266,118 @@
    "height": 760,
    "bytes": 18856,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/voyage/casamance-bolong-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 13958,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (bolong de Casamance au matin, pirogue) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/casamance-bolong.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 106022,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (bolong de Casamance au matin, pirogue)."
+  },
+  {
+   "file": "demo-templates/voyage/dunes-lompoul-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 11228,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (dunes au coucher du soleil) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/dunes-lompoul.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 99622,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (dunes au coucher du soleil)."
+  },
+  {
+   "file": "demo-templates/voyage/fouta-djallon-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 11602,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (montagnes dans la brume, cascade) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/fouta-djallon.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 105600,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (montagnes dans la brume, cascade)."
+  },
+  {
+   "file": "demo-templates/voyage/ile-turquoise-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 18406,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (île aux maisons colorées sur mer turquoise) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/ile-turquoise.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 56774,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (île aux maisons colorées sur mer turquoise)."
+  },
+  {
+   "file": "demo-templates/voyage/ocean-saly-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 20026,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (océan au couchant et palmiers) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/ocean-saly.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 143296,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (océan au couchant et palmiers)."
+  },
+  {
+   "file": "demo-templates/voyage/palmeraie-aube-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 13474,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (palmeraie à l'aube, coupoles à l'horizon) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/palmeraie-aube.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 127710,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (palmeraie à l'aube, coupoles à l'horizon)."
+  },
+  {
+   "file": "demo-templates/voyage/pont-saint-louis-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 25884,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (pont métallique sur le fleuve au couchant) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/pont-saint-louis.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 138466,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (pont métallique sur le fleuve au couchant)."
+  },
+  {
+   "file": "demo-templates/voyage/ville-crepuscule-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 34782,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (ville de tours au crépuscule) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/voyage/ville-crepuscule.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 185760,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (ville de tours au crépuscule)."
   }
  ]
 }
