@@ -35,6 +35,9 @@ export const SECTION_KEYS = [
   "designers",
   "provenance",
   "catalog_search",
+  "immersive_hero",
+  "immersive_showcase",
+  "scroll_story",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -44,6 +47,28 @@ export function isSectionKey(value: string): value is SectionKey {
 }
 
 const mediaSchema = z.object({ url: z.string().url(), alt: z.string().optional() });
+
+/**
+ * Référence d'image des sections immersives : URL absolue https (médiathèque servie par
+ * un autre hôte, CDN) OU chemin interne de l'application (« /api/media/… »,
+ * « /demo-templates/… »). Jamais `javascript:`, jamais `//hôte` (URL protocole-relative
+ * qui sortirait du site), jamais un autre schéma.
+ */
+const imageRefSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https?:\/\/[^\s]+$/.test(v), "Image invalide : choisissez-la dans la médiathèque.");
+
+/** Lien d'un bouton : chemin interne (« /catalogue ») ou adresse https. */
+const actionHrefSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^\s]+$/.test(v), "Lien invalide : chemin commençant par « / » ou adresse https.");
+
+/** Point focal d'une image (en %) : ce qui reste visible quand l'image est recadrée. */
+const focalSchema = z.number().min(0).max(100);
 
 /** Schéma de paramètres propre à chaque section — validé à la création/modification
  *  d'une instance de section dans un template, jamais laissé libre. */
@@ -240,6 +265,109 @@ export const sectionParamSchemas = {
       .optional(),
     media: mediaSchema.optional(),
   }),
+  // ---------------------------------------------------------------------------
+  // Sections immersives (octobre 2026) — mise en scène interactive commune à tous les
+  // secteurs : chaque entreprise les remplit avec SES contenus (aucun produit, prix,
+  // nom ou visuel imposé). Voir docs/12 §12.8.
+  // ---------------------------------------------------------------------------
+  /** Hero immersif : sujet principal de grande taille, typographie expressive, scène
+   *  éventuellement COMPOSÉE d'éléments détourés séparés (`layers`) qui s'assemblent ou
+   *  se séparent au défilement. Une photo plate reste possible (sans effet d'assemblage). */
+  immersive_hero: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().min(1).max(120),
+    titleAccent: z.string().trim().max(60).optional(),
+    subtitle: z.string().trim().max(280).optional(),
+    primaryCtaLabel: z.string().trim().max(40).optional(),
+    primaryCtaHref: actionHrefSchema.optional(),
+    secondaryCtaLabel: z.string().trim().max(40).optional(),
+    secondaryCtaHref: actionHrefSchema.optional(),
+    subjectImage: imageRefSchema.optional(),
+    subjectAlt: z.string().trim().max(160).optional(),
+    focalX: focalSchema.default(50),
+    focalY: focalSchema.default(50),
+    layers: z
+      .array(
+        z.object({
+          imageUrl: imageRefSchema,
+          alt: z.string().trim().max(120).optional(),
+          depth: z.number().min(0).max(1).default(0.5),
+          offsetX: z.number().min(-50).max(50).default(0),
+          offsetY: z.number().min(-50).max(50).default(0),
+          scale: z.number().min(0.2).max(2).default(1),
+          rotate: z.number().min(-45).max(45).default(0),
+          arriveFrom: z.enum(["top", "bottom", "left", "right", "none"]).default("top"),
+        }),
+      )
+      .max(6)
+      .default([]),
+    mobileImage: imageRefSchema.optional(),
+    backgroundColor: z.string().trim().max(40).optional(),
+    backgroundImage: imageRefSchema.optional(),
+    lighting: z.enum(["halo", "spotlight", "ambient", "none"]).default("halo"),
+    scrollEffect: z.enum(["assemble", "separate", "parallax", "zoom", "none"]).default("parallax"),
+    floating: z.boolean().default(true),
+    intensity: z.enum(["subtle", "balanced", "bold"]).default("balanced"),
+  }),
+  /** Carrousel immersif : élément central mis en avant, voisins en profondeur ; visuel,
+   *  titre, prix éventuel et arrière-plan changent ensemble. Source au choix : produits
+   *  du catalogue, fiches (biens, offres…) ou contenus saisis à la main. */
+  immersive_showcase: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().max(120).optional(),
+    subtitle: z.string().trim().max(220).optional(),
+    source: z.enum(["products", "listings", "manual"]).default("products"),
+    productIds: z.array(z.string()).max(12).optional(),
+    listingIds: z.array(z.string()).max(12).optional(),
+    items: z
+      .array(
+        z.object({
+          title: z.string().trim().min(1).max(90),
+          subtitle: z.string().trim().max(160).optional(),
+          imageUrl: imageRefSchema,
+          imageAlt: z.string().trim().max(140).optional(),
+          href: actionHrefSchema.optional(),
+          badge: z.string().trim().max(30).optional(),
+          accentColor: z.string().trim().max(40).optional(),
+        }),
+      )
+      .max(12)
+      .default([]),
+    displayCount: z.number().int().min(3).max(12).default(6),
+    showPrice: z.boolean().default(true),
+    ctaLabel: z.string().trim().max(30).default("Découvrir"),
+    autoplay: z.boolean().default(true),
+    intervalSeconds: z.number().int().min(3).max(15).default(6),
+    backdrop: z.enum(["tinted", "neutral", "dark"]).default("tinted"),
+  }),
+  /** Récit au défilement : grande image (ou une image par étape) accompagnée de messages
+   *  successifs — caractéristiques, matières, pièces d'un logement, étapes d'une
+   *  expérience. Défilement naturel : jamais de blocage ni d'animation interminable. */
+  scroll_story: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().max(120).optional(),
+    intro: z.string().trim().max(400).optional(),
+    image: imageRefSchema.optional(),
+    imageAlt: z.string().trim().max(160).optional(),
+    steps: z
+      .array(
+        z.object({
+          eyebrow: z.string().trim().max(60).optional(),
+          title: z.string().trim().min(1).max(90),
+          body: z.string().trim().max(400).optional(),
+          imageUrl: imageRefSchema.optional(),
+          imageAlt: z.string().trim().max(140).optional(),
+          focusX: focalSchema.default(50),
+          focusY: focalSchema.default(50),
+          zoom: z.number().min(1).max(2.5).default(1),
+        }),
+      )
+      .min(1)
+      .max(8),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
+    backgroundColor: z.string().trim().max(40).optional(),
+  }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 
 /** Variantes visuelles disponibles par section — voir docs/12 (« plusieurs variantes
@@ -273,6 +401,17 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   designers: ["grid", "carousel"],
   provenance: ["map", "list"],
   catalog_search: ["hero", "compact"],
+  // « stage » : sujet sculptural à droite (commerce, mode, restauration, automobile) ;
+  // « centered » : sujet central sous le titre (produit signature, plat) ;
+  // « architectural » : grande photographie plein cadre révélée (immobilier,
+  // hôtellerie, voyage).
+  immersive_hero: ["stage", "centered", "architectural"],
+  // « depth » : élément central et voisins en perspective ; « stack » : cartes empilées.
+  immersive_showcase: ["depth", "stack"],
+  // « focus » : une image, cadrage qui glisse de détail en détail (matières, pièces) ;
+  // « sequence » : une image par étape en fondu ; « timeline » : étapes jalonnées
+  // (itinéraire, parcours de formation, suivi de livraison).
+  scroll_story: ["focus", "sequence", "timeline"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {
