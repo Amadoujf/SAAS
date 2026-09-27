@@ -17,11 +17,45 @@ import { getOrCreateDraftVersion, updatePageBlocks } from "./site-versions-regis
 const L = "/demo-templates/scene-lampe";
 const SM = "/demo-templates/sunu-marche";
 const R = "/demo-templates/residences";
+const C = "/demo-templates/ceramiques";
+
+/** Collection « Terres émaillées » : produits de DÉMONSTRATION dont le visuel est le rendu
+ *  original (scripts/demo-visuals/ceramiques.py) — le visuel montre donc bien le produit.
+ *  `color` : couleur d'ambiance du carrousel « objets en arc ». */
+const CERAMICS = [
+  { slug: "jarre-indigo", name: "Jarre Indigo", cat: "decoration", price: 38_000, color: "#1d3f8f", desc: "Jarre en grès, émail indigo profond et pied en terre nue. Pièce tournée, 26 cm." },
+  { slug: "bouteille-celadon", name: "Bouteille Céladon", cat: "decoration", price: 32_000, color: "#4f8a6e", desc: "Bouteille à col étroit, émail céladon translucide. Pour une tige ou seule, 32 cm." },
+  { slug: "coupe-sable", name: "Coupe Sable", cat: "art-de-la-table", price: 24_000, color: "#b89a6a", desc: "Coupe large sur petit pied, émail sable satiné. Fruits, pain ou centre de table." },
+  { slug: "vase-terracotta", name: "Vase Terracotta", cat: "decoration", price: 29_000, color: "#b4552d", desc: "Vase ovoïde, émail mat couleur terre cuite, toucher doux. 28 cm." },
+  { slug: "soliflore-nuit", name: "Soliflore Nuit", cat: "decoration", price: 18_000, color: "#2c2f45", desc: "Soliflore élancé, émail noir miroir. Une fleur, une branche, 33 cm." },
+  { slug: "amphore-ocre", name: "Amphore Ocre", cat: "decoration", price: 45_000, color: "#c28a2a", desc: "Amphore à épaule haute, émail ocre et coulure foncée au pied. 30 cm." },
+] as const;
+
+/** Crée (une seule fois) les produits de la collection ; renvoie leurs identifiants. */
+async function ensureCeramics(tenantId: string): Promise<Record<string, string>> {
+  return withTenant(tenantId, async (tx) => {
+    const ids: Record<string, string> = {};
+    const shop = await tx.shop.findFirst({ where: { tenantId, isMain: true } });
+    if (!shop) return ids;
+    for (const c of CERAMICS) {
+      const found = await tx.product.findFirst({ where: { tenantId, slug: c.slug }, select: { id: true } });
+      if (found) { ids[c.slug] = found.id; continue; }
+      const category = await tx.category.findFirst({ where: { tenantId, slug: c.cat }, select: { id: true } });
+      const product = await tx.product.create({
+        data: { tenantId, slug: c.slug, name: c.name, description: `${c.desc} Visuel de démonstration (rendu).`, shortDescription: c.desc.split(".")[0], basePrice: c.price, status: "PUBLISHED", categoryId: category?.id ?? null, images: { create: [{ url: `${C}/${c.slug}.webp`, altText: `${c.name}, céramique émaillée`, position: 0 }] } },
+      });
+      const variant = await tx.productVariant.create({ data: { tenantId, productId: product.id, name: "Standard", price: c.price, attributes: {} } });
+      await tx.inventoryItem.create({ data: { tenantId, productVariantId: variant.id, shopId: shop.id, availableQuantity: 8, lowStockThreshold: 2 } });
+      ids[c.slug] = product.id;
+    }
+    return ids;
+  });
+}
 
 const section = (id: string, sectionKey: string, variant: string, order: number, params: Record<string, unknown>) =>
   validateSectionInstance({ id, sectionKey, variant, order, isEnabled: true, params });
 
-function sunuMarche(): SectionInstance[] {
+function sunuMarche(ceramics: Record<string, string>, otherProductIds: string[]): SectionInstance[] {
   return [
     section("hero-immersif", "immersive_hero", "stage", 0, {
       eyebrow: "Objets sculpturaux",
@@ -46,18 +80,47 @@ function sunuMarche(): SectionInstance[] {
         { imageUrl: `${L}/galet.webp`, alt: "Galet de pierre polie", depth: 0.85, offsetX: -32, offsetY: 34, scale: 0.34, arriveFrom: "left" },
       ],
     }),
-    section("carrousel-vedette", "immersive_showcase", "depth", 1, {
+    section("gamme-ceramiques", "immersive_showcase", "arc", 1, {
+      eyebrow: "Terres émaillées",
+      title: "Choisissez votre émail.",
+      subtitle: "Six pièces tournées, six couleurs.",
+      source: "products",
+      productIds: CERAMICS.map((c) => ceramics[c.slug]).filter((id): id is string => !!id),
+      showPrice: true,
+      ctaLabel: "Voir la pièce",
+      autoplay: true,
+      intervalSeconds: 4,
+      backdrop: "dark",
+      imageStyle: "cutout",
+      overrides: CERAMICS.filter((c) => ceramics[c.slug]).map((c) => ({ recordId: ceramics[c.slug]!, accentColor: c.color })),
+    }),
+    section("recit-jarre", "scroll_story", "product", 2, {
+      eyebrow: "Jarre Indigo",
+      title: "Une pièce, quatre gestes.",
+      image: `${C}/jarre-indigo.webp`,
+      imageAlt: "Jarre Indigo, céramique émaillée bleu profond",
+      steps: [
+        { eyebrow: "Le tournage", title: "Montée à la main", body: "Chaque jarre naît sur le tour : aucune n'a tout à fait le même galbe.", rotate: -14, objectScale: 0.9, accentColor: "#1d3f8f" },
+        { eyebrow: "L'émail", title: "Indigo profond", body: "Trois couches d'émail, cuites à haute température : une surface qui reflète la lumière.", rotate: 9, objectScale: 1.08, accentColor: "#27306b" },
+        { eyebrow: "Le pied", title: "Terre laissée nue", body: "Le pied n'est pas émaillé : on y lit la terre d'origine et la main du potier.", rotate: -4, objectScale: 1.18, accentColor: "#6b4a2f" },
+        { eyebrow: "L'usage", title: "Seule ou fleurie", body: "Sur une console ou au sol, elle compose la pièce autour d'elle.", rotate: 0, objectScale: 1, accentColor: "#14505a" },
+      ],
+      ctaLabel: "Voir la Jarre Indigo",
+      ctaHref: "/p/jarre-indigo",
+    }),
+    section("carrousel-vedette", "immersive_showcase", "depth", 3, {
       eyebrow: "Sélection",
       title: "Les pièces du moment",
       subtitle: "Choisies une à une, livrées partout au Sénégal.",
       source: "products",
+      productIds: otherProductIds.slice(0, 12),
       showPrice: true,
       ctaLabel: "Voir la fiche",
       autoplay: true,
       intervalSeconds: 5,
       backdrop: "tinted",
     }),
-    section("recit-matieres", "scroll_story", "focus", 2, {
+    section("recit-matieres", "scroll_story", "focus", 4, {
       eyebrow: "Dans le détail",
       title: "Chaque objet a sa matière.",
       intro: "Faites défiler : la photo s'attarde sur ce qui fait la différence.",
@@ -136,7 +199,10 @@ async function applyDraft(slug: string, blocks: SectionInstance[]) {
 }
 
 async function main() {
-  await applyDraft("sunu-marche", sunuMarche());
+  const sunu = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: "sunu-marche" }, select: { id: true } }));
+  const ceramics = sunu ? await ensureCeramics(sunu.id) : {};
+  const others = sunu ? await withTenant(sunu.id, (tx) => tx.product.findMany({ where: { tenantId: sunu.id, status: "PUBLISHED", slug: { notIn: CERAMICS.map((c) => c.slug) } }, orderBy: { createdAt: "asc" }, select: { id: true } })) : [];
+  await applyDraft("sunu-marche", sunuMarche(ceramics, others.map((p) => p.id)));
   const villa = await withSuperAdminAccess((tx) => tx.listing.findFirst({ where: { tenant: { slug: "almadies-immobilier" }, title: "Villa contemporaine face à l'océan" }, select: { slug: true } }));
   await applyDraft("almadies-immobilier", almadies(villa?.slug ?? null));
 }

@@ -224,6 +224,48 @@
    "height": 640,
    "bytes": 13348,
    "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/ceramiques/amphore-ocre.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 20628,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/ceramiques/bouteille-celadon.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 16132,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/ceramiques/coupe-sable.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 16442,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/ceramiques/jarre-indigo.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 17994,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/ceramiques/soliflore-nuit.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 11026,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
+  },
+  {
+   "file": "demo-templates/ceramiques/vase-terracotta.webp",
+   "width": 520,
+   "height": 760,
+   "bytes": 18856,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/ceramiques.py) — aucune photographie ni ressource tierce. Visuel du produit de démonstration du même nom (collection « Terres émaillées », Sunu Marché)."
   }
  ]
 }
