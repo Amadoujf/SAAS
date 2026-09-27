@@ -12,6 +12,8 @@ import { isEstateTenant, resolveEstate } from "@/lib/real-estate/estate-context"
 import { EstateHome } from "@/components/estate/estate-home";
 import { isTravelTenant, resolveTravel } from "@/lib/travel/travel-context";
 import { TravelHome } from "@/components/travel/travel-home";
+import { isSalonTenant, resolveSalon } from "@/lib/salon/salon-context";
+import { SalonHome } from "@/components/salon/salon-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -55,6 +57,9 @@ export default async function HomePage() {
       } else if (await isTravelTenant(tenant.id)) {
         const travel = await resolveTravel("/");
         if (travel.status === "ok") return <PublishedSectorHome site={resolution.site} travel={travel.travel} />;
+      } else if (await isSalonTenant(tenant.id)) {
+        const salon = await resolveSalon("/");
+        if (salon.status === "ok") return <PublishedSectorHome site={resolution.site} salon={salon.salon} />;
       }
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
@@ -74,6 +79,11 @@ export default async function HomePage() {
     if (await isTravelTenant(tenant.id)) {
       const travel = await resolveTravel("/");
       if (travel.status === "ok") return <TravelHome travel={travel.travel} />;
+    }
+    // Salon : accueil de son template (« Écrin » par défaut).
+    if (await isSalonTenant(tenant.id)) {
+      const salon = await resolveSalon("/");
+      if (salon.status === "ok") return <SalonHome salon={salon.salon} />;
     }
     return <TenantComingSoon tenantName={tenant.name} />;
   }

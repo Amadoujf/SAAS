@@ -21,7 +21,8 @@
     "seed:real-estate-demo": "dotenv -e ../../.env -- tsx src/seed-real-estate-demo.ts",
     "seed:immersive-demo": "dotenv -e ../../.env -- tsx src/seed-immersive-demo.ts",
     "seed:ai-demo": "dotenv -e ../../.env -- tsx src/seed-ai-demo.ts",
-    "seed:travel-demo": "dotenv -e ../../.env -- tsx src/seed-travel-demo.ts"
+    "seed:travel-demo": "dotenv -e ../../.env -- tsx src/seed-travel-demo.ts",
+    "seed:salon-demo": "dotenv -e ../../.env -- tsx src/seed-salon-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

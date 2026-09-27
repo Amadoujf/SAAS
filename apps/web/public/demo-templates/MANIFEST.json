@@ -378,6 +378,41 @@
    "height": 1000,
    "bytes": 185760,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/voyage.py) — aucune photographie ni ressource tierce. Illustration de démonstration (ville de tours au crépuscule)."
+  },
+  {
+   "file": "demo-templates/salon/arche-lumiere.webp",
+   "width": 1200,
+   "height": 1500,
+   "bytes": 158662,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (arche éclairée, vase et herbes de pampa)."
+  },
+  {
+   "file": "demo-templates/salon/flacons.webp",
+   "width": 1200,
+   "height": 1500,
+   "bytes": 159258,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (flacons de soin sur une étagère)."
+  },
+  {
+   "file": "demo-templates/salon/tresse.webp",
+   "width": 1200,
+   "height": 1500,
+   "bytes": 212984,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (tresse et anneaux dorés)."
+  },
+  {
+   "file": "demo-templates/salon/vernis.webp",
+   "width": 1200,
+   "height": 1500,
+   "bytes": 166604,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (nuancier et flacons de vernis)."
+  },
+  {
+   "file": "demo-templates/salon/galets.webp",
+   "width": 1200,
+   "height": 1500,
+   "bytes": 166988,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (galets et serviette pliée)."
   }
  ]
 }
