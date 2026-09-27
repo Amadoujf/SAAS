@@ -71,10 +71,19 @@ describe.skipIf(!databaseAvailable)("Provisionnement d'une entreprise (onboardin
   it("refuse un secteur « à venir » et la formule sur devis : seuls les secteurs opérationnels et les formules en libre-service", async () => {
     const other = await createOwnerAccount({ email: `secteur-${email}`, fullName: "Secteur", password: "motdepasse-solide" });
     userIds.push(other.id);
+    // Secteur « à venir » créé pour ce test : ne dépend pas de l'avancement des secteurs réels.
+    const comingSoon = `test-a-venir-${suffix}`;
+    const oc = testOwnerClient();
+    await oc.sector.create({ data: { key: comingSoon, name: "Secteur à venir", defaultModuleKeys: [], isSystem: false, isAvailable: false } });
     const before = await testOwnerClient().tenant.count();
-    await expect(
-      provisionTenantForOwner({ ownerUserId: other.id, name: "Agence", subdomain: `${subdomain}-immo`, subdomainSuffix: "yamacommerce.ai", sectorKey: "real_estate" }),
-    ).rejects.toThrow(/bientôt/);
+    try {
+      await expect(
+        provisionTenantForOwner({ ownerUserId: other.id, name: "Agence", subdomain: `${subdomain}-immo`, subdomainSuffix: "yamacommerce.ai", sectorKey: comingSoon }),
+      ).rejects.toThrow(/bientôt/);
+    } finally {
+      await oc.sector.delete({ where: { key: comingSoon } });
+      await oc.$disconnect();
+    }
     await expect(
       provisionTenantForOwner({ ownerUserId: other.id, name: "Groupe", subdomain: `${subdomain}-grp`, subdomainSuffix: "yamacommerce.ai", sectorKey: "ecommerce", planName: "Sur mesure" }),
     ).rejects.toThrow(/devis/);

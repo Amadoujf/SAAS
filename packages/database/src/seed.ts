@@ -549,6 +549,10 @@ async function seedDemoTenant(input: {
     return createdTenant;
   });
 
+  // Relance du seed : les données de démonstration de ce tenant existent déjà (sa
+  // boutique principale en est la marque) — ne rien recréer, le seed reste idempotent.
+  if (await withTenant(tenant.id, (tx) => tx.shop.count({ where: { tenantId: tenant.id, isMain: true } }))) return;
+
   // Le reste des écritures scoped-tenant passe par withTenant() pour exercer, dès le
   // seed, le même chemin que le code applicatif (contexte RLS posé correctement).
   await withTenant(tenant.id, async (tx) => {
