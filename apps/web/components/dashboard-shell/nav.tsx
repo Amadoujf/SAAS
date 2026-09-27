@@ -11,7 +11,7 @@ import {
   IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
 } from "@/components/yc/icons";
 
-export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key";
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket";
 
 const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
@@ -24,6 +24,12 @@ const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   ),
   key: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5" /><path d="m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2" /></svg>
+  ),
+  plane: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.5 13.5 3 11l1.5-1.5 8 .5 4.5-4.5a2.1 2.1 0 0 1 3 3L15.5 13l.5 8-1.5 1.5-2.5-7.5" /><path d="m6 17 2-2M4 16l2 3" /></svg>
+  ),
+  ticket: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z" /><path d="M14 6v12" strokeDasharray="2 2" /></svg>
   ),
   media: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m21 16-5-5-9 9" /></svg>
@@ -158,8 +164,8 @@ export function DashboardSidebar({
 
   const all = groups.flatMap((g) => g.items);
   // Onglets au pouce : les trois premières sections du secteur (commerce : commandes et
-  // produits ; immobilier : biens et visites), selon les droits du membre.
-  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites"]
+  // produits ; immobilier : biens et visites ; voyage : réservations et départs), selon les droits du membre.
+  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs"]
     .map((h) => all.find((i) => i.href === h))
     .filter((i): i is NavItem => !!i)
     .slice(0, 3);

@@ -4,8 +4,9 @@ import { withTenant, getDashboardInsights, isDashboardPeriod, planHasFeature, ty
 import { auth } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isRealEstate } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isRealEstate, isTravel } from "@/lib/modules/tenant-modules";
 import { RealEstateOverview } from "@/components/dashboard-real-estate/overview";
+import { TravelOverview } from "@/components/dashboard-travel/overview";
 import { formatAmount, formatRelative } from "@/lib/format";
 import { Panel } from "@/components/yc/panel";
 import { ButtonLink } from "@/components/yc/button";
@@ -139,7 +140,11 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
   }
 
   const catalogEnabled = await isCatalogModuleEnabled(membership.tenantId);
-  if (!catalogEnabled && isRealEstate(await getTenantModuleKeys(membership.tenantId))) {
+  const moduleKeys = catalogEnabled ? null : await getTenantModuleKeys(membership.tenantId);
+  if (moduleKeys && isTravel(moduleKeys)) {
+    return <TravelOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
+  }
+  if (moduleKeys && isRealEstate(moduleKeys)) {
     return <RealEstateOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
   }
   if (!catalogEnabled) {

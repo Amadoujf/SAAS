@@ -5,7 +5,7 @@ import { withTenant, countOrdersByQueue } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isRealEstate } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isRealEstate, isTravel } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -30,6 +30,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   // Entreprise de démonstration : signalée sur TOUTES les pages de son espace.
   const isDemo = membership ? (await withTenant(membership.tenantId, (tx) => tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { isDemo: true } })))?.isDemo === true : false;
   const realEstate = isRealEstate(modules);
+  const travel = isTravel(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
@@ -41,6 +42,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     [visitsToConfirm, lateRents] = await withTenant(membership.tenantId, async (tx) => [
       await tx.reservation.count({ where: { tenantId: membership.tenantId, moduleKey: "visit_requests", status: "requested" } }),
       await tx.rentPayment.count({ where: { tenantId: membership.tenantId, status: "pending", dueDate: { lt: startOfToday } } }),
+    ]);
+  }
+  let bookingsToConfirm = 0;
+  let missingDocuments = 0;
+  if (membership && travel) {
+    const now = new Date();
+    [bookingsToConfirm, missingDocuments] = await withTenant(membership.tenantId, async (tx) => [
+      await tx.reservation.count({ where: { tenantId: membership.tenantId, moduleKey: "departures", status: "requested" } }),
+      await tx.travelerDocument.count({ where: { tenantId: membership.tenantId, status: { in: ["missing", "refused"] }, traveler: { reservation: { status: { in: ["requested", "confirmed"] }, startAt: { gte: now } } } } }),
     ]);
   }
   if (membership) {
@@ -93,6 +103,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
     );
+  } else if (membership && travel) {
+    pilot.push(
+      { href: "/dashboard/reservations", label: "Réservations", icon: "ticket", badge: bookingsToConfirm || undefined, permission: "reservations.view" },
+      { href: "/dashboard/departs", label: "Départs", icon: "calendar", permission: "reservations.view" },
+      { href: "/dashboard/voyages", label: "Voyages", icon: "plane", permission: "listings.view" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
+    );
+    manage.push(
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
+      { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
+    );
   } else if (membership) {
     pilot.push({ href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" });
   }
@@ -111,6 +133,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     ? [
         { href: "/dashboard/visites", label: "Visites à confirmer", count: visitsToConfirm },
         { href: "/dashboard/baux?filtre=retard", label: "Loyers en retard", count: lateRents },
+      ]
+    : travel
+    ? [
+        { href: "/dashboard/reservations?file=a-confirmer", label: "Réservations à confirmer", count: bookingsToConfirm },
+        { href: "/dashboard/reservations?file=pieces", label: "Pièces de voyageurs à obtenir", count: missingDocuments },
       ]
     : queues
     ? [
@@ -146,7 +173,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {isDemo && (
           <p className="border-b border-yc-electric/15 bg-[#E8EFFF] px-4 py-2 text-center text-[12px] font-medium text-yc-ink sm:px-6">
             <span className="mr-1.5 font-bold uppercase tracking-[0.12em] text-yc-electric">Démonstration</span>
-            Entreprise fictive : produits, clients et commandes servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
+            Entreprise fictive : {travel ? "voyages, voyageurs et réservations" : realEstate ? "biens, clients et visites" : "produits, clients et commandes"} servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
           </p>
         )}
         <main id="contenu" className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
