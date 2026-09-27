@@ -129,7 +129,11 @@ export async function resolveCatalogContentForManifest(
       const params = section.params as { title?: string; displayCount: number };
       const content: ResolvedProductsContent = {
         title: params.title,
-        products: publishedProducts.slice(0, params.displayCount).map(toCard),
+        // Les plus récents, photographiés d'abord : un produit sans photo ne passe jamais
+        // devant une vraie photo dans une vitrine de nouveautés (il reste listé après).
+        products: [...publishedProducts.filter((p) => p.images[0]?.url), ...publishedProducts.filter((p) => !p.images[0]?.url)]
+          .slice(0, params.displayCount)
+          .map(toCard),
       };
       result[section.id] = content;
     }

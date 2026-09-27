@@ -74,7 +74,9 @@ export function CategoriesSection({
         </h2>
       </Reveal>
       <motion.div
-        className="grid grid-cols-2 gap-6 sm:grid-cols-4 lg:gap-8"
+        // Colonnes ajustées au nombre d'univers : 3 univers occupent toute la largeur,
+        // jamais trois petites tuiles calées à gauche.
+        className={`grid grid-cols-2 gap-6 lg:gap-8 ${GRID_COLUMNS[Math.min(content.categories.length, 4)] ?? "sm:grid-cols-4"}`}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
@@ -87,6 +89,8 @@ export function CategoriesSection({
     </section>
   );
 }
+
+const GRID_COLUMNS: Record<number, string> = { 1: "sm:grid-cols-1", 2: "sm:grid-cols-2", 3: "sm:grid-cols-3", 4: "sm:grid-cols-4" };
 
 /** Position dans la mosaïque asymétrique — se répète toutes les 4 tuiles. */
 const EDITORIAL_LAYOUT = [

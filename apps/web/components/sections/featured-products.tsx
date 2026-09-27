@@ -72,10 +72,15 @@ export function FeaturedProductsSection({
     );
   }
 
-  // "editorial" partage la grille à tailles alternées de "masonry" (voir la refonte
-  // artistique du 16 septembre 2026, « alternance des dimensions ») — les deux ne se
-  // distinguent que par un espacement plus généreux, géré ci-dessous par `gap-8 lg:gap-10`.
-  const isMasonry = variant === "masonry" || variant === "editorial";
+  // « masonry » : par groupes de 5, une grande pièce (2 × 2) et quatre petites — la grille
+  // se remplit sans trou. « editorial » : même principe, la grande pièce alterne
+  // gauche/droite d'un groupe à l'autre. Un reste de moins de 5 produits passe en grille.
+  const isMasonry = (variant === "masonry" || variant === "editorial") && content.products.length >= 5;
+  const products = isMasonry ? content.products.slice(0, content.products.length - (content.products.length % 5)) : content.products;
+  const masonryClass =
+    variant === "editorial"
+      ? "grid grid-flow-dense grid-cols-2 gap-6 sm:grid-cols-4 lg:gap-10 [&>*:nth-child(10n+1)]:col-span-2 [&>*:nth-child(10n+1)]:row-span-2 sm:[&>*:nth-child(10n+6)]:col-start-3 [&>*:nth-child(10n+6)]:col-span-2 [&>*:nth-child(10n+6)]:row-span-2"
+      : "grid grid-flow-dense grid-cols-2 gap-6 sm:grid-cols-4 lg:gap-10 [&>*:nth-child(5n+1)]:col-span-2 [&>*:nth-child(5n+1)]:row-span-2";
 
   return (
     <section className="mx-auto max-w-[var(--content-max-width)] px-6 py-24 lg:py-32 lg:px-10">
@@ -86,16 +91,14 @@ export function FeaturedProductsSection({
       </Reveal>
       <motion.div
         className={
-          isMasonry
-            ? "grid grid-cols-2 gap-6 sm:grid-cols-4 lg:gap-10 [&>*:nth-child(4n+1)]:col-span-2 [&>*:nth-child(4n+1)]:row-span-2"
-            : "grid grid-cols-2 gap-6 sm:grid-cols-3 lg:gap-10"
+          isMasonry ? masonryClass : "grid grid-cols-2 gap-6 sm:grid-cols-3 lg:gap-10"
         }
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
         variants={staggerChildren(level)}
       >
-        {content.products.map((product) => (
+        {products.map((product) => (
           <ProductCard key={product.id} product={product} locale={locale} />
         ))}
       </motion.div>

@@ -1,7 +1,8 @@
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { contrastRatio, validateBrandColor } from "@/lib/storefront/home-content";
 import { templateTokens } from "@/lib/storefront/store-templates";
-import type { AiDirection } from "./schemas";
+import { ARCHETYPE_KEYS, type AiDirection, type ArchetypeKey } from "./schemas";
+import { ARCHETYPES, type Slot } from "./archetypes";
 import type { CatalogProduct, SiteAiContext, SiteIdentity, SiteMotion } from "./types";
 import { auditPhotos, pickIllustrated } from "./photo-audit";
 
@@ -22,8 +23,9 @@ export interface CompiledSite {
 
 /** Promesses commerciales et preuves sociales que l'assistant n'a pas le droit d'inventer. */
 const UNVERIFIABLE = [
-  /certifi/i, /\blabel/i, /garanti/i, /\bn°\s?1\b/i, /numéro un/i, /\bmeilleur/i, /\b100\s?%/i, /\bbio(logique)?\b/i,
-  /avis clients?/i, /témoign/i, /\bétoiles?\b/i, /livraison (offerte|gratuite)/i, /satisfait ou rembours/i, /\bpromo/i, /-\s?\d+\s?%/,
+  /certifi/i, /(?<!\p{L})labels?(?!\p{L})/iu, /garanti/i, /n°\s?1(?!\d)/i, /numéro un/i, /meilleur/i, /\d\s?%/,
+  /(?<!\p{L})bio(logique)?s?(?!\p{L})/iu, /(?<!\p{L})avis(?!\p{L})/iu, /témoign/iu, /étoiles?/iu, /gratuit/iu, /offert/iu,
+  /satisfait ou rembours/iu, /promo/iu, /(?<!\p{L})soldes?(?!\p{L})/iu, /\bclients? satisfaits?/iu, /(?<!\p{L})top\s?\d/iu,
 ];
 
 export function guardText(value: string | undefined, notes: string[], label: string): string | undefined {
@@ -60,6 +62,24 @@ export function safeColor(value: string | null | undefined, kind: "brand" | "bac
 
 const INTENSITY = { discreet: "subtle", dynamic: "balanced", immersive: "bold" } as const;
 
+type RawSection = { id: string; sectionKey: string; variant: string; params: Record<string, unknown> };
+
+/** Mise en forme d'une phrase tirée d'une description réelle (jamais inventée). */
+export function excerpt(text: string | null | undefined, max: number): string | undefined {
+  const clean = (text ?? "").replace(/\s+/g, " ").trim();
+  if (!clean) return undefined;
+  if (clean.length <= max) return clean;
+  const cut = clean.slice(0, max);
+  const sentence = cut.lastIndexOf(". ");
+  return sentence > max * 0.5 ? cut.slice(0, sentence + 1) : `${cut.slice(0, cut.lastIndexOf(" "))}…`;
+}
+
+/**
+ * Direction (données validées) → site RÉEL. L'archétype fixe la structure ; chaque
+ * emplacement est rempli avec les produits, photos, catégories et textes de l'entreprise.
+ * Un emplacement impossible à remplir honnêtement (pas assez de photos, pas de texte)
+ * est remplacé par une présentation plus simple ou retiré — et c'est signalé.
+ */
 export function compileDirection(direction: AiDirection, context: SiteAiContext): CompiledSite {
   const notes: string[] = [];
   const audit = auditPhotos(context);
@@ -69,116 +89,229 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
     primaryColor: safeColor(direction.palette.primary, "brand", style, notes),
     accentColor: safeColor(direction.palette.accent, "brand", style, notes),
     backgroundColor: safeColor(direction.palette.background, "background", style, notes),
+    fontPair: direction.typography,
+    shape: direction.shape,
   };
   const motion: SiteMotion = { level: direction.animation, mobile: direction.animation === "immersive" ? "reduced" : "same" };
   const intensity = INTENSITY[direction.animation];
+  const archetype = ARCHETYPES[direction.archetype];
   const byId = new Map(context.products.map((p) => [p.id, p]));
-  const sections: Record<string, unknown> = {};
+  const copy = direction.copy;
+  const text = (value: string | undefined, label: string) => guardText(value, notes, label);
 
-  // --- Ouverture ---------------------------------------------------------------
-  const subject = direction.hero.subjectProductId ? byId.get(direction.hero.subjectProductId) : undefined;
-  const subjectOk = subject?.imageUrl ? subject : undefined;
-  if (direction.hero.subjectProductId && !subjectOk) notes.push("Le produit proposé pour l'ouverture n'a pas de photo : l'accueil s'ouvre sur votre message.");
-  const libraryHero = context.libraryImages.find((i) => (i.width ?? 1200) >= 1200);
-  let heroLayout = direction.hero.layout;
-  if (heroLayout === "architectural" && !libraryHero && !(subjectOk && (subjectOk.imageWidth ?? 1200) >= 1200)) heroLayout = subjectOk ? "stage" : "centered";
-  if (heroLayout === "stage" && !subjectOk) heroLayout = "centered";
-  const heroImage = heroLayout === "architectural" ? (libraryHero?.url ?? subjectOk?.imageUrl) : subjectOk?.imageUrl;
-  sections.hero = {
-    id: "hero",
-    sectionKey: "immersive_hero",
-    variant: heroLayout,
-    params: {
-      eyebrow: guardText(direction.hero.eyebrow, notes, "surtitre"),
-      title: guardText(direction.hero.title, notes, "titre") ?? context.tenantName,
-      titleAccent: guardText(direction.hero.titleAccent, notes, "titre (suite)"),
-      subtitle: guardText(direction.hero.subtitle, notes, "sous-titre"),
-      primaryCtaLabel: guardText(direction.hero.ctaLabel, notes, "bouton") ?? "Découvrir la boutique",
-      primaryCtaHref: "/catalogue",
-      ...(subjectOk ? { secondaryCtaLabel: subjectOk.name.slice(0, 40), secondaryCtaHref: `/p/${subjectOk.slug}` } : {}),
-      ...(heroImage
-        ? { subjectImage: heroImage, subjectAlt: heroLayout === "architectural" && libraryHero ? libraryHero.alt ?? context.tenantName : subjectOk?.imageAlt ?? subjectOk?.name, subjectStyle: "framed" }
-        : {}),
-      lighting: heroLayout === "architectural" ? "none" : "halo",
-      scrollEffect: "zoom",
-      intensity,
-    },
+  // Photos disponibles : sélection demandée d'abord, puis les plus récentes.
+  const illustrated = context.products.filter((p) => p.imageUrl);
+  const featured = uniqueProducts([...pickIllustrated(context.products, direction.featuredProductIds, 12), ...newestFirst(illustrated)]);
+  const heroProduct = pickIllustrated(context.products, [direction.heroProductId], 1)[0] ?? featured[0];
+  const signatureProduct = pickIllustrated(context.products, [direction.signatureProductId], 1)[0] ?? featured.find((p) => p.id !== heroProduct?.id) ?? heroProduct;
+  if (direction.heroProductId && !byId.get(direction.heroProductId)?.imageUrl) notes.push("Le produit proposé pour l'ouverture n'a pas de photo : une autre pièce photographiée a été retenue.");
+  const libraryHero = context.libraryImages.find((i) => (i.width ?? 0) >= 1200);
+  const bigPhoto = libraryHero ? { url: libraryHero.url, alt: libraryHero.alt ?? context.tenantName } : heroProduct && (heroProduct.imageWidth ?? 0) >= 1200 ? photo(heroProduct) : null;
+
+  // Chaque photo sert une fois avant d'être réutilisée : pas la même image partout.
+  const used = new Set<string>();
+  const nextPhoto = (prefer?: CatalogProduct): CatalogProduct | undefined => {
+    if (prefer && !used.has(prefer.id)) return used.add(prefer.id), prefer;
+    const fresh = featured.find((p) => !used.has(p.id)) ?? featured[used.size % Math.max(1, featured.length)];
+    if (fresh) used.add(fresh.id);
+    return fresh;
   };
 
-  // --- Vitrine -----------------------------------------------------------------
-  const chosen = pickIllustrated(context.products, direction.showcase.productIds, 10);
-  const showcaseProducts = chosen.length >= 3 ? chosen : pickIllustrated(context.products, newestFirst(context.products).map((p) => p.id), 8);
-  if (showcaseProducts.length >= 3) {
-    const layout = direction.showcase.layout === "arc" && !audit.canShowcase ? "depth" : direction.showcase.layout;
-    sections.showcase = {
-      id: "vitrine",
-      sectionKey: "immersive_showcase",
-      variant: layout,
-      params: {
-        eyebrow: guardText(direction.showcase.eyebrow, notes, "surtitre de la vitrine"),
-        title: guardText(direction.showcase.title, notes, "titre de la vitrine") ?? "La sélection",
-        source: "products",
-        productIds: showcaseProducts.map((p) => p.id),
-        displayCount: Math.max(3, Math.min(12, showcaseProducts.length)),
-        showPrice: true,
-        ctaLabel: "Voir le produit",
-        autoplay: direction.animation !== "discreet",
-        imageStyle: "photo",
-        backdrop: layout === "arc" ? "dark" : "tinted",
-      },
-    };
-  } else {
-    notes.push("Moins de 3 produits photographiés : la vitrine animée n'est pas proposée pour l'instant.");
-  }
-
-  // --- Récit ---------------------------------------------------------------------
-  if (direction.story.enabled) {
-    const steps = direction.story.steps
-      .map((s) => ({ step: s, product: byId.get(s.productId) }))
-      .filter((s): s is { step: typeof s.step; product: CatalogProduct } => Boolean(s.product?.imageUrl))
-      .slice(0, 4);
-    if (steps.length >= 2) {
-      sections.story = {
-        id: "recit",
-        sectionKey: "scroll_story",
-        variant: direction.story.layout,
-        params: {
-          eyebrow: guardText(direction.story.eyebrow, notes, "surtitre du récit"),
-          title: guardText(direction.story.title, notes, "titre du récit"),
-          image: steps[0]!.product.imageUrl,
-          imageAlt: steps[0]!.product.imageAlt ?? steps[0]!.product.name,
-          objectStyle: "photo",
-          steps: steps.map(({ step, product }, i) => ({
-            eyebrow: product.category ?? undefined,
-            title: guardText(step.title, notes, `étape ${i + 1}`) ?? product.name.slice(0, 60),
-            body: guardText(step.body, notes, `texte de l'étape ${i + 1}`),
-            imageUrl: product.imageUrl,
-            imageAlt: product.imageAlt ?? product.name,
-            rotate: [-6, 5, -3, 0][i],
-            objectScale: 1,
-          })),
-          ctaLabel: "Tout le catalogue",
-          ctaHref: "/catalogue",
-        },
-      };
-    } else {
-      notes.push("Récit non créé : il faut au moins 2 produits photographiés.");
-    }
-  }
-
-  // --- Catalogue -----------------------------------------------------------------
+  const heroTitle = text(copy.heroTitle, "titre") ?? context.tenantName;
+  const cta = text(copy.ctaLabel, "bouton") ?? "Découvrir la boutique";
+  const manifesto = text(copy.manifesto, "manifeste");
+  const manifestoBody = text(copy.manifestoBody, "texte du manifeste");
   const categories = context.categories.filter((c) => c.productCount > 0).slice(0, 6);
-  if (direction.showCategories && categories.length) {
-    sections.categories = { id: "categories", sectionKey: "categories", variant: "editorial", params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
-  }
-  if (direction.showProductGrid && context.products.length) {
-    sections.grid = { id: "grille", sectionKey: "featured_products", variant: "grid", params: { title: "Toute la collection", displayCount: Math.min(8, context.products.length) } };
-  }
 
-  const order = ["hero", ...direction.order.filter((k) => k !== "hero"), "showcase", "story", "categories", "grid"];
+  const build = (slot: Slot): RawSection | null => {
+    switch (slot.kind) {
+      case "immersive_hero": {
+        let variant = slot.variant;
+        if (variant === "architectural" && !bigPhoto) variant = heroProduct ? "stage" : "centered";
+        if (variant === "stage" && !heroProduct) variant = "centered";
+        const subject = variant === "architectural" ? bigPhoto : heroProduct ? photo(nextPhoto(heroProduct)!) : null;
+        return {
+          id: slot.id,
+          sectionKey: "immersive_hero",
+          variant,
+          params: {
+            eyebrow: text(copy.heroEyebrow, "surtitre"),
+            title: heroTitle,
+            titleAccent: text(copy.heroTitleAccent, "titre (suite)"),
+            subtitle: text(copy.heroSubtitle, "sous-titre"),
+            primaryCtaLabel: cta,
+            primaryCtaHref: "/catalogue",
+            ...(heroProduct && variant !== "architectural" ? { secondaryCtaLabel: heroProduct.name.slice(0, 40), secondaryCtaHref: `/p/${heroProduct.slug}` } : {}),
+            ...(subject ? { subjectImage: subject.url, subjectAlt: subject.alt, subjectStyle: "framed" } : {}),
+            lighting: variant === "architectural" ? "none" : "halo",
+            scrollEffect: "zoom",
+            intensity,
+          },
+        };
+      }
+      case "classic_hero": {
+        const wide = slot.variant === "fullbleed" ? bigPhoto : null;
+        const product = wide ? undefined : nextPhoto(heroProduct);
+        const media = wide ?? (product ? photo(product) : null);
+        if (!media) return build({ ...slot, kind: "immersive_hero", variant: "centered" });
+        if (slot.variant === "fullbleed" && !wide) notes.push("Pas de grande photo d'ambiance : l'ouverture plein cadre est remplacée par une ouverture texte + photo.");
+        return {
+          id: slot.id,
+          sectionKey: "hero",
+          variant: wide ? "fullbleed" : "split",
+          params: {
+            eyebrow: text(copy.heroEyebrow, "surtitre"),
+            title: [heroTitle, text(copy.heroTitleAccent, "titre (suite)")].filter(Boolean).join(" "),
+            subtitle: text(copy.heroSubtitle, "sous-titre"),
+            media,
+            ctaLabel: cta,
+            ctaHref: "/catalogue",
+          },
+        };
+      }
+      case "catalog_search":
+        return {
+          id: slot.id,
+          sectionKey: "catalog_search",
+          variant: slot.variant,
+          params: {
+            eyebrow: text(copy.heroEyebrow, "surtitre"),
+            title: heroTitle,
+            subtitle: text(copy.heroSubtitle, "sous-titre"),
+            searchPlaceholder: "Rechercher un produit",
+            quickCategories: categories.map((c) => ({ label: c.name, href: `/catalogue?categorie=${encodeURIComponent(c.slug)}` })),
+            ...(bigPhoto ? { media: bigPhoto } : {}),
+          },
+        };
+      case "showcase": {
+        if (featured.length < 3) {
+          notes.push("Moins de 3 produits photographiés : la vitrine animée n'est pas proposée pour l'instant.");
+          return null;
+        }
+        const variant = slot.variant === "arc" && !audit.canShowcase ? "depth" : slot.variant;
+        return {
+          id: slot.id,
+          sectionKey: "immersive_showcase",
+          variant,
+          params: {
+            eyebrow: text(copy.heroEyebrow, "surtitre de la vitrine"),
+            title: text(copy.selectionTitle, "titre de la vitrine") ?? "La sélection",
+            source: "products",
+            productIds: featured.slice(0, 10).map((p) => p.id),
+            displayCount: Math.max(3, Math.min(12, featured.length)),
+            showPrice: true,
+            ctaLabel: "Voir le produit",
+            autoplay: direction.animation !== "discreet",
+            imageStyle: "photo",
+            backdrop: variant === "arc" ? "dark" : "tinted",
+          },
+        };
+      }
+      case "story": {
+        const requested = direction.storySteps
+          .map((s) => ({ step: s, product: byId.get(s.productId) }))
+          .filter((s): s is { step: (typeof direction.storySteps)[number]; product: CatalogProduct } => Boolean(s.product?.imageUrl));
+        const steps = (requested.length >= 2 ? requested : featured.slice(0, 3).map((product) => ({ step: { productId: product.id, title: "", body: "" }, product }))).slice(0, 4);
+        if (steps.length < 2) {
+          notes.push("Récit non créé : il faut au moins 2 produits photographiés.");
+          return null;
+        }
+        steps.forEach((s) => used.add(s.product.id));
+        return {
+          id: slot.id,
+          sectionKey: "scroll_story",
+          variant: slot.variant,
+          params: {
+            eyebrow: "Dans le détail",
+            title: text(copy.storyTitle, "titre du récit"),
+            image: steps[0]!.product.imageUrl,
+            imageAlt: steps[0]!.product.imageAlt ?? steps[0]!.product.name,
+            objectStyle: "photo",
+            steps: steps.map(({ step, product }, i) => ({
+              eyebrow: product.category ?? undefined,
+              title: text(step.title, `étape ${i + 1}`) ?? product.name.slice(0, 60),
+              body: text(step.body, `texte de l'étape ${i + 1}`) ?? excerpt(product.description, 200),
+              imageUrl: product.imageUrl,
+              imageAlt: product.imageAlt ?? product.name,
+              rotate: [-6, 5, -3, 0][i],
+              objectScale: 1,
+            })),
+            ctaLabel: "Tout le catalogue",
+            ctaHref: "/catalogue",
+          },
+        };
+      }
+      case "manifesto": {
+        const product = nextPhoto();
+        const media = libraryHero && !used.has(libraryHero.url) ? { url: libraryHero.url, alt: libraryHero.alt ?? context.tenantName } : product ? photo(product) : null;
+        if (!manifesto || !media) return null;
+        return { id: slot.id, sectionKey: "brand_manifesto", variant: slot.variant, params: { eyebrow: context.tenantName, statement: manifesto, body: manifestoBody, media } };
+      }
+      case "heritage": {
+        const product = nextPhoto();
+        if (!manifesto || !product) return null;
+        // Sans texte long fourni, le titre reste le nom de l'entreprise et la phrase de
+        // manifeste devient le texte : rien n'est inventé pour remplir la section.
+        const [title, body] = manifestoBody ? [manifesto, manifestoBody] : [context.tenantName, manifesto];
+        return { id: slot.id, sectionKey: "heritage", variant: slot.variant, params: { eyebrow: "La maison", title, body, media: photo(product), ctaLabel: "Voir les créations", ctaHref: "/catalogue" } };
+      }
+      case "signature": {
+        if (!signatureProduct) return null;
+        used.add(signatureProduct.id);
+        return {
+          id: slot.id,
+          sectionKey: "signature_product",
+          variant: slot.variant,
+          params: {
+            eyebrow: "Pièce signature",
+            title: signatureProduct.name,
+            description: excerpt(signatureProduct.description, 260),
+            media: photo(signatureProduct),
+            ctaLabel: "Découvrir la pièce",
+            ctaHref: `/p/${signatureProduct.slug}`,
+          },
+        };
+      }
+      case "lookbook":
+      case "gallery": {
+        const images = uniqueProducts([...featured.filter((p) => !used.has(p.id)), ...featured]).slice(0, slot.kind === "gallery" ? 6 : 3);
+        if (images.length < 3) {
+          notes.push(`${slot.kind === "gallery" ? "Galerie" : "Lookbook"} non créé : il faut au moins 3 produits photographiés.`);
+          return null;
+        }
+        images.forEach((p) => used.add(p.id));
+        return {
+          id: slot.id,
+          sectionKey: slot.kind,
+          variant: slot.variant,
+          params: { title: text(copy.storyTitle, "titre") ?? (slot.kind === "gallery" ? "En images" : "Lookbook"), images: images.map((p) => photo(p)) },
+        };
+      }
+      case "featured":
+        if (!context.products.length) return null;
+        return {
+          id: slot.id,
+          sectionKey: "featured_products",
+          variant: slot.variant,
+          params: { title: text(copy.selectionTitle, "titre de la sélection") ?? "La sélection", productIds: featured.slice(0, 10).map((p) => p.id), displayCount: featuredCount(slot.variant, featured.length) },
+        };
+      case "new_arrivals":
+        if (context.products.length < 2) return null;
+        return { id: slot.id, sectionKey: "new_arrivals", variant: slot.variant, params: { title: "Nouveautés", displayCount: Math.min(8, context.products.length) } };
+      case "categories":
+        if (!categories.length) return null;
+        return { id: slot.id, sectionKey: "categories", variant: slot.variant, params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
+      case "closing": {
+        const title = text(copy.closingTitle, "invitation finale");
+        if (!title) return null;
+        return { id: slot.id, sectionKey: "cta", variant: slot.variant, params: { title, description: text(copy.closingText, "texte de l'invitation"), buttonLabel: cta, buttonHref: "/catalogue" } };
+      }
+    }
+  };
+
   const blocks: SectionInstance[] = [];
-  for (const key of [...new Set(order)]) {
-    const raw = sections[key] as { id: string; sectionKey: string; variant: string; params: Record<string, unknown> } | undefined;
+  for (const slot of archetype.slots) {
+    const raw = build(slot);
     if (!raw) continue;
     try {
       blocks.push(validateSectionInstance({ ...raw, params: dropUndefined(raw.params), order: blocks.length, isEnabled: true }));
@@ -187,6 +320,31 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
     }
   }
   return { blocks, identity, motion, notes };
+}
+
+/** Trois directions = trois archétypes : un doublon est réaffecté à un archétype libre. */
+export function distinctArchetypes<T extends { archetype: ArchetypeKey }>(directions: T[]): T[] {
+  const taken = new Set<ArchetypeKey>();
+  return directions.map((d) => {
+    if (!taken.has(d.archetype)) return taken.add(d.archetype), d;
+    const free = ARCHETYPE_KEYS.find((k) => !taken.has(k))!;
+    taken.add(free);
+    return { ...d, archetype: free };
+  });
+}
+
+/** Mosaïques : groupes complets de 5 (une grande pièce + quatre) ; grille : jusqu'à 8. */
+function featuredCount(variant: string, available: number): number {
+  if (variant === "grid" || variant === "carousel") return Math.max(1, Math.min(8, available));
+  return available >= 10 ? 10 : available >= 5 ? 5 : Math.max(1, available);
+}
+
+function photo(product: CatalogProduct): { url: string; alt: string } {
+  return { url: product.imageUrl!, alt: product.imageAlt ?? product.name };
+}
+
+function uniqueProducts(list: CatalogProduct[]): CatalogProduct[] {
+  return [...new Map(list.map((p) => [p.id, p])).values()];
 }
 
 export function newestFirst(products: CatalogProduct[]): CatalogProduct[] {

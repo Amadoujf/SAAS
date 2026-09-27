@@ -20,7 +20,8 @@ import { publishTenantDraft } from "@/lib/site-editor/editor-pipeline";
 import { getHomeStatus } from "@/lib/site-editor/home-status";
 import { checkImage } from "@/lib/media/image-refs";
 import { loadSiteAiContext } from "./context";
-import { compileDirection, type CompiledSite } from "./compile";
+import { compileDirection, distinctArchetypes, type CompiledSite } from "./compile";
+import { ARCHETYPES } from "./archetypes";
 import { applyOperations, sectionLabel } from "./operations";
 import { auditPhotos } from "./photo-audit";
 import { DIRECTIONS_SYSTEM, EDIT_SYSTEM, IMPROVE_REQUEST, directionsPrompt, editPrompt } from "./prompts";
@@ -109,7 +110,14 @@ export async function loadStudio() {
       draft: { signature: draft.signature, snapshot: draft.snapshot, sections: draft.snapshot.blocks.map((b) => ({ id: b.id, label: sectionLabel(b), sectionKey: b.sectionKey, images: imageSlots(b) })) },
       homeStatus,
       audit: auditPhotos(ctx),
-      catalog: { products: ctx.products.length, illustrated: ctx.products.filter((p) => p.imageUrl).length, categories: ctx.categories.length },
+      catalog: {
+        products: ctx.products.length,
+        illustrated: ctx.products.filter((p) => p.imageUrl).length,
+        categories: ctx.categories.length,
+        // Quelques vraies photos du catalogue : l'aperçu de création se construit avec elles.
+        samples: ctx.products.filter((p) => p.imageUrl).slice(0, 8).map((p) => ({ name: p.name, imageUrl: p.imageUrl!, category: p.category })),
+        categoryNames: ctx.categories.filter((c) => c.productCount > 0).map((c) => c.name).slice(0, 6),
+      },
       canUndo: Boolean(lastRevision && lastRevision.afterSignature === draft.signature),
       lastRevision: lastRevision ? { label: lastRevision.label, source: lastRevision.source, at: lastRevision.createdAt.toISOString() } : null,
       brief: (lastDirections?.inputPayload as { brief?: SiteBrief } | null)?.brief ?? null,
@@ -168,9 +176,23 @@ export async function generateDirections(raw: unknown): Promise<StudioResult<{ j
       () => generateStructured({ system: DIRECTIONS_SYSTEM, prompt: directionsPrompt(brief, ctx, audit), schema: directionsOutputSchema, effort: "high", simulate: () => simulateDirections(brief, ctx) }),
       (data) => ({
         audit: audit.advice,
-        directions: data.directions.map((d) => {
+        directions: distinctArchetypes(data.directions).map((d) => {
           const compiled: CompiledSite = compileDirection(d, ctx);
-          return { name: d.name, pitch: d.pitch, palette: d.palette, style: d.style, animation: d.animation, compiled };
+          const archetype = ARCHETYPES[d.archetype];
+          return {
+            name: d.name,
+            pitch: d.pitch,
+            palette: d.palette,
+            style: d.style,
+            animation: d.animation,
+            archetype: d.archetype,
+            archetypeLabel: archetype.label,
+            typography: d.typography,
+            shape: d.shape,
+            // Plan en mots simples, d'après les sections RÉELLEMENT composées.
+            outline: archetype.slots.flatMap((slot, k) => (compiled.blocks.some((b) => b.id === slot.id) ? [archetype.outline[k] ?? slot.id] : [])),
+            compiled,
+          };
         }),
       }),
     );
@@ -387,6 +409,8 @@ export async function publishStudioDraft(): Promise<StudioResult<{ versionNumber
       primaryColor: identity.primaryColor,
       accentColor: identity.accentColor,
       backgroundColor: identity.backgroundColor,
+      fontPair: identity.fontPair ?? null,
+      shape: identity.shape ?? null,
       logoUrl: identity.logoUrl,
     });
     const site = await tx.tenantSite.findUniqueOrThrow({ where: { tenantId: who.tenantId }, select: { id: true, designTokenOverrides: true } });

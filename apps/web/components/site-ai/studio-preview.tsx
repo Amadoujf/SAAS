@@ -26,7 +26,8 @@ export function StudioPreview({
   tone?: "draft" | "proposal";
   highlight?: string | null;
   onSelect?: (sectionId: string) => void;
-  compact?: boolean;
+  /** Vignette : true = bandeau, « tall » = format portrait qui montre plusieurs sections. */
+  compact?: boolean | "tall";
 }) {
   const box = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
@@ -37,7 +38,7 @@ export function StudioPreview({
   const available = device === "phone" ? Math.min(width, 420) : width;
   const scale = available > 0 ? Math.min(1, available / logical.width) : 0;
   // Grand aperçu : il occupe la hauteur de l'écran (barres du tableau de bord déduites).
-  const height = compact ? Math.round(logical.width * 0.62) : device === "phone" ? logical.height : Math.round(Math.max(520, viewportHeight - 230) / scale);
+  const height = compact === "tall" ? Math.round(logical.width * 1.05) : compact ? Math.round(logical.width * 0.62) : device === "phone" ? logical.height : Math.round(Math.max(520, viewportHeight - 230) / scale);
 
   useEffect(() => {
     const update = () => setViewportHeight(window.innerHeight);

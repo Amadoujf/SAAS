@@ -25,6 +25,7 @@ export interface CatalogProduct {
 export interface CatalogCategory {
   id: string;
   name: string;
+  slug: string;
   productCount: number;
 }
 
@@ -54,6 +55,10 @@ export interface SiteIdentity {
   primaryColor: string | null;
   accentColor: string | null;
   backgroundColor: string | null;
+  /** Paire typographique (lib/storefront/brand-kit.ts) ; absente = celle du style. */
+  fontPair?: string | null;
+  /** Formes (angles, arrondis) ; absentes = celles du style. */
+  shape?: string | null;
 }
 
 export interface SiteMotion {

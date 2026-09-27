@@ -1,4 +1,6 @@
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
+import { FONT_PAIRS, SHAPES } from "@/lib/storefront/brand-kit";
+import { ARCHETYPES } from "./archetypes";
 import { SECTION_NAMES } from "@/lib/editor/section-names";
 import type { SiteState } from "./operations";
 import type { PhotoAudit } from "./photo-audit";
@@ -20,15 +22,31 @@ const HONESTY = `Règles absolues :
 - Un produit sans photo ne doit jamais être mis en scène (ouverture, vitrine, récit).
 - Écris en français, sans lien ni balise.`;
 
-export const DIRECTIONS_SYSTEM = `Tu es directeur artistique pour Y-COM, une plateforme qui crée les sites des commerces d'Afrique de l'Ouest. À partir de la description d'une entreprise et de SON catalogue, tu proposes trois directions artistiques RÉELLEMENT différentes (ambiance, style, palette, rythme, composition) — pas trois variantes d'une même idée.
+const ARCHETYPE_GUIDE = (Object.entries(ARCHETYPES) as [string, (typeof ARCHETYPES)[keyof typeof ARCHETYPES]][])
+  .map(([key, a]) => `- ${key} (${a.label}) : ${a.description} Plan : ${a.outline.join(" → ")}.`)
+  .join("\n");
+const TYPE_GUIDE = Object.entries(FONT_PAIRS).map(([key, f]) => `- ${key} : ${f.description}`).join("\n");
+const SHAPE_GUIDE = Object.entries(SHAPES).map(([key, f]) => `- ${key} : ${f.label}`).join("\n");
+
+export const DIRECTIONS_SYSTEM = `Tu es directeur artistique pour Y-COM, une plateforme qui crée les sites des commerces d'Afrique de l'Ouest. À partir de la description d'une entreprise et de SON catalogue, tu proposes trois directions artistiques RÉELLEMENT différentes : trois STRUCTURES de page différentes (archétypes), trois typographies et trois ambiances — pas trois variantes d'une même idée.
 
 ${QUALITY}
 
-Styles disponibles (choisis-en un par direction, de préférence trois différents) :
+Archétypes de page (un par direction, trois archétypes différents, choisis pour CETTE entreprise) :
+${ARCHETYPE_GUIDE}
+
+Typographies :
+${TYPE_GUIDE}
+
+Formes :
+${SHAPE_GUIDE}
+
+Styles de base (en-tête, pied de page, détails) :
 ${STYLE_GUIDE}
 
-Palette : « primary » doit rester lisible sous un texte blanc (couleur foncée), « accent » aussi ; « background » est un fond clair et doux sur lequel un texte foncé reste très lisible.
-Composition : l'ouverture « architectural » demande une grande photographie ; « stage » met en scène un produit photographié ; « centered » fonctionne même sans photo. La vitrine « arc » demande au moins 4 produits photographiés. Le récit présente 2 à 4 produits photographiés, avec pour chacun ce que dit SA description.
+Palette : « primary » doit rester lisible sous un texte blanc (couleur foncée), « accent » aussi ; « background » est un fond clair et doux sur lequel un texte foncé reste très lisible. Les trois palettes doivent être nettement différentes.
+Photos : l'archétype « magazine » et l'ouverture de « maison » sont à leur meilleur avec une grande photo d'ambiance ; sans elle, la plateforme adapte. Les produits mis en scène (ouverture, pièce signature, sélection, récit) doivent avoir une photo.
+Textes : le manifeste et son texte reprennent ce que dit l'entreprise dans sa description, reformulé avec soin ; rien d'autre. Les étapes du récit décrivent chaque produit d'après SA description.
 
 ${HONESTY}`;
 
@@ -40,6 +58,7 @@ export function directionsPrompt(brief: SiteBrief, context: SiteAiContext, audit
       logo_disponible: Boolean(context.logoUrl),
       bilan_photos: { produits_photographies: audit.withImage, sans_photo: audit.withoutImage.length, grande_photo_disponible: audit.hasHeroImage },
       categories: context.categories.map((c) => ({ id: c.id, nom: c.name, produits: c.productCount })),
+      images_mediatheque: context.libraryImages.length,
       produits: context.products.map((p) => ({ id: p.id, nom: p.name, categorie: p.category, prix: p.priceLabel, description: p.description?.slice(0, 300) ?? null, ajoute_le: p.createdAt.slice(0, 10), photo: Boolean(p.imageUrl) })),
       consigne: "Propose trois directions artistiques pour la page d'accueil de ce site.",
     },

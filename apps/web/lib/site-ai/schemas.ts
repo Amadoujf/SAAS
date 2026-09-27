@@ -14,44 +14,45 @@ export const MOBILE_ANIMATION = ["same", "reduced", "none"] as const;
 
 const hex = z.string().describe("Couleur hexadécimale #RRGGBB");
 
+/** Archétypes de page : des STRUCTURES différentes (sections, rythme, hiérarchie), pas
+ *  des variantes de couleurs. Détail et composition : archetypes.ts. */
+export const ARCHETYPE_KEYS = ["galerie", "atelier", "maison", "vitrine", "magazine", "marche"] as const;
+export const FONT_PAIR_OPTIONS = ["editorial", "couture", "moderne", "neutre"] as const;
+export const SHAPE_OPTIONS = ["sharp", "soft", "round"] as const;
+
 export const directionSchema = z.object({
   name: z.string().max(40).describe("Nom court et évocateur de la direction"),
   pitch: z.string().max(220).describe("Pourquoi elle convient à cette entreprise, en une ou deux phrases"),
-  style: z.enum(STYLE_KEYS).describe("Style de base (typographie, formes, ambiance)"),
+  archetype: z.enum(ARCHETYPE_KEYS).describe("Structure de la page d'accueil (voir la liste des archétypes)"),
+  style: z.enum(STYLE_KEYS).describe("Style de base (en-tête, pied de page, détails)"),
+  typography: z.enum(FONT_PAIR_OPTIONS).describe("Paire typographique"),
+  shape: z.enum(SHAPE_OPTIONS).describe("Formes : angles vifs, arrondis doux ou formes rondes"),
   palette: z.object({ primary: hex, accent: hex, background: hex }),
   animation: z.enum(ANIMATION_LEVELS),
-  hero: z.object({
-    layout: z.enum(["stage", "centered", "architectural"]).describe("stage = sujet mis en scène à côté du texte ; centered = texte centré sur un sujet ; architectural = grande photographie plein cadre"),
-    eyebrow: z.string().max(60),
-    title: z.string().max(70),
-    titleAccent: z.string().max(50).describe("Suite du titre mise en valeur, ou chaîne vide"),
-    subtitle: z.string().max(200),
+  heroProductId: z.string().describe("Produit photographié mis en scène à l'ouverture, ou chaîne vide"),
+  signatureProductId: z.string().describe("Pièce phare (archétype maison), ou chaîne vide"),
+  featuredProductIds: z.array(z.string()).max(10).describe("Produits photographiés mis en avant, dans l'ordre"),
+  copy: z.object({
+    heroEyebrow: z.string().max(60),
+    heroTitle: z.string().max(70).describe("Titre d'ouverture (souvent le nom de l'entreprise ou une phrase courte)"),
+    heroTitleAccent: z.string().max(50).describe("Suite du titre mise en valeur, ou chaîne vide"),
+    heroSubtitle: z.string().max(200),
     ctaLabel: z.string().max(28),
-    subjectProductId: z.string().describe("Identifiant d'un produit photographié à mettre en scène, ou chaîne vide"),
+    manifesto: z.string().max(160).describe("Une phrase qui dit ce que fait l'entreprise, d'après SA description"),
+    manifestoBody: z.string().max(400).describe("Deux ou trois phrases concrètes, d'après la description fournie"),
+    selectionTitle: z.string().max(60),
+    storyTitle: z.string().max(80),
+    closingTitle: z.string().max(80).describe("Invitation finale, sobre"),
+    closingText: z.string().max(200),
   }),
-  showcase: z.object({
-    layout: z.enum(["depth", "stack", "arc"]),
-    eyebrow: z.string().max(40),
-    title: z.string().max(70),
-    productIds: z.array(z.string()).max(10),
-  }),
-  story: z.object({
-    enabled: z.boolean(),
-    layout: z.enum(["sequence", "timeline", "product"]),
-    eyebrow: z.string().max(40),
-    title: z.string().max(80),
-    steps: z
-      .array(z.object({ productId: z.string(), title: z.string().max(60), body: z.string().max(220) }))
-      .max(4)
-      .describe("Une étape par produit : ce qui le distingue, d'après SA description uniquement"),
-  }),
-  showCategories: z.boolean(),
-  showProductGrid: z.boolean(),
-  order: z.array(z.enum(["hero", "showcase", "story", "categories", "grid"])).describe("Ordre des blocs de la page d'accueil"),
+  storySteps: z
+    .array(z.object({ productId: z.string(), title: z.string().max(60), body: z.string().max(220) }))
+    .max(4)
+    .describe("Une étape par produit photographié : ce qui le distingue, d'après SA description uniquement"),
 });
 
 export const directionsOutputSchema = z.object({
-  directions: z.array(directionSchema).length(3).describe("Trois directions réellement différentes"),
+  directions: z.array(directionSchema).length(3).describe("Trois directions sur trois archétypes DIFFÉRENTS"),
 });
 
 export type AiDirection = z.infer<typeof directionSchema>;
@@ -83,3 +84,5 @@ export const editOutputSchema = z.object({
 
 export type AiEditOperation = z.infer<typeof editOperationSchema>;
 export type AiEditOutput = z.infer<typeof editOutputSchema>;
+
+export type ArchetypeKey = (typeof ARCHETYPE_KEYS)[number];

@@ -1,4 +1,5 @@
-import type { AiDirection, AiDirectionsOutput, AiEditOperation, AiEditOutput } from "./schemas";
+import type { AiDirection, AiDirectionsOutput, AiEditOperation, AiEditOutput, ArchetypeKey } from "./schemas";
+import { ARCHETYPES } from "./archetypes";
 import type { SiteState } from "./operations";
 import type { SiteAiContext, SiteBrief } from "./types";
 import { newestFirst } from "./compile";
@@ -15,64 +16,72 @@ function firstSentence(text: string | null, max: number): string {
   return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
 }
 
+const ARCHETYPE_LOOK: Record<ArchetypeKey, { style: AiDirection["style"]; palette: AiDirection["palette"]; selection: string; story: string; order: "newest" | "premium" }> = {
+  galerie: { style: "luxury-minimal", palette: { primary: "#1F2A37", accent: "#7A5C32", background: "#F4F2EE" }, selection: "Pièces choisies", story: "En détail", order: "premium" },
+  atelier: { style: "teranga-atelier", palette: { primary: "#5B3A29", accent: "#9C4F2E", background: "#FBF5EE" }, selection: "Les créations", story: "Pièce par pièce", order: "newest" },
+  maison: { style: "luxury-minimal", palette: { primary: "#151515", accent: "#8E7147", background: "#F6F1EA" }, selection: "La collection", story: "Lookbook", order: "premium" },
+  vitrine: { style: "commerce-moderne", palette: { primary: "#14213D", accent: "#B23A1E", background: "#FFFFFF" }, selection: "À découvrir maintenant", story: "Nouveautés", order: "newest" },
+  magazine: { style: "atelier-naya", palette: { primary: "#15110D", accent: "#8C6A3D", background: "#F7F2EA" }, selection: "La sélection", story: "En images", order: "newest" },
+  marche: { style: "sunu-marche", palette: { primary: "#10224F", accent: "#1D3FB0", background: "#FFFFFF" }, selection: "Sélection du moment", story: "Nos produits", order: "newest" },
+};
+
+/** Archétypes les plus adaptés au brief et au catalogue (règles simples, déterministes). */
+function rankArchetypes(brief: SiteBrief, context: SiteAiContext): ArchetypeKey[] {
+  const score: Record<ArchetypeKey, number> = { galerie: 2, atelier: 1.5, vitrine: 1, maison: 0.5, magazine: 0, marche: 0 };
+  const has = (w: string) => brief.styles.includes(w);
+  if (has("luxueux")) (score.maison += 4), (score.galerie += 1);
+  if (has("épuré")) (score.galerie += 3), (score.maison += 1);
+  if (has("artisanal") || has("chaleureux") || has("naturel")) (score.atelier += 3), (score.magazine += 1);
+  if (has("coloré") || has("audacieux") || has("moderne")) (score.vitrine += 3), (score.magazine += 1);
+  if (context.products.length >= 20 || context.categories.length >= 5) score.marche += 3;
+  if (context.libraryImages.some((i) => (i.width ?? 0) >= 1200)) score.magazine += 2;
+  return (Object.keys(score) as ArchetypeKey[]).sort((a, b) => score[b] - score[a]);
+}
+
 export function simulateDirections(brief: SiteBrief, context: SiteAiContext): AiDirectionsOutput {
   const illustrated = context.products.filter((p) => p.imageUrl);
   const newest = newestFirst(illustrated);
-  const ids = newest.map((p) => p.id);
-  const lead = newest[0];
-  // Chaque direction met en scène une pièce différente (la plus récente, la plus
-  // précieuse, une troisième) : trois propositions qui ne se ressemblent pas.
-  const byPrice = [...illustrated].sort((a, b) => Number(b.priceLabel.replace(/\D/g, "")) - Number(a.priceLabel.replace(/\D/g, "")));
-  const premium = byPrice[0] ?? lead;
-  const third = illustrated.find((p) => p.id !== lead?.id && p.id !== premium?.id) ?? lead;
-  const steps = newest.slice(0, 3).map((p) => ({ productId: p.id, title: p.name.slice(0, 60), body: firstSentence(p.description, 200) }));
+  const premium = [...illustrated].sort((a, b) => Number(b.priceLabel.replace(/\D/g, "")) - Number(a.priceLabel.replace(/\D/g, "")));
   const activity = firstSentence(brief.activity, 180);
-  const base = (over: Partial<AiDirection>): AiDirection => ({
-    name: "",
-    pitch: "",
-    style: "luxury-minimal",
-    palette: { primary: "#1F2A37", accent: "#8A6A3D", background: "#FAF8F4" },
-    animation: "dynamic",
-    hero: { layout: lead ? "stage" : "centered", eyebrow: brief.styles[0] ? brief.styles[0].charAt(0).toUpperCase() + brief.styles[0].slice(1) : "", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Découvrir la boutique", subjectProductId: lead?.id ?? "" },
-    showcase: { layout: "depth", eyebrow: "Sélection", title: "Les pièces du moment", productIds: ids.slice(0, 8) },
-    story: { enabled: steps.length >= 2, layout: "sequence", eyebrow: "Dans le détail", title: "Ce qui les distingue", steps },
-    showCategories: true,
-    showProductGrid: true,
-    order: ["hero", "showcase", "story", "categories", "grid"],
-    ...over,
-  });
+  const rest = brief.activity.replace(/\s+/g, " ").trim().slice(firstSentence(brief.activity, 1000).length).trim();
+  // Surtitre : l'univers principal du catalogue (donnée réelle), jamais un mot du questionnaire.
+  const eyebrow = [...context.categories].sort((a, b) => b.productCount - a.productCount)[0]?.name ?? "Collection";
+  const chosen = rankArchetypes(brief, context).slice(0, 3);
   return {
-    directions: [
-      base({
-        name: "Épure",
-        pitch: "Beaucoup d'espace, une palette neutre et vos produits en vedette : une boutique calme et haut de gamme.",
-        style: "luxury-minimal",
-        palette: { primary: "#1F2A37", accent: "#7A5C32", background: "#F4F2EE" },
-        hero: { layout: premium ? "centered" : "centered", eyebrow: "Collection", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Découvrir la collection", subjectProductId: premium?.id ?? "" },
-        showcase: { layout: illustrated.length >= 4 ? "arc" : "depth", eyebrow: "La collection", title: "Choisissez la vôtre", productIds: ids.slice(0, 8) },
-      }),
-      base({
-        name: "Atelier chaleureux",
-        pitch: "Des tons de terre, une mise en page éditoriale et un récit qui raconte chaque produit : proche et artisanal.",
-        style: "teranga-atelier",
-        palette: { primary: "#5B3A29", accent: "#9C4F2E", background: "#FBF5EE" },
-        animation: "discreet",
-        hero: { layout: third ? "stage" : "centered", eyebrow: "Fait avec soin", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Voir les produits", subjectProductId: third?.id ?? "" },
-        story: { enabled: steps.length >= 2, layout: "product", eyebrow: "Nos produits", title: "Pièce par pièce", steps },
-        order: ["hero", "story", "showcase", "categories", "grid"],
-      }),
-      base({
-        name: "Vitrine vive",
-        pitch: "Couleurs franches, rythme soutenu et nouveautés en avant : une boutique énergique qui donne envie de parcourir.",
-        style: "commerce-moderne",
-        palette: { primary: "#14213D", accent: "#B23A1E", background: "#FFFFFF" },
-        animation: "immersive",
-        hero: { layout: lead ? "stage" : "centered", eyebrow: "Nouveautés", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Voir les nouveautés", subjectProductId: lead?.id ?? "" },
-        showcase: { layout: "stack", eyebrow: "Nouveautés", title: "À découvrir maintenant", productIds: ids.slice(0, 8) },
-        story: { enabled: false, layout: "timeline", eyebrow: "", title: "", steps: [] },
-        order: ["hero", "showcase", "grid", "categories"],
-      }),
-    ],
+    directions: chosen.map((archetype, index) => {
+      const look = ARCHETYPE_LOOK[archetype];
+      const meta = ARCHETYPES[archetype];
+      const ordered = look.order === "premium" ? premium : newest;
+      // Chaque direction met en scène une pièce différente.
+      const lead = ordered[index % Math.max(1, ordered.length)] ?? ordered[0];
+      return {
+        name: meta.label,
+        pitch: meta.description.slice(0, 220),
+        archetype,
+        style: look.style,
+        typography: meta.suggested.typography,
+        shape: meta.suggested.shape,
+        palette: look.palette,
+        animation: meta.suggested.animation,
+        heroProductId: lead?.id ?? "",
+        signatureProductId: premium[0]?.id ?? "",
+        featuredProductIds: ordered.slice(0, 8).map((p) => p.id),
+        copy: {
+          heroEyebrow: eyebrow,
+          heroTitle: context.tenantName,
+          heroTitleAccent: "",
+          heroSubtitle: activity,
+          ctaLabel: archetype === "vitrine" ? "Voir les nouveautés" : "Découvrir la collection",
+          manifesto: activity,
+          manifestoBody: rest.slice(0, 400),
+          selectionTitle: look.selection,
+          storyTitle: look.story,
+          closingTitle: "Toute la collection en ligne",
+          closingText: "Parcourez l'ensemble des produits et commandez en quelques instants.",
+        },
+        storySteps: newest.slice(0, 3).map((p) => ({ productId: p.id, title: p.name.slice(0, 60), body: firstSentence(p.description, 200) })),
+      };
+    }),
   };
 }
 

@@ -18,7 +18,7 @@ export async function loadSiteAiContext(tx: Prisma.TransactionClient, tenantId: 
       orderBy: { createdAt: "desc" },
       take: 60,
     }),
-    tx.category.findMany({ where: { tenantId }, select: { id: true, name: true, _count: { select: { products: { where: { status: "PUBLISHED", deletedAt: null } } } } }, orderBy: { name: "asc" } }),
+    tx.category.findMany({ where: { tenantId }, select: { id: true, name: true, slug: true, _count: { select: { products: { where: { status: "PUBLISHED", deletedAt: null } } } } }, orderBy: { name: "asc" } }),
     tx.mediaAsset.findMany({ where: { tenantId, status: "READY", mimeType: { startsWith: "image/" } }, select: { id: true, width: true, altText: true }, orderBy: { createdAt: "desc" }, take: 80 }),
   ]);
   const widthById = new Map(media.map((m) => [m.id, m.width]));
@@ -43,7 +43,7 @@ export async function loadSiteAiContext(tx: Prisma.TransactionClient, tenantId: 
         imageCount: p.images.length,
       };
     }),
-    categories: categories.map((c) => ({ id: c.id, name: c.name, productCount: c._count.products })),
+    categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug, productCount: c._count.products })),
     libraryImages: media.filter((m) => !productMediaIds.has(m.id)).map((m) => ({ url: `/api/media/${m.id}/file`, alt: m.altText, width: m.width })),
   };
 }

@@ -46,7 +46,6 @@ export function isSectionKey(value: string): value is SectionKey {
   return (SECTION_KEYS as readonly string[]).includes(value);
 }
 
-const mediaSchema = z.object({ url: z.string().url(), alt: z.string().optional() });
 
 /**
  * Référence d'image des sections immersives : URL absolue https (médiathèque servie par
@@ -59,6 +58,10 @@ const imageRefSchema = z
   .trim()
   .max(500)
   .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https?:\/\/[^\s]+$/.test(v), "Image invalide : choisissez-la dans la médiathèque.");
+
+/** Média d'une section : adresse https OU chemin interne (médiathèque de l'entreprise,
+ *  « /api/media/… ») — mêmes règles que les sections immersives. */
+const mediaSchema = z.object({ url: imageRefSchema, alt: z.string().optional() });
 
 /** Lien d'un bouton : chemin interne (« /catalogue ») ou adresse https. */
 const actionHrefSchema = z
@@ -80,6 +83,14 @@ export const sectionParamSchemas = {
     media: mediaSchema,
     ctaLabel: z.string().optional(),
     ctaHref: z.string().optional(),
+    /** Bouton secondaire (variante plein cadre) — absent = aucun bouton secondaire. */
+    secondaryCtaLabel: z.string().max(40).optional(),
+    secondaryCtaHref: z
+      .string()
+      .trim()
+      .max(300)
+      .refine((v) => /^#[\w-]+$/.test(v) || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^\s]+$/.test(v), "Lien invalide.")
+      .optional(),
   }),
   categories: z.object({
     title: z.string().optional(),
@@ -204,7 +215,7 @@ export const sectionParamSchemas = {
     images: z
       .array(
         z.object({
-          url: z.string().url(),
+          url: imageRefSchema,
           alt: z.string().optional(),
           hotspots: z
             .array(

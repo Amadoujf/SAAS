@@ -182,6 +182,8 @@ const RAW_DEMO_MANIFEST = {
             },
             ctaLabel: "Découvrir la collection",
             ctaHref: "/catalogue",
+            secondaryCtaLabel: "Notre savoir-faire",
+            secondaryCtaHref: "#savoir-faire",
           },
         },
         {

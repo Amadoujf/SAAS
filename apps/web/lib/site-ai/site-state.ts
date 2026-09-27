@@ -6,6 +6,7 @@ import { DEFAULT_DESIGN_TOKENS, type DesignTokens } from "@yamacommerce/design-t
 import type { SectionInstance } from "@yamacommerce/templates";
 import { applyBranding } from "@/lib/storefront/home-content";
 import { templateTokens } from "@/lib/storefront/store-templates";
+import { isFontPair, isShape } from "@/lib/storefront/brand-kit";
 import type { SiteState } from "./operations";
 import type { SiteIdentity, SiteMotion } from "./types";
 import { canonicalJson } from "./canonical-json";
@@ -50,7 +51,15 @@ export async function liveSettings(tx: Prisma.TransactionClient, tenantId: strin
   const level = (site?.animationLevelOverride ?? site?.template.defaultAnimationLevel ?? templateTokens(style)?.animation.level ?? "dynamic") as SiteMotion["level"];
   const mobile = (["same", "reduced", "none"].includes(overrides.animation?.mobile ?? "") ? overrides.animation!.mobile : "same") as SiteMotion["mobile"];
   return {
-    identity: { style, primaryColor: color(b.primaryColor), accentColor: color(b.accentColor), backgroundColor: color(b.backgroundColor), logoUrl: str(b.logoUrl) },
+    identity: {
+      style,
+      primaryColor: color(b.primaryColor),
+      accentColor: color(b.accentColor),
+      backgroundColor: color(b.backgroundColor),
+      fontPair: isFontPair(b.fontPair) ? b.fontPair : null,
+      shape: isShape(b.shape) ? b.shape : null,
+      logoUrl: str(b.logoUrl),
+    },
     motion: { level: ["discreet", "dynamic", "immersive"].includes(level) ? level : "dynamic", mobile },
   };
 }

@@ -332,7 +332,9 @@ export function describeField(name: string, rawSchema: z.ZodTypeAny): FieldDescr
     const isColor = /color/i.test(name);
     // Référence d'image (URL absolue OU chemin de la médiathèque) : même champ « lien »
     // que les URL, donc même bouton Médiathèque — jamais pour un texte alternatif.
-    const isImageRef = /(^image$|image$|imageurl$)/i.test(name) && !/alt$/i.test(name);
+    // `url` : champ d'un média de section (`media.url`, `images[i].url`), qui accepte aussi
+    // un chemin interne de la médiathèque.
+    const isImageRef = /(^image$|image$|imageurl$|^url$)/i.test(name) && !/alt$/i.test(name);
     if (isColor) return { ...base, kind: "color" };
     if (isUrl || isImageRef) return { ...base, kind: "url" };
     if (isEmail) return { ...base, kind: "email" };

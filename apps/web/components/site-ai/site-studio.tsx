@@ -7,7 +7,9 @@ import { MediaPickerDialog } from "@/components/media/media-picker-dialog";
 import type { loadStudio } from "@/lib/site-ai/pipeline";
 import type { SiteBrief } from "@/lib/site-ai/types";
 import { StudioPreview, type Device } from "./studio-preview";
-import { StudioOnboarding } from "./studio-onboarding";
+import { StudioCreation } from "./studio-creation";
+import { StudioComposing } from "./studio-composing";
+import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { StudioDirections, type DirectionCard } from "./studio-directions";
 import { StudioAssistant, type ConversationItem } from "./studio-assistant";
 
@@ -40,7 +42,12 @@ const dateFr = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long",
  */
 export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial: StudioData; canPublish: boolean; siteUrl: string | null; advanced: ReactNode }) {
   const [studio, setStudio] = useState(initial);
-  const [mode, setMode] = useState<Mode>(() => initialMode(initial));
+  const [mode, setModeState] = useState<Mode>(() => initialMode(initial));
+  // Changer d'étape ramène en haut du studio : chaque étape commence par son titre.
+  const setMode = useCallback((next: Mode) => {
+    setModeState(next);
+    requestAnimationFrame(() => document.getElementById("site-studio")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
   const [device, setDevice] = useState<Device>("desktop");
   // Sur téléphone, l'aperçu montre d'abord le site tel qu'il apparaîtra sur téléphone.
   useEffect(() => {
@@ -107,7 +114,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
   const aiBlocked = !studio.ai.available ? studio.ai.reason : studio.ai.usage.limit !== null && studio.ai.usage.used >= studio.ai.usage.limit ? "Quota IA du mois atteint." : null;
 
   return (
-    <div className="grid gap-5">
+    <div id="site-studio" className={`grid scroll-mt-20 gap-5 ${templateFontVariables}`}>
       {/* Barre d'état — toujours visible */}
       <div className="z-20 -mx-4 flex flex-wrap items-center gap-3 md:sticky md:top-16 lg:top-[68px] border-b border-yc-ink/[0.06] bg-[#F6F7FB]/90 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold ${state.tone === "live" ? "bg-yc-success/12 text-yc-success" : state.tone === "busy" ? "bg-yc-electric/10 text-yc-electric" : state.tone === "pending" ? "bg-yc-warning/[0.14] text-[rgb(146_84_0)]" : "bg-yc-ink/[0.06] text-yc-ink-soft"}`}>
@@ -147,25 +154,24 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
       {error && <p role="alert" className="rounded-xl bg-yc-danger/[0.08] px-4 py-3 text-sm font-medium text-yc-danger">{error}</p>}
       {notice && <p role="status" className="rounded-xl bg-yc-success/[0.1] px-4 py-3 text-sm font-medium text-yc-success">{notice}</p>}
 
-      {mode === "onboarding" && (
-        <>
-          <StudioOnboarding
-            initial={studio.brief}
-            catalog={studio.catalog}
-            hasLogo={Boolean(studio.draft.snapshot.settings.identity.logoUrl)}
-            advice={studio.audit.advice}
-            busy={busy === "generate"}
-            disabledReason={aiBlocked}
-            onChooseLogo={() => setPicker({ kind: "logo" })}
-            onSubmit={generateDirections}
-          />
-          {studio.homeStatus.mode === "editor" || studio.lastRevision ? (
-            <button type="button" onClick={() => setMode("studio")} className="justify-self-start text-[13px] font-semibold text-yc-ink-soft hover:text-yc-ink">← Revenir à mon site actuel</button>
-          ) : null}
-        </>
-      )}
+      {busy === "generate" && mode !== "studio" ? (
+        <StudioComposing catalog={studio.catalog} />
+      ) : mode === "onboarding" ? (
+        <StudioCreation
+          tenantName={studio.tenantName}
+          initial={studio.brief}
+          catalog={studio.catalog}
+          logoUrl={studio.draft.snapshot.settings.identity.logoUrl}
+          advice={studio.audit.advice}
+          busy={busy === "generate"}
+          disabledReason={aiBlocked}
+          onChooseLogo={() => setPicker({ kind: "logo" })}
+          onSubmit={generateDirections}
+          onCancel={studio.homeStatus.mode === "editor" || studio.lastRevision ? () => setMode("studio") : undefined}
+        />
+      ) : null}
 
-      {mode === "directions" && studio.directions && (
+      {mode === "directions" && studio.directions && busy !== "generate" && (
         <StudioDirections
           jobId={studio.directions.jobId}
           directions={(studio.directions as unknown as { directions: DirectionCard[] }).directions}

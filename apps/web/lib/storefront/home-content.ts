@@ -1,3 +1,4 @@
+import { applyBrandKit } from "./brand-kit";
 import { z } from "zod";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 
@@ -122,7 +123,11 @@ export function validateBrandColor(hex: string): string | null {
 }
 
 /** Applique les couleurs de l'entreprise par-dessus le template. */
-export function applyBranding(tokens: DesignTokens, branding: { primaryColor?: unknown; accentColor?: unknown; backgroundColor?: unknown }): DesignTokens {
+export function applyBranding(
+  tokens: DesignTokens,
+  branding: { primaryColor?: unknown; accentColor?: unknown; backgroundColor?: unknown; fontPair?: unknown; shape?: unknown },
+): DesignTokens {
+  const kitted = applyBrandKit(tokens, branding);
   const primary = typeof branding.primaryColor === "string" && HEX.test(branding.primaryColor) ? branding.primaryColor : null;
   const accent = typeof branding.accentColor === "string" && HEX.test(branding.accentColor) ? branding.accentColor : null;
   // Fond : appliqué seulement s'il reste lisible avec le texte du style choisi.
@@ -130,11 +135,11 @@ export function applyBranding(tokens: DesignTokens, branding: { primaryColor?: u
     typeof branding.backgroundColor === "string" && HEX.test(branding.backgroundColor) && contrastRatio(branding.backgroundColor, tokens.colors.textPrimary) >= 7
       ? branding.backgroundColor
       : null;
-  if (!primary && !accent && !background) return tokens;
+  if (!primary && !accent && !background) return kitted;
   return {
-    ...tokens,
+    ...kitted,
     colors: {
-      ...tokens.colors,
+      ...kitted.colors,
       ...(primary ? { primary, mutedSurface: primary } : {}),
       ...(accent ? { accentPrimary: accent, secondary: accent } : {}),
       ...(background ? { background } : {}),

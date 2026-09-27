@@ -14,6 +14,9 @@ export interface TenantBrandingPatch {
   primaryColor?: string | null;
   accentColor?: string | null;
   backgroundColor?: string | null;
+  /** Kit de marque (typographie, formes) — clés fermées, voir apps/web/lib/storefront/brand-kit.ts. */
+  fontPair?: string | null;
+  shape?: string | null;
 }
 
 export async function getStorefrontCustomization(tx: Prisma.TransactionClient, tenantId: string) {

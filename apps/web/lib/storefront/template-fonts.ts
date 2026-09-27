@@ -36,4 +36,14 @@ export const templateSans = localFont({
   fallback: ["system-ui", "sans-serif"],
 });
 
-export const templateFontVariables = `${templateSerif.variable} ${templateDidone.variable} ${templateSans.variable}`;
+/** Grotesque expressive (titres « moderne ») — graisse unique 600. */
+export const templateGrotesk = localFont({
+  src: "../../app/fonts/bricolage-grotesque-600-latin.woff2",
+  weight: "600",
+  variable: "--font-tpl-grotesk",
+  display: "swap",
+  preload: false,
+  fallback: ["system-ui", "sans-serif"],
+});
+
+export const templateFontVariables = `${templateSerif.variable} ${templateDidone.variable} ${templateSans.variable} ${templateGrotesk.variable}`;
