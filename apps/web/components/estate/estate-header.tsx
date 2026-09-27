@@ -31,7 +31,7 @@ export function EstateHeader({ tenantName, logoUrl, phone }: { tenantName: strin
   return (
     <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_94%,transparent)] backdrop-blur">
       <div className="mx-auto flex h-[72px] max-w-[var(--content-max-width,1320px)] items-center gap-6 px-5 sm:px-8">
-        <Link href="/" className="min-w-0 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]" aria-label={`${tenantName}, accueil`}>
+        <Link href="/" className="min-w-0 rounded-sm md:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]" aria-label={`${tenantName}, accueil`}>
           {logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={logoUrl} alt={tenantName} className="h-9 w-auto max-w-[180px] object-contain" />
@@ -39,16 +39,17 @@ export function EstateHeader({ tenantName, logoUrl, phone }: { tenantName: strin
             <span className="block truncate font-[family-name:var(--font-heading)] text-[17px] font-medium uppercase tracking-[0.08em] text-[var(--color-primary)] sm:text-[22px] sm:tracking-[0.14em]">{tenantName}</span>
           )}
         </Link>
-        <nav aria-label="Navigation principale" className="ml-auto hidden items-center gap-8 md:flex">
+        <nav aria-label="Navigation principale" className="ml-auto hidden items-center gap-6 md:flex lg:gap-8">
           {NAV.map((n) => {
             const active = n.match(pathname, deal);
-            return <Link key={n.label} href={n.href} aria-current={active ? "page" : undefined} className={`${link} ${active ? "text-[var(--color-text-primary)] underline decoration-[var(--color-accent-primary)] decoration-2 underline-offset-8" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{n.label}</Link>;
+            return <Link key={n.label} href={n.href} aria-current={active ? "page" : undefined} className={`${link} whitespace-nowrap ${active ? "text-[var(--color-text-primary)] underline decoration-[var(--color-accent-primary)] decoration-2 underline-offset-8" : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"}`}>{n.label}</Link>;
           })}
         </nav>
         {phone && (
-          <a href={`tel:${phone.replace(/\s/g, "")}`} className="hidden h-11 items-center gap-2 rounded-[var(--radius-full)] bg-[var(--color-primary)] px-5 text-[13px] font-semibold tracking-[0.02em] text-white transition-transform hover:-translate-y-0.5 md:inline-flex">
+          <a href={`tel:${phone.replace(/\s/g, "")}`} aria-label={`Appeler l'agence : ${phone}`} className="hidden h-11 min-w-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-full)] bg-[var(--color-primary)] text-[13px] font-semibold tracking-[0.02em] text-white transition-transform hover:-translate-y-0.5 md:inline-flex lg:px-5">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2" /></svg>
-            {phone}
+            {/* Tablette : icône seule (le numéro reste annoncé) ; ordinateur : numéro visible. */}
+            <span aria-hidden="true" className="hidden lg:inline">{phone}</span>
           </a>
         )}
         <button type="button" onClick={() => setOpen(true)} aria-label="Ouvrir le menu" aria-expanded={open} className="ml-auto grid h-11 w-11 place-items-center rounded-full text-[var(--color-text-primary)] md:hidden">
