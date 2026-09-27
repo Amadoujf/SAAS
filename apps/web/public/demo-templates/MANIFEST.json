@@ -383,21 +383,21 @@
    "file": "demo-templates/salon/arche-lumiere.webp",
    "width": 1200,
    "height": 1500,
-   "bytes": 158662,
+   "bytes": 159282,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (arche éclairée, vase et herbes de pampa)."
   },
   {
    "file": "demo-templates/salon/flacons.webp",
    "width": 1200,
    "height": 1500,
-   "bytes": 159258,
+   "bytes": 159592,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (flacons de soin sur une étagère)."
   },
   {
    "file": "demo-templates/salon/tresse.webp",
    "width": 1200,
    "height": 1500,
-   "bytes": 212984,
+   "bytes": 207086,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (tresse et anneaux dorés)."
   },
   {
@@ -411,8 +411,78 @@
    "file": "demo-templates/salon/galets.webp",
    "width": 1200,
    "height": 1500,
-   "bytes": 166988,
+   "bytes": 166652,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/salon.py) — aucune photographie ni ressource tierce. Illustration de démonstration (galets et serviette pliée)."
+  },
+  {
+   "file": "demo-templates/hotel/facade-crepuscule.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 211106,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (façade à arcades au crépuscule, palmiers)."
+  },
+  {
+   "file": "demo-templates/hotel/facade-crepuscule-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 46114,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (façade à arcades au crépuscule, palmiers) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/hotel/piscine.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 120850,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (piscine, transats et bougainvillier)."
+  },
+  {
+   "file": "demo-templates/hotel/piscine-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 14988,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (piscine, transats et bougainvillier) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/hotel/chambre-jardin.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 107334,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (chambre, lit et fenêtre voilée)."
+  },
+  {
+   "file": "demo-templates/hotel/chambre-jardin-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 11148,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (chambre, lit et fenêtre voilée) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/hotel/suite-ocean.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 107420,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (suite, lit et fenêtre en arche sur l'océan)."
+  },
+  {
+   "file": "demo-templates/hotel/suite-ocean-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 11044,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (suite, lit et fenêtre en arche sur l'océan) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/hotel/terrasse-ocean.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 143062,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (terrasse en bois face à l'océan au couchant)."
+  },
+  {
+   "file": "demo-templates/hotel/terrasse-ocean-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 28976,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (terrasse en bois face à l'océan au couchant) — recadrage mobile."
   }
  ]
 }

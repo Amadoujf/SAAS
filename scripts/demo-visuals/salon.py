@@ -21,7 +21,10 @@ S = 2  # suréchantillonnage (anticrénelage)
 
 
 def rgb(h, a=255):
+    """Couleur « #RRGGBB » ou « #RRGGBBAA » (l'alpha du code prime sur `a`)."""
     h = h.lstrip("#")
+    if len(h) == 8:
+        a = int(h[6:8], 16)
     return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4)) + (a,)
 
 

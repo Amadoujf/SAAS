@@ -14,6 +14,8 @@ import { isTravelTenant, resolveTravel } from "@/lib/travel/travel-context";
 import { TravelHome } from "@/components/travel/travel-home";
 import { isSalonTenant, resolveSalon } from "@/lib/salon/salon-context";
 import { SalonHome } from "@/components/salon/salon-home";
+import { isHotelTenant, resolveHotel } from "@/lib/hotel/hotel-context";
+import { HotelHome } from "@/components/hotel/hotel-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -60,6 +62,9 @@ export default async function HomePage() {
       } else if (await isSalonTenant(tenant.id)) {
         const salon = await resolveSalon("/");
         if (salon.status === "ok") return <PublishedSectorHome site={resolution.site} salon={salon.salon} />;
+      } else if (await isHotelTenant(tenant.id)) {
+        const hotel = await resolveHotel("/");
+        if (hotel.status === "ok") return <PublishedSectorHome site={resolution.site} hotel={hotel.hotel} />;
       }
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
@@ -84,6 +89,11 @@ export default async function HomePage() {
     if (await isSalonTenant(tenant.id)) {
       const salon = await resolveSalon("/");
       if (salon.status === "ok") return <SalonHome salon={salon.salon} />;
+    }
+    // Hôtel : accueil de son template (« Palmeraie » par défaut).
+    if (await isHotelTenant(tenant.id)) {
+      const hotel = await resolveHotel("/");
+      if (hotel.status === "ok") return <HotelHome hotel={hotel.hotel} />;
     }
     return <TenantComingSoon tenantName={tenant.name} />;
   }
