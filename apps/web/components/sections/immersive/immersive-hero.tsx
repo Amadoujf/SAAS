@@ -29,7 +29,8 @@ const DIRECTION: Record<Layer["arriveFrom"], [number, number]> = { top: [0, -1],
  *  mouvement lié au défilement (assemblage, séparation, parallaxe, zoom). */
 function SceneLayer({ layer, index, progress, effect, amp, floating }: { layer: Layer; index: number; progress: MotionValue<number>; effect: ImmersiveHeroParams["scrollEffect"]; amp: number; floating: boolean }) {
   const [dx, dy] = layer.arriveFrom === "none" ? [Math.sign(layer.offsetX) || 0, Math.sign(layer.offsetY) || -1] : DIRECTION[layer.arriveFrom];
-  const distance = (70 + layer.depth * 150) * amp;
+  // Éclatement mesuré : les éléments restent dans la scène (jamais hors du cadre).
+  const distance = (36 + layer.depth * 96) * amp;
   const spread = useTransform(progress, (p) => {
     if (amp === 0) return 0;
     if (effect === "assemble") return Math.max(0, 1 - p / 0.32);
@@ -48,9 +49,9 @@ function SceneLayer({ layer, index, progress, effect, amp, floating }: { layer: 
       style={{ left: `${50 + layer.offsetX}%`, top: `${50 + layer.offsetY}%`, width: "56%", x, y, scale, rotate: layer.rotate, translateX: "-50%", translateY: "-50%", zIndex: 10 + Math.round(layer.depth * 10) }}
     >
       <div className={floating ? "yc-drift" : ""} style={{ animationDuration: `${7 + index * 1.3}s`, animationDelay: `${-index * 0.9}s` } as CSSProperties}>
-        <div className="aspect-square">
-          <ImmersiveImage src={layer.imageUrl} alt={layer.alt ?? ""} fit="contain" eager={index < 2} className="drop-shadow-[0_28px_40px_rgba(10,16,34,0.28)]" />
-        </div>
+        {/* Proportions propres de l'élément (largeur réglée par l'échelle) : la scène a
+            des dimensions fixes, aucun saut de mise en page au chargement. */}
+        <ImmersiveImage src={layer.imageUrl} alt={layer.alt ?? ""} fit="contain" eager={index < 3} className="!h-auto drop-shadow-[0_28px_40px_rgba(10,16,34,0.22)]" />
       </div>
     </motion.div>
   );
@@ -69,8 +70,11 @@ function Lighting({ mode, dark }: { mode: ImmersiveHeroParams["lighting"]; dark:
       <span aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(40% 50% at 18% 20%, color-mix(in srgb, var(--color-primary) 12%, transparent), transparent 70%), radial-gradient(45% 55% at 85% 80%, color-mix(in srgb, ${accent} 18%, transparent), transparent 70%)` }} />
     );
   }
+  // Halo : une LUMIÈRE chaude, à peine teintée par la couleur de la marque (une couleur
+  // de marque vive, rouge par exemple, ne doit jamais « rosir » le produit).
+  const warm = `color-mix(in srgb, #FFD9A6 82%, ${accent})`;
   return (
-    <span aria-hidden="true" className="pointer-events-none absolute inset-0 transition-[background-position] duration-700" style={{ background: `radial-gradient(34% 46% at var(--lx, 66%) var(--ly, 48%), color-mix(in srgb, ${accent} ${dark ? 38 : 30}%, transparent), transparent 72%)` }} />
+    <span aria-hidden="true" className="pointer-events-none absolute inset-0 transition-[background-position] duration-700" style={{ background: `radial-gradient(34% 46% at var(--lx, 66%) var(--ly, 48%), color-mix(in srgb, ${warm} ${dark ? 42 : 55}%, transparent), transparent 72%)` }} />
   );
 }
 
@@ -183,8 +187,19 @@ export function ImmersiveHeroSection({ variant, params }: { variant: string; par
 
   const stage = (
     <div className="relative mx-auto aspect-square w-full max-w-[640px]" style={{ perspective: "1200px" }}>
-      <span aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,var(--color-accent-primary,var(--color-primary))_22%,transparent),transparent_68%)] blur-2xl" />
-      {params.subjectImage && (
+      <span aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,#FFE2B8_70%,transparent),transparent_68%)] blur-2xl" />
+      {params.subjectImage && params.subjectStyle === "framed" && (
+        <motion.div className="absolute inset-x-[12%] inset-y-[4%] z-10" style={{ y: subjectY, scale: subjectScale }}>
+          <div className={floating ? "yc-drift h-full" : "h-full"} style={{ animationDuration: "10s", ...paused }}>
+            <div className="relative h-full overflow-hidden rounded-[calc(var(--radius-lg,16px)*1.5)] shadow-[0_50px_90px_-40px_rgba(10,16,34,0.55)] ring-1 ring-black/5">
+              <ImmersiveImage src={params.subjectImage} alt={params.subjectAlt ?? ""} eager style={{ objectPosition: `${params.focalX}% ${params.focalY}%` }} />
+              {/* Reflet qui suit la lumière (pointeur) : la photo « prend » l'éclairage. */}
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_50%_at_var(--lx,70%)_var(--ly,20%),rgba(255,255,255,0.28),transparent_70%)] mix-blend-soft-light" />
+            </div>
+          </div>
+        </motion.div>
+      )}
+      {params.subjectImage && params.subjectStyle !== "framed" && (
         <motion.div className="absolute inset-[6%] z-10" style={{ y: subjectY, scale: subjectScale }}>
           <div className={floating ? "yc-drift h-full" : "h-full"} style={{ animationDuration: "9s", ...paused }}>
             <ImmersiveImage src={params.subjectImage} alt={params.subjectAlt ?? ""} eager fit="contain" className="drop-shadow-[0_40px_60px_rgba(10,16,34,0.30)]" style={{ objectPosition: `${params.focalX}% ${params.focalY}%` }} />

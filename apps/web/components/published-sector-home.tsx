@@ -1,0 +1,27 @@
+import type { TenantSiteRenderProps } from "@/lib/rendering/resolve-tenant-site";
+import type { StoreContext } from "@/lib/storefront/store-context";
+import type { EstateContext } from "@/lib/real-estate/estate-context";
+import { RenderTemplatePage } from "@/components/render-template-page";
+import { SiteShell } from "@/components/site-shell";
+import { StoreShell } from "@/components/store/store-shell";
+import { EstateShell } from "@/components/estate/estate-shell";
+
+/**
+ * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
+ * son en-tête (catégories, recherche, panier) et son pied de page, une agence le sien
+ * (acheter, louer, appel) — le moteur de sections ne remplace que le contenu central.
+ * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
+ * attendus par certaines sections du catalogue.
+ */
+export function PublishedSectorHome({ site, store, estate }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext }) {
+  const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
+  if (!page) return null;
+  const content = (
+    <SiteShell tokens={site.tokens} animationLevel={site.animationLevel}>
+      <RenderTemplatePage page={page} tokens={site.tokens} animationLevel={site.animationLevel} resolvedContent={site.resolvedContent} locale="fr" />
+    </SiteShell>
+  );
+  if (store) return <StoreShell store={store}>{content}</StoreShell>;
+  if (estate) return <EstateShell estate={estate}>{content}</EstateShell>;
+  return content;
+}

@@ -284,6 +284,10 @@ export const sectionParamSchemas = {
     secondaryCtaHref: actionHrefSchema.optional(),
     subjectImage: imageRefSchema.optional(),
     subjectAlt: z.string().trim().max(160).optional(),
+    /** « cutout » : image détourée (PNG/WebP transparent) posée dans la scène ;
+     *  « framed » : photographie classique présentée dans un cadre — jamais une photo
+     *  à fond plein déguisée en objet flottant. */
+    subjectStyle: z.enum(["cutout", "framed"]).default("cutout"),
     focalX: focalSchema.default(50),
     focalY: focalSchema.default(50),
     layers: z
@@ -294,7 +298,7 @@ export const sectionParamSchemas = {
           depth: z.number().min(0).max(1).default(0.5),
           offsetX: z.number().min(-50).max(50).default(0),
           offsetY: z.number().min(-50).max(50).default(0),
-          scale: z.number().min(0.2).max(2).default(1),
+          scale: z.number().min(0.1).max(2).default(1),
           rotate: z.number().min(-45).max(45).default(0),
           arriveFrom: z.enum(["top", "bottom", "left", "right", "none"]).default("top"),
         }),

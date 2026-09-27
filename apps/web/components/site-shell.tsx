@@ -1,7 +1,7 @@
 import type { AnimationLevel, DesignTokens } from "@yamacommerce/design-tokens";
 import { designTokensToStyle } from "@/lib/design-tokens-to-css";
+import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { AnimationLevelProvider } from "@/lib/motion/animation-level-context";
-import { CustomCursor } from "@/components/ui/custom-cursor";
 import { LocaleProvider } from "@/lib/locale-context";
 import { CartProvider, type CartLine } from "@/lib/commerce/cart-context";
 import { FavoritesProvider } from "@/lib/commerce/favorites-context";
@@ -45,14 +45,13 @@ export function SiteShell({
   return (
     <div
       style={designTokensToStyle(tokens)}
-      className="bg-[var(--color-background)] text-[var(--color-text-primary)]"
+      className={`${templateFontVariables} bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}
     >
       <LocaleProvider initialLocale={initialLocale}>
         <CurrencyProvider initialCurrency={initialCurrency}>
           <CartProvider initialLines={initialCartLines}>
             <FavoritesProvider>
               <AnimationLevelProvider level={animationLevel}>
-                <CustomCursor />
                 {children}
               </AnimationLevelProvider>
             </FavoritesProvider>

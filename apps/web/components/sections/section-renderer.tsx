@@ -1,4 +1,4 @@
-import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
+import { sectionParamSchemas, validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import type { Locale } from "@/lib/i18n";
 import { AnimationScopeOverride } from "@/lib/motion/animation-level-context";
@@ -290,20 +290,24 @@ function renderByKey(
     case "catalog_search":
       return <CatalogSearchSection variant={instance.variant} params={instance.params as any} />;
 
+    // Sections immersives : les réglages sont repassés par leur schéma pour obtenir les
+    // valeurs PAR DÉFAUT (la validation d'instance contrôle sans les appliquer) — une
+    // section enregistrée avec seulement un titre s'affiche donc complète.
     case "immersive_hero":
-      return <ImmersiveHeroSection variant={instance.variant} params={instance.params as any} />;
+      return <ImmersiveHeroSection variant={instance.variant} params={sectionParamSchemas.immersive_hero.parse(instance.params)} />;
 
     case "immersive_showcase": {
       // Sélection calculée ici (fonction pure), depuis le réservoir fourni par le serveur
       // ou l'éditeur — un carrousel tout juste ajouté dans l'éditeur affiche donc déjà
       // les vrais contenus de l'entreprise, sans aller-retour serveur.
       const pool = resolvedContent?.[SHOWCASE_POOL_KEY];
-      const items = selectShowcaseItems(instance.params as any, isShowcasePool(pool) ? pool : undefined);
-      return <ImmersiveShowcaseSection variant={instance.variant} params={instance.params as any} items={items} />;
+      const params = sectionParamSchemas.immersive_showcase.parse(instance.params);
+      const items = selectShowcaseItems(params, isShowcasePool(pool) ? pool : undefined);
+      return <ImmersiveShowcaseSection variant={instance.variant} params={params} items={items} />;
     }
 
     case "scroll_story":
-      return <ScrollStorySection variant={instance.variant} params={instance.params as any} />;
+      return <ScrollStorySection variant={instance.variant} params={sectionParamSchemas.scroll_story.parse(instance.params)} />;
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être

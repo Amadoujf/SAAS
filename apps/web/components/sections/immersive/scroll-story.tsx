@@ -20,6 +20,15 @@ function framing(step: Step, animate: boolean): CSSProperties {
   };
 }
 
+/** Recadrage de la photo elle-même sur le détail : une photo paysage affichée en format
+ *  portrait garde ainsi le détail choisi dans le cadre avant d'être agrandie. */
+function crop(step: Step, animate: boolean): CSSProperties {
+  return {
+    objectPosition: `${step.focusX}% ${step.focusY}%`,
+    transition: animate ? "object-position 1.1s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
+  };
+}
+
 /**
  * Récit au défilement — voir @yamacommerce/templates `scroll_story`. Ordinateur : image
  * « collante » (CSS sticky, le défilement reste celui du navigateur) et étapes qui
@@ -59,13 +68,13 @@ export function ScrollStorySection({ variant, params }: { variant: string; param
     <div className="relative h-full w-full overflow-hidden rounded-[var(--radius-lg,18px)] bg-[var(--color-surface-muted,#eee)]">
       {variant === "focus" || !steps.some((s) => s.imageUrl) ? (
         <div className="h-full w-full" style={framing(steps[active] ?? steps[0]!, animate)}>
-          <ImmersiveImage src={params.image ?? steps[0]?.imageUrl} alt={params.imageAlt ?? ""} />
+          <ImmersiveImage src={params.image ?? steps[0]?.imageUrl} alt={params.imageAlt ?? ""} style={crop(steps[active] ?? steps[0]!, animate)} />
         </div>
       ) : (
         steps.map((s, i) => (
           <div key={i} aria-hidden={i !== active} className={`absolute inset-0 ${animate ? "transition-opacity duration-700" : ""} ${i === active ? "opacity-100" : "opacity-0"}`}>
             <div className="h-full w-full" style={framing(s, animate)}>
-              <ImmersiveImage src={imageFor(i)} alt={i === active ? altFor(i) : ""} />
+              <ImmersiveImage src={imageFor(i)} alt={i === active ? altFor(i) : ""} style={crop(s, false)} />
             </div>
           </div>
         ))
@@ -113,7 +122,7 @@ export function ScrollStorySection({ variant, params }: { variant: string; param
                   {hasMedia && (
                     <div className="relative mb-6 aspect-[4/3] overflow-hidden rounded-[var(--radius-lg,18px)] bg-[var(--color-surface-muted,#eee)] lg:hidden">
                       <div className="h-full w-full" style={framing(step, false)}>
-                        <ImmersiveImage src={imageFor(i)} alt={altFor(i)} />
+                        <ImmersiveImage src={imageFor(i)} alt={altFor(i)} style={crop(step, false)} />
                       </div>
                     </div>
                   )}

@@ -10,6 +10,7 @@ import { resolveStore } from "@/lib/storefront/store-context";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { isEstateTenant, resolveEstate } from "@/lib/real-estate/estate-context";
 import { EstateHome } from "@/components/estate/estate-home";
+import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
@@ -42,6 +43,14 @@ export default async function HomePage() {
       permanentRedirect(`https://${resolution.targetDomain}/`);
     }
     if (resolution.status === "ok") {
+      // Site publié depuis l'éditeur : son contenu, dans l'habillage de son secteur.
+      if (await isCatalogModuleEnabled(tenant.id)) {
+        const store = await resolveStore("/");
+        if (store.status === "ok") return <PublishedSectorHome site={resolution.site} store={store.store} />;
+      } else if (await isEstateTenant(tenant.id)) {
+        const estate = await resolveEstate("/");
+        if (estate.status === "ok") return <PublishedSectorHome site={resolution.site} estate={estate.estate} />;
+      }
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
     }
     // "not_published" : aucun site publié depuis l'éditeur. Une boutique (module
