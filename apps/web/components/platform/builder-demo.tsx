@@ -1,7 +1,8 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import { useEffect, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { IconCheck, IconGlobe } from "@/components/yc/icons";
 
 const STEPS = [
@@ -16,7 +17,7 @@ const DURATION = 3200;
  *  étape est aussi cliquable (et au clavier) ; figée sur l'étape choisie quand les
  *  animations sont réduites. */
 export function BuilderDemo() {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [step, setStep] = useState(0);
   const [paused, setPaused] = useState(false);
   useEffect(() => {

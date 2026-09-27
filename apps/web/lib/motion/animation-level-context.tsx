@@ -1,7 +1,6 @@
 "use client";
 
-import { createContext, useContext, useMemo } from "react";
-import { useReducedMotion } from "framer-motion";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { AnimationLevel } from "@yamacommerce/design-tokens";
 import type { EffectiveAnimationLevel } from "./variants";
 
@@ -14,6 +13,26 @@ const AnimationLevelContext = createContext<EffectiveAnimationLevel>("dynamic");
  * Une section peut aussi se voir forcer "none" localement via `animationOverride`
  * (voir @yamacommerce/templates `SectionInstance`), géré au niveau de chaque section.
  */
+/**
+ * `prefers-reduced-motion`, lu APRÈS l'hydratation : le serveur ne connaît pas la
+ * préférence du visiteur, le premier rendu client doit donc être identique au HTML
+ * serveur (sinon React signale une erreur d'hydratation et reconstruit la page). Aucun
+ * mouvement ne démarre avant les effets : la préférence est appliquée avant toute
+ * animation ou lecture automatique.
+ */
+export function usePrefersReducedMotion(): boolean {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setReduced(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+  return reduced;
+}
+
 export function AnimationLevelProvider({
   level,
   children,
@@ -21,7 +40,7 @@ export function AnimationLevelProvider({
   level: AnimationLevel;
   children: React.ReactNode;
 }) {
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const effectiveLevel: EffectiveAnimationLevel = useMemo(
     () => (prefersReducedMotion ? "none" : level),
     [prefersReducedMotion, level],

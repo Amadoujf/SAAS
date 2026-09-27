@@ -1,9 +1,10 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useFormState, useFormStatus } from "react-dom";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { YcLogo } from "@/components/yc/logo";
 import { Button } from "@/components/yc/button";
 import { Field, Input } from "@/components/yc/field";
@@ -29,7 +30,7 @@ export function OnboardingFlow({
   plan: string | null;
   action: (state: OnboardingState, form: FormData) => Promise<OnboardingState>;
 }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [state, formAction] = useFormState(action, { error: null });
   const first = loggedIn ? 1 : 0;
   const [step, setStep] = useState(first);

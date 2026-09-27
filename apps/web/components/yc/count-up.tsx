@@ -1,16 +1,19 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import { useEffect, useState } from "react";
-import { useReducedMotion } from "framer-motion";
 
 /** Chiffre animé à l'apparition. Le rendu serveur contient déjà la VALEUR FINALE
  *  (lisible sans JavaScript, sans saut de mise en page) ; l'animation ne part de 0
  *  qu'une fois hydratée et jamais si l'utilisateur réduit les animations. */
 export function CountUp({ value, format = "number", duration = 900 }: { value: number; format?: "number" | "fcfa"; duration?: number }) {
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const [display, setDisplay] = useState(value);
   useEffect(() => {
-    if (reduce || value === 0) {
+    // Préférence relue au moment de démarrer : jamais un passage par 0 avant qu'elle
+    // soit connue (le hook ne la reçoit qu'après l'hydratation).
+    const reduceNow = reduce || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    if (reduceNow || value === 0) {
       setDisplay(value);
       return;
     }

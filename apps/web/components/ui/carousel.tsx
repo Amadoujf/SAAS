@@ -1,7 +1,7 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import { useEffect, useRef, useState } from "react";
-import { useReducedMotion } from "framer-motion";
 
 /**
  * Carrousel léger à défilement natif (`scroll-snap`), sans dépendance supplémentaire —
@@ -27,7 +27,7 @@ export function Carousel({
 }) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [paused, setPaused] = useState(false);
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   function scrollBy(direction: 1 | -1) {
     const track = trackRef.current;

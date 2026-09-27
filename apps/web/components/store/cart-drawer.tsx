@@ -1,8 +1,9 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import Link from "next/link";
 import { useEffect, useRef } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { IconArrowRight, IconX } from "@/components/yc/icons";
 import { fcfa, useStoreCart } from "./cart-provider";
 import { CartLineRow } from "./cart-lines";
@@ -11,7 +12,7 @@ import { CartLineRow } from "./cart-lines";
  *  Échap, clic sur le voile ou bouton ; le focus revient au déclencheur. */
 export function CartDrawer() {
   const { cart, open, setOpen, error, notice, clearMessages } = useStoreCart();
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const panel = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
 

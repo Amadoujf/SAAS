@@ -1,9 +1,10 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { YcAppLogo } from "@/components/yc/logo";
 import {
   IconArrowRight, IconBag, IconBox, IconCard, IconChart, IconChevronDown, IconGlobe, IconHome, IconLogout, IconMenu, IconPhone, IconReceipt,
@@ -141,7 +142,7 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
 
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {

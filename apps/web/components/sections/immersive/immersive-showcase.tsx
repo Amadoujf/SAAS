@@ -237,9 +237,9 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
             )}
           </div>
           {count > 1 && (
-            <div className="flex items-center gap-2" role="group" aria-label="Choisir un élément">
+            <div className="flex flex-wrap items-center justify-center" role="group" aria-label="Choisir un élément">
               {items.map((it, i) => (
-                <button key={it.id} type="button" onClick={() => go(i)} aria-label={`Afficher ${it.title}`} aria-current={i === index ? "true" : undefined} className="grid h-8 min-w-[20px] place-items-center">
+                <button key={it.id} type="button" onClick={() => go(i)} aria-label={`Afficher ${it.title}`} aria-current={i === index ? "true" : undefined} className="grid h-10 min-w-9 place-items-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
                   <span className={`block h-1.5 rounded-full transition-all duration-300 ${i === index ? `w-8 ${dark ? "bg-white" : "bg-[var(--color-primary)]"}` : `w-2 ${dark ? "bg-white/40" : "bg-[color-mix(in_srgb,var(--color-text-primary)_25%,transparent)]"}`}`} />
                 </button>
               ))}

@@ -1,9 +1,10 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { IconArrowLeft, IconArrowRight, IconCheck, IconMapPin, IconShield, IconStore, IconTruck, IconWallet } from "@/components/yc/icons";
 import { fcfa, useStoreCart } from "./cart-provider";
 
@@ -31,7 +32,7 @@ function Label({ htmlFor, children, optional }: { htmlFor: string; children: Rea
  */
 export function CheckoutFlow({ regions }: { regions: string[] }) {
   const router = useRouter();
-  const reduce = useReducedMotion();
+  const reduce = usePrefersReducedMotion();
   const { cart, loading: cartLoading } = useStoreCart();
   const [options, setOptions] = useState<Options | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
