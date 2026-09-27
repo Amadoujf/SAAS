@@ -26,6 +26,11 @@ describe("sélection du carrousel immersif", () => {
     expect(manual).toEqual([expect.objectContaining({ title: "Saint-Louis", href: "/offres/saint-louis" })]);
     expect(selectShowcaseItems(base, undefined)).toEqual([]);
   });
+  it("habillage d'un enregistrement : visuel et couleur changent, titre/prix/lien jamais", () => {
+    const [a, b] = selectShowcaseItems({ ...base, overrides: [{ recordId: "a", imageUrl: "/demo/a.webp", accentColor: "#1f6b4a", imageAlt: "Objet a" }, { recordId: "inconnu", accentColor: "#000" }] }, pool);
+    expect(a).toEqual({ id: "a", title: "Produit a", href: "/p/a", priceLabel: "10 000 FCFA", imageUrl: "/demo/a.webp", imageAlt: "Objet a", accentColor: "#1f6b4a" });
+    expect(b).toEqual(pool.products[1]);
+  });
   it("prix des fiches selon l'unité", () => {
     expect(formatListingPrice(650_000, "per_month")).toBe("650 000 FCFA / mois");
     expect(formatListingPrice(35_000, "per_night")).toBe("35 000 FCFA / nuit");

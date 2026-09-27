@@ -34,6 +34,9 @@ export interface ShowcaseSelectionParams {
   items: { title: string; subtitle?: string; imageUrl: string; imageAlt?: string; href?: string; badge?: string; accentColor?: string }[];
   displayCount: number;
   showPrice: boolean;
+  /** Habillage d'un enregistrement réel (visuel détouré, couleur) — titre, prix et lien
+   *  restent ceux de l'enregistrement. Ignoré pour les contenus manuels. */
+  overrides?: { recordId: string; imageUrl?: string; imageAlt?: string; accentColor?: string }[];
 }
 
 export function isShowcasePool(value: unknown): value is ShowcasePool {
@@ -54,6 +57,18 @@ export function selectShowcaseItems(params: ShowcaseSelectionParams, pool: Showc
       items = ids.map((id) => byId.get(id)).filter((it): it is ShowcaseItem => !!it);
     } else {
       items = all;
+    }
+    const dress = new Map((params.overrides ?? []).map((o) => [o.recordId, o]));
+    if (dress.size) {
+      items = items.map((it) => {
+        const o = dress.get(it.id);
+        if (!o) return it;
+        return {
+          ...it,
+          ...(o.imageUrl ? { imageUrl: o.imageUrl, imageAlt: o.imageAlt ?? it.imageAlt } : {}),
+          ...(o.accentColor ? { accentColor: o.accentColor } : {}),
+        };
+      });
     }
   }
   return items.slice(0, params.displayCount).map((it) => (params.showPrice ? it : { ...it, priceLabel: undefined }));

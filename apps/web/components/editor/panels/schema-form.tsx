@@ -157,6 +157,7 @@ function FieldInput({
   switch (field.kind) {
     case "text":
     case "email":
+      if (field.name === "recordId") return <RecordIdInput id={id} value={typeof value === "string" ? value : ""} onChange={onChange} className={baseInputClass} />;
       return (
         <input
           id={id}
@@ -369,6 +370,20 @@ function ColorInput({
         className="w-full rounded-md border border-gray-300 px-2.5 py-1.5 text-[13px] text-gray-800 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
       />
     </div>
+  );
+}
+
+/** Un enregistrement réel (produit ou fiche) choisi par son nom — jamais un identifiant
+ *  saisi à la main quand l'éditeur connaît les contenus de l'entreprise. */
+function RecordIdInput({ id, value, onChange, className }: { id: string; value: string; onChange: (next: unknown) => void; className: string }) {
+  const options = useEditorIdOptions().recordId;
+  if (!options) return <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} className={className} />;
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+      <option value="">Choisir…</option>
+      {value && !options.some((o) => o.id === value) && <option value={value}>Contenu supprimé</option>}
+      {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+    </select>
   );
 }
 

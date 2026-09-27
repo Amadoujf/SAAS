@@ -58,6 +58,7 @@ export async function loadTenantEditor() {
         productIds: pool.products.map((p) => ({ id: p.id, label: p.title })),
         listingIds: pool.listings.map((l) => ({ id: l.id, label: l.title })),
         categoryIds: categories.map((c) => ({ id: c.id, label: c.name })),
+        recordId: [...pool.products, ...pool.listings].map((r) => ({ id: r.id, label: r.title })),
       },
       canPublish: Boolean(await requireTenantPermission(tenantId, "site.publish")),
     };

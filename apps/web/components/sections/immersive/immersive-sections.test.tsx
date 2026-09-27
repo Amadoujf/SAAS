@@ -68,6 +68,17 @@ describe("Carrousel immersif", () => {
     expect(screen.queryByRole("button", { name: /pause/ })).toBeNull();
   });
 
+  it("objets en arc : objets détourés sans cadre, lien réel et navigation identiques", () => {
+    stubMedia(false);
+    render(<ImmersiveShowcaseSection variant="arc" params={showcase({ imageStyle: "cutout", backdrop: "dark" })} items={items.map((it, i) => ({ ...it, accentColor: ["#1d3f8f", "#4f8a6e", "#b4552d"][i] }))} />);
+    const central = screen.getByRole("img", { name: "Lampe Aura" });
+    expect(central).toHaveClass("object-contain");
+    expect(central.parentElement).not.toHaveClass("overflow-hidden"); // pas de cadre rogné autour de l'objet
+    expect(screen.getByRole("link", { name: /Découvrir/ })).toHaveAttribute("href", "/p/lampe-aura");
+    fireEvent.click(screen.getByRole("button", { name: "Élément suivant" }));
+    expect(title()).toBe("Vase Terre Bleue");
+  });
+
   it("aucun contenu : la section ne s'affiche pas", () => {
     const { container } = render(<ImmersiveShowcaseSection variant="depth" params={showcase()} items={[]} />);
     expect(container).toBeEmptyDOMElement();
@@ -102,5 +113,18 @@ describe("Récit au défilement", () => {
     expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Le séjour", "La terrasse", "La piscine"]);
     expect(screen.getByText("80 m² traversants")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Demander une visite" })).toHaveAttribute("href", "/biens/villa");
+  });
+
+  it("objet mis en scène : étapes lisibles, points de progression qui ramènent à l'étape (défilement natif)", () => {
+    stubMedia(false);
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    const params = sectionParamSchemas.scroll_story.parse({ title: "Jarre", image: "/demo-templates/ceramiques/jarre-indigo.webp", imageAlt: "Jarre Indigo", steps: [{ title: "Le tournage", rotate: -14, accentColor: "#1d3f8f" }, { title: "L'émail", rotate: 9 }], ctaLabel: "Voir la jarre", ctaHref: "/p/jarre-indigo" });
+    render(<ScrollStorySection variant="product" params={params} />);
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Le tournage", "L'émail"]);
+    expect(screen.getByRole("button", { name: "Étape 1 : Le tournage" })).toHaveAttribute("aria-current", "step");
+    fireEvent.click(screen.getByRole("button", { name: "Étape 2 : L'émail" }));
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+    expect(screen.getByRole("link", { name: "Voir la jarre" })).toHaveAttribute("href", "/p/jarre-indigo");
   });
 });

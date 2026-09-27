@@ -34,7 +34,8 @@ export const SECTION_NAMES: Record<SectionKey, string> = {
  *  des listes déroulantes). Générique : aucun terme propre à une entreprise. */
 export const ENUM_LABELS: Record<string, string> = {
   stage: "Scène", centered: "Centré", architectural: "Grande photographie",
-  depth: "Profondeur", stack: "Pile", focus: "Détails", sequence: "Une image par étape", timeline: "Étapes jalonnées",
+  depth: "Profondeur", stack: "Pile", arc: "Objets en arc", focus: "Détails", sequence: "Une image par étape", timeline: "Étapes jalonnées", product: "Objet mis en scène",
+  photo: "Photographie (cadre arrondi)",
   top: "Du haut", bottom: "Du bas", left: "De la gauche", right: "De la droite", none: "Aucun",
   halo: "Halo", spotlight: "Projecteur", ambient: "Ambiante",
   assemble: "Assemblage", separate: "Séparation", parallax: "Parallaxe", zoom: "Zoom",

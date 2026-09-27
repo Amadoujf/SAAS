@@ -207,6 +207,10 @@ const FIELD_LABELS: Record<string, string> = {
   focusX: "Cadrage horizontal (%)",
   focusY: "Cadrage vertical (%)",
   zoom: "Zoom sur le détail",
+  imageStyle: "Présentation des visuels",
+  overrides: "Habillage par élément (visuel détouré, couleur)",
+  recordId: "Produit ou fiche",
+  objectScale: "Taille de l'objet",
 };
 
 /** Traduction MOT PAR MOT (repli quand le nom complet n'a pas d'entrée dédiée). */

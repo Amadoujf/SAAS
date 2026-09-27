@@ -343,6 +343,23 @@ export const sectionParamSchemas = {
     autoplay: z.boolean().default(true),
     intervalSeconds: z.number().int().min(3).max(15).default(6),
     backdrop: z.enum(["tinted", "neutral", "dark"]).default("tinted"),
+    /** « photo » : visuel dans un cadre arrondi (photo avec fond) ; « cutout » : objet
+     *  détouré posé sur la scène, sans cadre — à réserver aux visuels à fond transparent. */
+    imageStyle: z.enum(["photo", "cutout"]).default("photo"),
+    /** Habillage PAR ÉLÉMENT d'un produit ou d'une fiche réels (source products/listings) :
+     *  visuel détouré propre au carrousel et couleur d'ambiance. Le titre, le prix et le
+     *  lien restent ceux de l'enregistrement — jamais modifiables ici. */
+    overrides: z
+      .array(
+        z.object({
+          recordId: z.string().trim().min(1).max(64),
+          imageUrl: imageRefSchema.optional(),
+          imageAlt: z.string().trim().max(140).optional(),
+          accentColor: z.string().trim().max(40).optional(),
+        }),
+      )
+      .max(12)
+      .default([]),
   }),
   /** Récit au défilement : grande image (ou une image par étape) accompagnée de messages
    *  successifs — caractéristiques, matières, pièces d'un logement, étapes d'une
@@ -364,6 +381,10 @@ export const sectionParamSchemas = {
           focusX: focalSchema.default(50),
           focusY: focalSchema.default(50),
           zoom: z.number().min(1).max(2.5).default(1),
+          /** Variante « product » : couleur d'ambiance de l'étape et pose de l'objet. */
+          accentColor: z.string().trim().max(40).optional(),
+          rotate: z.number().min(-35).max(35).default(0),
+          objectScale: z.number().min(0.6).max(1.4).default(1),
         }),
       )
       .min(1)
@@ -411,11 +432,14 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   // hôtellerie, voyage).
   immersive_hero: ["stage", "centered", "architectural"],
   // « depth » : élément central et voisins en perspective ; « stack » : cartes empilées.
-  immersive_showcase: ["depth", "stack"],
+  // « arc » : objets posés en arc de cercle, l'élément central sur un socle lumineux,
+  // l'ambiance prenant la couleur de l'élément central.
+  immersive_showcase: ["depth", "stack", "arc"],
   // « focus » : une image, cadrage qui glisse de détail en détail (matières, pièces) ;
   // « sequence » : une image par étape en fondu ; « timeline » : étapes jalonnées
-  // (itinéraire, parcours de formation, suivi de livraison).
-  scroll_story: ["focus", "sequence", "timeline"],
+  // (itinéraire, parcours de formation, suivi de livraison) ; « product » : un objet
+  // détouré mis en scène, qui pivote d'étape en étape sur une ambiance colorée.
+  scroll_story: ["focus", "sequence", "timeline", "product"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {

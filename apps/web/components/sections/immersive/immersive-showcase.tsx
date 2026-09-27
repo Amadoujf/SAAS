@@ -81,6 +81,8 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
   if (count === 0) return null;
   const current = items[index]!;
   const dark = params.backdrop === "dark";
+  const arc = variant === "arc";
+  const cutout = params.imageStyle === "cutout";
   const tint = tintOf(current, index);
   const btn = `grid h-12 w-12 place-items-center rounded-full ring-1 ring-inset transition-colors focus-visible:outline-none focus-visible:ring-2 ${dark ? "text-white ring-white/30 hover:bg-white/10 focus-visible:ring-white" : "bg-[var(--color-background)] text-[var(--color-text-primary)] ring-[var(--color-border)] hover:bg-[var(--color-surface)] focus-visible:ring-[var(--color-primary)]"}`;
   const smooth = amp > 0 ? "duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]" : "duration-0";
@@ -90,6 +92,15 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
     if (variant === "stack") {
       const behind = offset < 0 ? count + offset : offset; // position dans la pile
       return { transform: `translate3d(${behind * 18}px, ${behind * -14}px, 0) scale(${1 - behind * 0.07})`, zIndex: 20 - behind, opacity: behind > 3 ? 0 : 1 - behind * 0.18 };
+    }
+    if (variant === "arc") {
+      // Arc de cercle : les voisins descendent et s'inclinent vers l'extérieur.
+      return {
+        transform: `translate3d(calc(${offset} * var(--yc-step)), ${offset * offset * 22 + (abs ? 30 : 0)}px, 0) rotate(${offset * 9}deg) scale(${abs ? 0.72 - (abs - 1) * 0.1 : 1})`,
+        zIndex: 20 - abs,
+        opacity: abs > 3 ? 0 : 1 - Math.max(0, abs - 1) * 0.25,
+        filter: abs ? `brightness(${1 - abs * 0.12})` : undefined,
+      };
     }
     return {
       transform: `translate3d(calc(${offset} * var(--yc-step)), ${abs * 16}px, ${-abs * 160}px) rotateY(${-offset * 18}deg) scale(${1 - abs * 0.12})`,
@@ -104,7 +115,7 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
       ref={ref}
       aria-roledescription="carrousel"
       aria-label={params.title ?? "En vedette"}
-      className={`relative isolate overflow-hidden py-16 sm:py-24 ${dark ? "bg-[var(--color-primary)] text-white" : params.backdrop === "neutral" ? "bg-[var(--color-surface)] text-[var(--color-text-primary)]" : "bg-[var(--color-background)] text-[var(--color-text-primary)]"}`}
+      className={`relative isolate overflow-hidden py-16 sm:py-24 ${dark && arc ? "text-white" : dark ? "bg-[var(--color-primary)] text-white" : params.backdrop === "neutral" ? "bg-[var(--color-surface)] text-[var(--color-text-primary)]" : "bg-[var(--color-background)] text-[var(--color-text-primary)]"}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}
@@ -115,7 +126,12 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
       }}
     >
       {/* Arrière-plan coordonné : la teinte de l'élément central, en fondu. */}
-      {params.backdrop === "tinted" && (
+      {arc && (
+        <span aria-hidden="true" className={`pointer-events-none absolute inset-0 -z-10 transition-[background-color] ${smooth}`} style={{ backgroundColor: `color-mix(in srgb, ${tint} ${dark ? 34 : 16}%, ${dark ? "#0b0d12" : "var(--color-background)"})` }}>
+          <span className="absolute inset-0 bg-[radial-gradient(55%_48%_at_50%_58%,rgba(255,255,255,0.22),transparent_70%)]" />
+        </span>
+      )}
+      {params.backdrop === "tinted" && !arc && (
         <span aria-hidden="true" className={`pointer-events-none absolute inset-0 -z-10 transition-[background] ${smooth}`} style={{ background: `radial-gradient(60% 70% at 50% 42%, color-mix(in srgb, ${tint} 22%, transparent), transparent 72%)` }} />
       )}
       <div className="mx-auto max-w-[var(--content-max-width,1320px)] px-5 sm:px-10">
@@ -128,7 +144,7 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
         )}
 
         <div
-          className="relative mx-auto h-[min(118vw,470px)] touch-pan-y select-none sm:h-[480px] lg:h-[540px] [--yc-step:64vw] sm:[--yc-step:40vw] lg:[--yc-step:min(24vw,330px)]"
+          className={`relative mx-auto touch-pan-y select-none ${arc ? "h-[min(96vw,400px)] sm:h-[440px] lg:h-[500px] [--yc-step:36vw] sm:[--yc-step:22vw] lg:[--yc-step:min(15vw,210px)]" : "h-[min(118vw,470px)] sm:h-[480px] lg:h-[540px] [--yc-step:64vw] sm:[--yc-step:40vw] lg:[--yc-step:min(24vw,330px)]"}`}
           style={{ perspective: "1600px" }}
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
@@ -143,18 +159,32 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
             }
           }}
         >
+          {arc && (
+            // Socle lumineux sous l'élément central, teinté de sa couleur.
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-[9%] left-1/2 h-[13%] w-[min(56vw,280px)] -translate-x-1/2">
+              <span className={`absolute inset-0 rounded-[50%] blur-2xl transition-[background-color] ${smooth}`} style={{ backgroundColor: `color-mix(in srgb, ${tint} 70%, white)`, opacity: 0.55 }} />
+              <span className={`absolute inset-x-[12%] top-[30%] h-[40%] rounded-[50%] ring-1 ${dark ? "bg-white/10 ring-white/40" : "bg-white/60 ring-black/10"}`} />
+            </span>
+          )}
           {items.map((item, i) => {
             let offset = i - index;
             if (offset > count / 2) offset -= count;
             if (offset < -count / 2) offset += count;
             const center = offset === 0;
-            const visible = variant === "stack" ? true : Math.abs(offset) <= 2;
+            const visible = variant === "stack" ? true : Math.abs(offset) <= (arc ? 3 : 2);
             const card = (
               <>
+                {cutout ? (
+                  // Objet détouré : posé sur la scène, sans cadre ; ombre portée sur sa silhouette.
+                  <span className={`relative block h-full w-full ${center && amp > 0 && inView && pageVisible ? "yc-drift" : ""}`}>
+                    <ImmersiveImage src={item.imageUrl} alt={center ? item.imageAlt ?? item.title : ""} eager={Math.abs(offset) <= 1} fit="contain" className="drop-shadow-[0_28px_28px_rgba(10,16,34,0.35)]" />
+                  </span>
+                ) : (
                 <span className="relative block h-full w-full overflow-hidden rounded-[var(--radius-lg,18px)] bg-[var(--color-surface-muted,#eee)] shadow-[0_40px_80px_-30px_rgba(10,16,34,0.45)]">
                   <ImmersiveImage src={item.imageUrl} alt={center ? item.imageAlt ?? item.title : ""} eager={Math.abs(offset) <= 1} className={`transition-transform ${smooth} ${center && amp > 0 ? "scale-[1.04]" : "scale-100"}`} />
                   {item.badge && <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary)]">{item.badge}</span>}
                 </span>
+                )}
               </>
             );
             return (
@@ -164,7 +194,7 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
                 aria-roledescription="élément"
                 aria-label={`${i + 1} sur ${count} : ${item.title}`}
                 aria-hidden={!center}
-                className={`absolute left-1/2 top-0 h-full w-[min(76vw,340px)] transition-[transform,opacity,filter] sm:w-[340px] lg:w-[380px] ${smooth} ${visible ? "" : "pointer-events-none"}`}
+                className={`absolute left-1/2 top-0 transition-[transform,opacity,filter] ${arc ? "h-[84%] w-[min(46vw,230px)] lg:w-[260px]" : "h-full w-[min(76vw,340px)] sm:w-[340px] lg:w-[380px]"} ${smooth} ${visible ? "" : "pointer-events-none"}`}
                 style={{ ...slideStyle(offset), translate: "-50% 0" } as CSSProperties}
               >
                 {center && item.href ? (

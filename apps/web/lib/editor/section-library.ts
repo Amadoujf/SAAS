@@ -50,6 +50,12 @@ export const SECTION_PRESETS: SectionPreset[] = [
     params: { eyebrow: "Sélection", title: "À la une", source: "listings", showPrice: true, ctaLabel: "Voir la fiche" },
   },
   {
+    id: "showcase-arc", sectionKey: "immersive_showcase", variant: "arc", label: "Carrousel — objets en arc",
+    description: "Vos produits en arc, le central sur un socle lumineux ; l'ambiance prend sa couleur. Idéal avec des visuels détourés.",
+    sectors: ["ecommerce", "fashion", "restaurant", "automobile"],
+    params: { eyebrow: "La gamme", title: "Choisissez le vôtre", source: "products", showPrice: true, backdrop: "dark", imageStyle: "photo" },
+  },
+  {
     id: "showcase-manual", sectionKey: "immersive_showcase", variant: "stack", label: "Carrousel — contenus libres",
     description: "Destinations, plats, étapes : images et textes saisis à la main, sans prix.",
     sectors: ALL,
@@ -66,6 +72,12 @@ export const SECTION_PRESETS: SectionPreset[] = [
     description: "Chaque étape a sa photo, en fondu (plats, chambres, lieux).",
     sectors: ["restaurant", "hospitality", "travel_agency", "real_estate"],
     params: { title: "L'expérience", steps: [{ title: "Première étape" }, { title: "Deuxième étape" }, { title: "Troisième étape" }] },
+  },
+  {
+    id: "story-product", sectionKey: "scroll_story", variant: "product", label: "Récit au défilement — objet mis en scène",
+    description: "Un produit détouré qui pivote d'étape en étape sur une ambiance colorée : ses atouts, un par un.",
+    sectors: ["ecommerce", "fashion", "restaurant", "automobile"],
+    params: { title: "Pourquoi il est différent", steps: [{ title: "Premier atout", body: "Décrivez-le en une phrase.", rotate: -12 }, { title: "Deuxième atout", rotate: 8, objectScale: 1.1 }, { title: "Troisième atout", rotate: 0, objectScale: 0.9 }] },
   },
   {
     id: "story-timeline", sectionKey: "scroll_story", variant: "timeline", label: "Récit au défilement — étapes jalonnées",
