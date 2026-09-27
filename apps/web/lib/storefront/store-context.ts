@@ -35,31 +35,56 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const { tokens, categories, branding, isDemo, hasSite, content } = await withTenant(active.tenantId, async (tx) => ({
-    content: (await tx.storefrontContent.findUnique({ where: { tenantId: active.tenantId } }))?.content ?? null,
-    tokens: await resolveEffectiveDesignTokens(tx, active.tenantId),
-    // Seul un site PUBLIÉ depuis l'éditeur impose ses tokens ; sinon le template choisi.
-    hasSite: (await tx.tenantSite.count({ where: { tenantId: active.tenantId, isPublished: true } })) > 0,
-    categories: await listCategories(tx, active.tenantId),
-    isDemo: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { isDemo: true } }))?.isDemo === true,
-    branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as
-      | { logoUrl?: string; templatePreference?: string; primaryColor?: string; accentColor?: string }
-      | null,
-  }));
+  return { status: "ok", store: await loadStoreContext(active.tenantId, active.tenantName) };
+}
+
+/** Contexte d'une boutique à partir de son identifiant (déjà autorisé par l'appelant) :
+ *  même calcul que le site public — réutilisé par l'aperçu du brouillon. */
+export async function loadStoreContext(
+  tenantId: string,
+  tenantName: string,
+): Promise<StoreContext> {
+  const { tokens, categories, branding, isDemo, hasSite, content } = await withTenant(
+    tenantId,
+    async (tx) => ({
+      content:
+        (await tx.storefrontContent.findUnique({ where: { tenantId: tenantId } }))?.content ?? null,
+      tokens: await resolveEffectiveDesignTokens(tx, tenantId),
+      // Seul un site PUBLIÉ depuis l'éditeur impose ses tokens ; sinon le template choisi.
+      hasSite:
+        (await tx.tenantSite.count({ where: { tenantId: tenantId, isPublished: true } })) > 0,
+      categories: await listCategories(tx, tenantId),
+      isDemo:
+        (await tx.tenant.findUnique({ where: { id: tenantId }, select: { isDemo: true } }))
+          ?.isDemo === true,
+      branding: (
+        await tx.tenant.findUnique({ where: { id: tenantId }, select: { branding: true } })
+      )?.branding as {
+        logoUrl?: string;
+        templatePreference?: string;
+        primaryColor?: string;
+        accentColor?: string;
+      } | null,
+    }),
+  );
   return {
-    status: "ok",
-    store: {
-      tenantId: active.tenantId,
-      tenantName: active.tenantName,
-      // Site publié depuis l'éditeur : ses tokens font foi. Sinon, le style choisi à
-      // l'onboarding (template complet), sinon les tokens par défaut.
-      tokens: hasSite ? tokens : applyBranding(templateTokens(branding?.templatePreference) ?? tokens, branding ?? {}),
-      categories: categories.map((c) => ({ id: c.id, slug: c.slug, name: c.name, imageUrl: c.imageUrl })),
-      logoUrl: branding?.logoUrl ?? null,
-      templateSlug: branding?.templatePreference ?? null,
-      layout: templateLayout(branding?.templatePreference),
-      demoData: isDemo,
-      announcement: parseHomeContent(content, active.tenantName).announcement,
-    },
+    tenantId: tenantId,
+    tenantName: tenantName,
+    // Site publié depuis l'éditeur : ses tokens font foi. Sinon, le style choisi à
+    // l'onboarding (template complet), sinon les tokens par défaut.
+    tokens: hasSite
+      ? tokens
+      : applyBranding(templateTokens(branding?.templatePreference) ?? tokens, branding ?? {}),
+    categories: categories.map((c) => ({
+      id: c.id,
+      slug: c.slug,
+      name: c.name,
+      imageUrl: c.imageUrl,
+    })),
+    logoUrl: branding?.logoUrl ?? null,
+    templateSlug: branding?.templatePreference ?? null,
+    layout: templateLayout(branding?.templatePreference),
+    demoData: isDemo,
+    announcement: parseHomeContent(content, tenantName).announcement,
   };
 }

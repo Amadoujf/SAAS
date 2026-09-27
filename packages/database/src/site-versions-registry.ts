@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import {
   pageDefinitionSchema,
   validateSectionInstance,
@@ -134,6 +134,9 @@ export async function getOrCreateDraftVersion(
       tenantId,
       tenantSiteId,
       status: "draft",
+      // Identité et animations proposées : reprises de la version de départ (sinon
+      // aucune — le site garde alors son identité en ligne).
+      ...(mostRecentAny?.settings ? { settings: mostRecentAny.settings as Prisma.InputJsonValue } : {}),
       pages: {
         create: seedPages.map((page) => ({
           tenantId,
@@ -502,6 +505,7 @@ export async function restoreVersionIntoDraft(
   }
 
   const draft = await getOrCreateDraftVersion(tx, tenantId, tenantSiteId);
+  await tx.tenantSiteVersion.update({ where: { id: draft.id }, data: { settings: source.settings === null ? Prisma.DbNull : (source.settings as Prisma.InputJsonValue) } });
   await tx.page.deleteMany({ where: { tenantSiteVersionId: draft.id } });
   await tx.page.createMany({
     data: source.pages.map((page) => ({

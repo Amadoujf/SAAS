@@ -26,12 +26,15 @@ export function RenderTemplatePage({
   animationLevel,
   locale,
   resolvedContent,
+  annotate = false,
 }: {
   page: PageDefinition;
   tokens: DesignTokens;
   animationLevel: AnimationLevel;
   locale: Locale;
   resolvedContent?: ResolvedContentBySectionId;
+  /** Aperçu de « Mon site » : chaque section porte son identifiant (sélection au clic). */
+  annotate?: boolean;
 }) {
   const sortedSections = [...page.sections].sort((a, b) => a.order - b.order);
 
@@ -40,16 +43,25 @@ export function RenderTemplatePage({
       style={designTokensToStyle(tokens)}
       className="bg-[var(--color-background)] text-[var(--color-text-primary)]"
     >
-      <AnimationLevelProvider level={animationLevel}>
-        {sortedSections.map((section) => (
-          <SectionRenderer
-            key={section.id}
-            instance={section}
-            locale={locale}
-            resolvedContent={resolvedContent}
-            tokens={tokens}
-          />
-        ))}
+      <AnimationLevelProvider level={animationLevel} mobile={tokens.animation.mobile}>
+        {sortedSections.map((section) => {
+          const rendered = (
+            <SectionRenderer
+              key={section.id}
+              instance={section}
+              locale={locale}
+              resolvedContent={resolvedContent}
+              tokens={tokens}
+            />
+          );
+          return annotate ? (
+            <div key={section.id} data-section-id={section.id}>
+              {rendered}
+            </div>
+          ) : (
+            rendered
+          );
+        })}
       </AnimationLevelProvider>
     </div>
   );

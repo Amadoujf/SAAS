@@ -8,6 +8,7 @@ import { STORE_TEMPLATES } from "./store-templates";
 import { homeContentSchema, validateBrandColor } from "./home-content";
 import { checkImage } from "@/lib/media/image-refs";
 import { syncEditorSiteIdentity } from "@/lib/site-editor/tenant-site";
+import { patchDraftIdentity } from "@/lib/site-ai/site-state";
 
 export const siteSettingsSchema = z.object({
   templatePreference: z.string().refine((s) => STORE_TEMPLATES.some((t) => t.slug === s), "Template inconnu."),
@@ -74,6 +75,7 @@ export async function saveSiteSettings(raw: unknown): Promise<SiteSettingsResult
         accentColor: input.accentColor,
       });
       await saveStorefrontContent(tx, tenantId, input.content as unknown as Prisma.InputJsonValue, actor.userId);
+      await patchDraftIdentity(tx, tenantId, { style: input.templatePreference, logoUrl: input.logoUrl, primaryColor: input.primaryColor, accentColor: input.accentColor });
     });
     await syncEditorSiteIdentity(tenantId);
     return { ok: true };
@@ -115,6 +117,7 @@ export async function saveIdentitySettings(raw: unknown): Promise<SiteSettingsRe
       }
       for (const id of mediaIds) await setMediaAssetPublic(tx, tenantId, id, true);
       await updateTenantBranding(tx, tenantId, { logoUrl: input.logoUrl, primaryColor: input.primaryColor, accentColor: input.accentColor });
+      await patchDraftIdentity(tx, tenantId, { logoUrl: input.logoUrl, primaryColor: input.primaryColor, accentColor: input.accentColor });
     });
     await syncEditorSiteIdentity(tenantId);
     return { ok: true };

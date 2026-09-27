@@ -17,6 +17,7 @@ import { SHOWCASE_POOL_KEY } from "@/lib/showcase/showcase";
 import { publishSite } from "@/lib/publishing/publish-pipeline";
 import { realPublishSiteDeps } from "@/lib/publishing/real-deps";
 import { ensureTenantEditorSite } from "./tenant-site";
+import { isDraftSettings, previewTokens } from "@/lib/site-ai/site-state";
 
 export type EditorActionResult<T = unknown> = { ok: true; data: T } | { ok: false; status: number; error: string };
 
@@ -51,7 +52,8 @@ export async function loadTenantEditor() {
       tenantName,
       sectorKey: tenant.sectorKey,
       pages: pages.map((p) => ({ id: p.id, slug: p.slug, title: p.title, isHome: p.isHome, blocks: p.blocks as unknown as SectionInstance[] })),
-      tokens: await resolveEffectiveDesignTokens(tx, tenantId),
+      // Identité et animations DU BROUILLON quand elles existent (même aperçu que « Mon site »).
+      tokens: isDraftSettings(draft.settings) ? previewTokens(draft.settings) : await resolveEffectiveDesignTokens(tx, tenantId),
       animationLevel: await resolveEffectiveAnimationLevel(tx, tenantId),
       resolvedContent,
       idOptions: {

@@ -80,6 +80,7 @@ model Tenant {
   invitations              TenantInvitation[]
   storefrontContent        StorefrontContent?
   listings                 Listing[]
+  siteRevisions            SiteRevision[]
   listingRevisions         ListingRevision[]
   listingAvailabilities    ListingAvailability[]
   reservations             Reservation[]
@@ -661,6 +662,9 @@ model TenantSiteVersion {
   scheduledAt  DateTime?
   publishedAt  DateTime?
   createdBy    String?
+  /// Identité (style, couleurs, logo) et animations PROPOSÉES par le brouillon ;
+  /// appliquées au site en ligne à la publication seulement. `null` = inchangées.
+  settings     Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -1997,6 +2001,26 @@ model AIUsageRecord {
   updatedAt            DateTime @updatedAt
 
   @@unique([tenantId, periodMonth])
+}
+
+/// Historique des modifications du brouillon (assistant IA ou manuelles) — voir la
+/// migration 20261007010000_site_draft_settings_revisions.
+model SiteRevision {
+  id                  String    @id @default(uuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  tenantSiteVersionId String
+  source              String // ai | manual
+  label               String
+  before              Json
+  after               Json
+  afterSignature      String
+  aiJobId             String?
+  createdBy           String?
+  undoneAt            DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
 }
 
 model ImportJob {

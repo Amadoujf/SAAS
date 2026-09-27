@@ -13,12 +13,12 @@ import { EstateShell } from "@/components/estate/estate-shell";
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext }) {
+export function PublishedSectorHome({ site, store, estate, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
     <SiteShell tokens={site.tokens} animationLevel={site.animationLevel}>
-      <RenderTemplatePage page={page} tokens={site.tokens} animationLevel={site.animationLevel} resolvedContent={site.resolvedContent} locale="fr" />
+      <RenderTemplatePage page={page} tokens={site.tokens} animationLevel={site.animationLevel} resolvedContent={site.resolvedContent} locale="fr" annotate={annotate} />
     </SiteShell>
   );
   if (store) return <StoreShell store={store}>{content}</StoreShell>;
