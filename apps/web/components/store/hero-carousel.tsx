@@ -12,14 +12,14 @@ const fcfa = (n: number) => `${new Intl.NumberFormat("fr-SN").format(n)} FCFA`;
 
 /** Barre de progression segmentée : le segment actif se remplit pendant la durée de
  *  la diapositive (figé en pause). */
-function Segments({ count, index, running, seconds, go }: { count: number; index: number; running: boolean; seconds: number; go: (i: number) => void }) {
+export function Segments({ count, index, running, seconds, go, tone = "dark" }: { count: number; index: number; running: boolean; seconds: number; go: (i: number) => void; tone?: "light" | "dark" }) {
   return (
     <div className="flex items-center gap-1.5" role="group" aria-label="Choisir une diapositive">
       {Array.from({ length: count }, (_, i) => (
         <button key={i} type="button" onClick={() => go(i)} aria-label={`Aller à la diapositive ${i + 1}`} aria-current={i === index ? "true" : undefined}
           className="relative h-6 w-10 sm:w-14">
-          <span className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full bg-[color-mix(in_srgb,var(--color-text-primary)_15%,transparent)]">
-            <span key={`${index}-${running}`} className="absolute inset-y-0 left-0 rounded-full bg-[var(--color-primary)]"
+          <span className={`absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 overflow-hidden rounded-full ${tone === "light" ? "bg-white/25" : "bg-[color-mix(in_srgb,var(--color-text-primary)_15%,transparent)]"}`}>
+            <span key={`${index}-${running}`} className={`absolute inset-y-0 left-0 rounded-full ${tone === "light" ? "bg-white" : "bg-[var(--color-primary)]"}`}
               style={i < index ? { width: "100%" } : i === index ? (running ? { animation: `yc-progress ${seconds}s linear forwards` } : { width: "100%" }) : { width: 0 }} />
           </span>
         </button>
@@ -34,7 +34,7 @@ function Segments({ count, index, running, seconds, go }: { count: number; index
  * l'utilisateur demande moins d'animations. Navigation : boutons, points, flèches du
  * clavier, glissement du doigt sur mobile. Titres et boutons sont du texte réel.
  */
-function Picture({ slide, eager, className }: { slide: HeroSlide; eager: boolean; className: string }) {
+export function Picture({ slide, eager, className }: { slide: HeroSlide; eager: boolean; className: string }) {
   if (!slide.imageUrl) return null;
   return (
     <picture>
@@ -45,7 +45,7 @@ function Picture({ slide, eager, className }: { slide: HeroSlide; eager: boolean
   );
 }
 
-function useCarousel(count: number, autoplaySeconds: number) {
+export function useCarousel(count: number, autoplaySeconds: number) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false); // choix explicite de l'utilisateur
   const [hovered, setHovered] = useState(false);
@@ -68,7 +68,7 @@ function useCarousel(count: number, autoplaySeconds: number) {
   return { index, go, paused, setPaused, setHovered, setFocused, running, reduced };
 }
 
-function Controls({ count, index, go, paused, setPaused, tone, label, dots = true }: { count: number; index: number; go: (i: number) => void; paused: boolean; setPaused: (v: boolean) => void; tone: "light" | "dark"; label: string; dots?: boolean }) {
+export function Controls({ count, index, go, paused, setPaused, tone, label, dots = true }: { count: number; index: number; go: (i: number) => void; paused: boolean; setPaused: (v: boolean) => void; tone: "light" | "dark"; label: string; dots?: boolean }) {
   if (count < 2) return null;
   const btn = `grid h-10 w-10 place-items-center rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${tone === "light" ? "border-white/60 text-white hover:bg-white/15 focus-visible:ring-white" : "border-[color-mix(in_srgb,var(--color-text-primary)_28%,transparent)] bg-[var(--color-background)] text-[var(--color-text-primary)] hover:bg-[var(--color-surface-muted)] focus-visible:ring-[var(--color-primary)]"}`;
   return (
@@ -96,7 +96,7 @@ function Controls({ count, index, go, paused, setPaused, tone, label, dots = tru
   );
 }
 
-function useSwipe(go: (d: number) => void) {
+export function useSwipe(go: (d: number) => void) {
   const start = useRef<number | null>(null);
   return {
     onTouchStart: (e: React.TouchEvent) => { start.current = e.touches[0]?.clientX ?? null; },

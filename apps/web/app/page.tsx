@@ -8,6 +8,8 @@ import { Landing } from "@/components/platform/landing";
 import { StoreHome } from "@/components/store/store-home";
 import { resolveStore } from "@/lib/storefront/store-context";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
+import { isEstateTenant, resolveEstate } from "@/lib/real-estate/estate-context";
+import { EstateHome } from "@/components/estate/estate-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
@@ -48,6 +50,11 @@ export default async function HomePage() {
     if (await isCatalogModuleEnabled(tenant.id)) {
       const store = await resolveStore("/");
       if (store.status === "ok") return <StoreHome store={store.store} />;
+    }
+    // Agence immobilière : accueil de son template (« Résidences » par défaut).
+    if (await isEstateTenant(tenant.id)) {
+      const estate = await resolveEstate("/");
+      if (estate.status === "ok") return <EstateHome estate={estate.estate} />;
     }
     return <TenantComingSoon tenantName={tenant.name} />;
   }

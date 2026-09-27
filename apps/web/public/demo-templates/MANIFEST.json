@@ -133,6 +133,55 @@
    "height": 660,
    "bytes": 24100,
    "source": "Maquette « Commerce & Mode — YamaCommerce » fournie par le client"
+  },
+  {
+   "file": "demo-templates/residences/hero-villa.webp",
+   "width": 1400,
+   "height": 565,
+   "bytes": 46834,
+   "source": "Maquette « Résidences » fournie par le client (visuel secteur Immobilier), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/hero-villa-mobile.webp",
+   "width": 560,
+   "height": 1407,
+   "bytes": 29868,
+   "source": "Maquette « Résidences » fournie par le client (planche des templates), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/villa-facade.webp",
+   "width": 900,
+   "height": 905,
+   "bytes": 36802,
+   "source": "Maquette « Résidences » fournie par le client (visuel secteur Immobilier), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/piscine-mer.webp",
+   "width": 900,
+   "height": 713,
+   "bytes": 31254,
+   "source": "Maquette « Résidences » fournie par le client (visuel secteur Immobilier), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/colonne-palmiers.webp",
+   "width": 560,
+   "height": 1407,
+   "bytes": 29868,
+   "source": "Maquette « Résidences » fournie par le client (planche des templates), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/panorama-piscine.webp",
+   "width": 900,
+   "height": 477,
+   "bytes": 22842,
+   "source": "Maquette « Résidences » fournie par le client (planche des templates), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/residences/salon-exterieur.webp",
+   "width": 900,
+   "height": 492,
+   "bytes": 23650,
+   "source": "Maquette « Résidences » fournie par le client (planche des templates), recadrage sans texte"
   }
  ]
 }

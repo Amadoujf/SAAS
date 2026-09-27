@@ -17,7 +17,8 @@
     "lint": "eslint . --ext .ts",
     "typecheck": "dotenv -e ../../.env -- tsc --noEmit",
     "test": "dotenv -e ../../.env -- vitest run",
-    "seed:commerce-demo": "dotenv -e ../../.env -- tsx src/seed-commerce-demo.ts"
+    "seed:commerce-demo": "dotenv -e ../../.env -- tsx src/seed-commerce-demo.ts",
+    "seed:real-estate-demo": "dotenv -e ../../.env -- tsx src/seed-real-estate-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
