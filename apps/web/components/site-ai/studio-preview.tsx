@@ -57,21 +57,25 @@ export function StudioPreview({
 
   useEffect(() => setLoading(true), [src]);
 
+  // Le pont de l'aperçu annonce qu'il écoute (après hydratation) : la section à montrer
+  // lui est (re)envoyée à ce moment-là, jamais avant.
+  const [ready, setReady] = useState(0);
+  useEffect(() => setReady(0), [src]);
   useEffect(() => {
-    if (!onSelect) return;
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.source !== frame.current?.contentWindow) return;
       const data = event.data as { type?: string; sectionId?: string };
-      if (data?.type === "yc-preview-select" && data.sectionId) onSelect(data.sectionId);
+      if (data?.type === "yc-preview-ready") setReady((n) => n + 1);
+      if (data?.type === "yc-preview-select" && data.sectionId) onSelect?.(data.sectionId);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [onSelect]);
 
   useEffect(() => {
-    if (highlight === undefined) return;
+    if (highlight === undefined || !ready) return;
     frame.current?.contentWindow?.postMessage({ type: "yc-preview-highlight", sectionId: highlight }, window.location.origin);
-  }, [highlight, loading]);
+  }, [highlight, ready]);
 
   return (
     <div ref={box} className="w-full min-w-0 overflow-hidden">

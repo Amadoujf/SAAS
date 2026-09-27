@@ -59,7 +59,9 @@ export type AiDirection = z.infer<typeof directionSchema>;
 export type AiDirectionsOutput = z.infer<typeof directionsOutputSchema>;
 
 /** Champs de texte modifiables par l'assistant (jamais un prix, un stock ou une fiche). */
-export const TEXT_FIELDS = ["eyebrow", "title", "titleAccent", "subtitle", "intro", "primaryCtaLabel", "secondaryCtaLabel", "ctaLabel"] as const;
+export const TEXT_FIELDS = ["eyebrow", "title", "titleAccent", "subtitle", "intro", "statement", "body", "description", "primaryCtaLabel", "secondaryCtaLabel", "ctaLabel", "buttonLabel"] as const;
+/** Sections que l'assistant peut AJOUTER (composées avec les données de l'entreprise). */
+export const ADDABLE_SECTIONS = ["showcase", "story", "manifesto", "heritage", "signature", "lookbook", "gallery", "featured", "new_arrivals", "categories", "closing"] as const;
 /** Réglages de présentation modifiables par l'assistant. */
 export const OPTION_KEYS = ["backdrop", "imageStyle", "lighting", "scrollEffect", "intensity", "autoplay", "intervalSeconds", "displayCount", "showPrice", "objectStyle"] as const;
 
@@ -75,6 +77,20 @@ export const editOperationSchema = z.discriminatedUnion("op", [
   z.object({ op: z.literal("set_style"), style: z.enum(STYLE_KEYS) }),
   z.object({ op: z.literal("set_animation"), level: z.enum([...ANIMATION_LEVELS, "unchanged"]), mobile: z.enum([...MOBILE_ANIMATION, "unchanged"]) }),
   z.object({ op: z.literal("remove_section"), sectionId: z.string() }),
+  z.object({
+    op: z.literal("add_section"),
+    kind: z.enum(ADDABLE_SECTIONS),
+    variant: z.string().describe("Présentation (voir la liste) ou chaîne vide pour celle par défaut"),
+    position: z.enum(["first", "last", "before", "after"]),
+    relativeTo: z.string().describe("Section de référence pour before/after, sinon chaîne vide"),
+    title: z.string().max(120).describe("Titre ou phrase principale, ou chaîne vide"),
+    text: z.string().max(400).describe("Texte d'accompagnement, ou chaîne vide"),
+    productIds: z.array(z.string()).max(10).describe("Produits à présenter (identifiants fournis), ou liste vide"),
+  }),
+  z.object({ op: z.literal("set_typography"), fontPair: z.enum(FONT_PAIR_OPTIONS) }),
+  z.object({ op: z.literal("set_shape"), shape: z.enum(SHAPE_OPTIONS) }),
+  z.object({ op: z.literal("set_spacing"), sectionId: z.string(), density: z.enum(["compact", "normal", "airy"]) }),
+  z.object({ op: z.literal("set_alignment"), sectionId: z.string(), align: z.enum(["left", "center"]) }),
 ]);
 
 export const editOutputSchema = z.object({
@@ -86,3 +102,5 @@ export type AiEditOperation = z.infer<typeof editOperationSchema>;
 export type AiEditOutput = z.infer<typeof editOutputSchema>;
 
 export type ArchetypeKey = (typeof ARCHETYPE_KEYS)[number];
+
+export type AddableSection = (typeof ADDABLE_SECTIONS)[number];

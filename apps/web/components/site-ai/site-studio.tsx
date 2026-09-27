@@ -200,7 +200,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
               device={device}
               label={previewJobId ? "Proposition — non appliquée" : "Brouillon"}
               tone={previewJobId ? "proposal" : "draft"}
-              highlight={previewJobId ? undefined : selectedId}
+              highlight={previewJobId ? ((studio.conversation as ConversationItem[]).find((c) => c.jobId === previewJobId)?.focus ?? null) : selectedId}
               onSelect={previewJobId ? undefined : setSelectedId}
             />
             <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-yc-ink-soft">

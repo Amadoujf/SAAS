@@ -40,7 +40,9 @@ export function PreviewBridge() {
       if (data.type === "yc-preview-highlight") {
         const el = data.sectionId ? document.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(data.sectionId)}"]`) : null;
         select(el);
-        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Sous l'en-tête collant de la boutique, jamais caché derrière lui.
+        const header = document.querySelector("header")?.getBoundingClientRect().height ?? 0;
+        if (el) window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - header - 12), behavior: "smooth" });
       }
     };
     document.addEventListener("click", onClick, true);

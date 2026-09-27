@@ -81,6 +81,12 @@ export function excerpt(text: string | null | undefined, max: number): string | 
  * est remplacé par une présentation plus simple ou retiré — et c'est signalé.
  */
 export function compileDirection(direction: AiDirection, context: SiteAiContext): CompiledSite {
+  return compileSlots(direction, context, ARCHETYPES[direction.archetype].slots);
+}
+
+/** Compose une suite d'emplacements (un archétype entier, ou une section ajoutée par
+ *  l'assistant) avec les données de l'entreprise. */
+export function compileSlots(direction: AiDirection, context: SiteAiContext, slots: Slot[], reserved: string[] = []): CompiledSite {
   const notes: string[] = [];
   const audit = auditPhotos(context);
   const style = direction.style;
@@ -94,7 +100,6 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
   };
   const motion: SiteMotion = { level: direction.animation, mobile: direction.animation === "immersive" ? "reduced" : "same" };
   const intensity = INTENSITY[direction.animation];
-  const archetype = ARCHETYPES[direction.archetype];
   const byId = new Map(context.products.map((p) => [p.id, p]));
   const copy = direction.copy;
   const text = (value: string | undefined, label: string) => guardText(value, notes, label);
@@ -109,7 +114,7 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
   const bigPhoto = libraryHero ? { url: libraryHero.url, alt: libraryHero.alt ?? context.tenantName } : heroProduct && (heroProduct.imageWidth ?? 0) >= 1200 ? photo(heroProduct) : null;
 
   // Chaque photo sert une fois avant d'être réutilisée : pas la même image partout.
-  const used = new Set<string>();
+  const used = new Set<string>(reserved);
   const nextPhoto = (prefer?: CatalogProduct): CatalogProduct | undefined => {
     if (prefer && !used.has(prefer.id)) return used.add(prefer.id), prefer;
     const fresh = featured.find((p) => !used.has(p.id)) ?? featured[used.size % Math.max(1, featured.length)];
@@ -121,7 +126,11 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
   const cta = text(copy.ctaLabel, "bouton") ?? "Découvrir la boutique";
   const manifesto = text(copy.manifesto, "manifeste");
   const manifestoBody = text(copy.manifestoBody, "texte du manifeste");
-  const categories = context.categories.filter((c) => c.productCount > 0).slice(0, 6);
+  // Univers avec un visuel d'abord ; un univers sans aucune photo n'apparaît que s'il n'y
+  // a pas d'autre choix (jamais une tuile vide au milieu d'univers illustrés).
+  const withProducts = context.categories.filter((c) => c.productCount > 0);
+  const illustratedCategories = withProducts.filter((c) => c.hasVisual);
+  const categories = (illustratedCategories.length >= 2 ? illustratedCategories : withProducts).slice(0, 6);
 
   const build = (slot: Slot): RawSection | null => {
     switch (slot.kind) {
@@ -297,7 +306,7 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
         };
       case "new_arrivals":
         if (context.products.length < 2) return null;
-        return { id: slot.id, sectionKey: "new_arrivals", variant: slot.variant, params: { title: "Nouveautés", displayCount: Math.min(8, context.products.length) } };
+        return { id: slot.id, sectionKey: "new_arrivals", variant: slot.variant, params: { title: "Nouveautés", displayCount: slot.variant === "grid" ? gridCount(context.products.length) : Math.min(8, context.products.length) } };
       case "categories":
         if (!categories.length) return null;
         return { id: slot.id, sectionKey: "categories", variant: slot.variant, params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
@@ -310,7 +319,7 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
   };
 
   const blocks: SectionInstance[] = [];
-  for (const slot of archetype.slots) {
+  for (const slot of slots) {
     const raw = build(slot);
     if (!raw) continue;
     try {
@@ -331,6 +340,11 @@ export function distinctArchetypes<T extends { archetype: ArchetypeKey }>(direct
     taken.add(free);
     return { ...d, archetype: free };
   });
+}
+
+/** Grille de 3 colonnes : des rangées complètes (3 ou 6). */
+function gridCount(available: number): number {
+  return available >= 6 ? 6 : available >= 3 ? 3 : available;
 }
 
 /** Mosaïques : groupes complets de 5 (une grande pièce + quatre) ; grille : jusqu'à 8. */

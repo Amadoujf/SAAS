@@ -22,6 +22,7 @@ import { checkImage } from "@/lib/media/image-refs";
 import { loadSiteAiContext } from "./context";
 import { compileDirection, distinctArchetypes, type CompiledSite } from "./compile";
 import { ARCHETYPES } from "./archetypes";
+import { canonicalJson } from "./canonical-json";
 import { applyOperations, sectionLabel } from "./operations";
 import { auditPhotos } from "./photo-audit";
 import { DIRECTIONS_SYSTEM, EDIT_SYSTEM, IMPROVE_REQUEST, directionsPrompt, editPrompt } from "./prompts";
@@ -132,10 +133,20 @@ export async function loadStudio() {
           simulated: j.simulated,
           applied: j.approved,
           error: j.errorMessage,
-          ...(j.status === "completed" ? (j.outputPayload as { reply: string; changes: string[]; rejected: string[] }) : {}),
+          ...(j.status === "completed" ? pickReply(j.outputPayload) : {}),
         })),
     };
   });
+}
+
+function pickReply(payload: unknown) {
+  const p = (payload ?? {}) as { reply?: string; changes?: string[]; rejected?: string[]; focus?: string | null };
+  return { reply: p.reply ?? "", changes: p.changes ?? [], rejected: p.rejected ?? [], focus: p.focus ?? null };
+}
+
+function firstChangedSection(before: SectionInstance[], after: SectionInstance[]): string | null {
+  const previous = new Map(before.map((b) => [b.id, canonicalJson({ ...b, order: 0 })]));
+  return after.find((b) => previous.get(b.id) !== canonicalJson({ ...b, order: 0 }))?.id ?? null;
 }
 
 /** Emplacements d'image d'une section, modifiables directement depuis l'aperçu. */
@@ -269,6 +280,8 @@ export async function proposeEdit(raw: unknown): Promise<StudioResult<{ jobId: s
           rejected: result.rejected,
           baseSignature: draft.signature,
           after: fromSiteState(result.state, draft.snapshot.settings.identity.logoUrl),
+          // Première section ajoutée ou modifiée : l'aperçu de la proposition s'y rend.
+          focus: firstChangedSection(state.blocks, result.state.blocks),
         };
       },
     );

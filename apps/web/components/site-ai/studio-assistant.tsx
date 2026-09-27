@@ -14,6 +14,8 @@ export interface ConversationItem {
   reply?: string;
   changes?: string[];
   rejected?: string[];
+  /** Section sur laquelle l'aperçu de la proposition se positionne. */
+  focus?: string | null;
 }
 
 export interface SelectedSection {
@@ -22,7 +24,17 @@ export interface SelectedSection {
   images: { field: string; label: string; url: string | null }[];
 }
 
-const SUGGESTIONS = ["Mets mes nouveautés en premier.", "Fais une version plus luxueuse.", "Remplace ce fond par une couleur crème.", "Réduis les animations sur téléphone."];
+const SUGGESTIONS = [
+  "Mets mes nouveautés en premier.",
+  "Fais une version plus luxueuse.",
+  "Ajoute une galerie de mes produits.",
+  "Ajoute un récit qui présente mes pièces.",
+  "Une typographie plus moderne.",
+  "Des formes plus arrondies.",
+  "Plus d'espace entre les sections.",
+  "Réduis les animations sur téléphone.",
+];
+const SELECTED_SUGGESTIONS = ["Remplace ce fond par une couleur crème.", "Centre le texte de cette section.", "Présente-la en carrousel.", "Retire cette section."];
 
 /**
  * Assistant conversationnel : chaque demande produit une PROPOSITION (liste des
@@ -176,10 +188,10 @@ export function StudioAssistant({
       <div className="border-t border-yc-ink/[0.06] p-4">
         {!available && <p className="mb-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">{unavailableReason ?? "Assistant indisponible."}</p>}
         {quotaReached && <p className="mb-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">Quota IA du mois atteint. Vous pouvez toujours modifier le site à la main (réglages avancés, éditeur).</p>}
-        <div className="mb-3 flex flex-wrap gap-2">
-          <button type="button" disabled={disabled} onClick={onImprove} className="rounded-full bg-yc-electric/10 px-3 py-2 text-[13px] font-semibold text-yc-electric hover:bg-yc-electric/15 disabled:opacity-40">Améliorer mon site avec l&apos;IA</button>
-          {SUGGESTIONS.map((s) => (
-            <button key={s} type="button" disabled={disabled} onClick={() => send(s)} className="rounded-full bg-white px-3 py-2 text-[13px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">{s}</button>
+        <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+          <button type="button" disabled={disabled} onClick={onImprove} className="shrink-0 whitespace-nowrap rounded-full bg-yc-electric/10 px-3 py-2 text-[13px] font-semibold text-yc-electric hover:bg-yc-electric/15 disabled:opacity-40">Améliorer mon site avec l&apos;IA</button>
+          {(selected ? SELECTED_SUGGESTIONS : SUGGESTIONS).map((s) => (
+            <button key={s} type="button" disabled={disabled} onClick={() => send(s)} className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-2 text-[13px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">{s}</button>
           ))}
         </div>
         <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); send(message); }}>

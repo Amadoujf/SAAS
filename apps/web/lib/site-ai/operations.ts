@@ -1,9 +1,11 @@
 import { isValidVariant, validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { SECTION_NAMES } from "@/lib/editor/section-names";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
-import type { AiEditOperation } from "./schemas";
+import type { AddableSection, AiDirection, AiEditOperation } from "./schemas";
+import type { SlotKind } from "./archetypes";
+import { FONT_PAIRS, SHAPES } from "@/lib/storefront/brand-kit";
 import type { SiteAiContext, SiteIdentity, SiteMotion } from "./types";
-import { guardText, newestFirst, safeColor } from "./compile";
+import { compileSlots, guardText, newestFirst, safeColor } from "./compile";
 
 /**
  * Applique des opérations d'édition FERMÉES à l'état du site (sections du brouillon +
@@ -32,7 +34,57 @@ export interface OperationsResult {
 const STYLE_NAMES = Object.fromEntries(STORE_TEMPLATES.map((t) => [t.slug, t.name]));
 const LEVEL_NAMES = { discreet: "discrètes", dynamic: "dynamiques", immersive: "immersives" } as const;
 const MOBILE_NAMES = { same: "identiques sur téléphone", reduced: "allégées sur téléphone", none: "désactivées sur téléphone" } as const;
-const FIELD_NAMES: Record<string, string> = { eyebrow: "surtitre", title: "titre", titleAccent: "suite du titre", subtitle: "sous-titre", intro: "introduction", primaryCtaLabel: "bouton principal", secondaryCtaLabel: "bouton secondaire", ctaLabel: "bouton" };
+const FIELD_NAMES: Record<string, string> = { eyebrow: "surtitre", title: "titre", titleAccent: "suite du titre", subtitle: "sous-titre", intro: "introduction", statement: "phrase principale", body: "texte", description: "description", primaryCtaLabel: "bouton principal", secondaryCtaLabel: "bouton secondaire", ctaLabel: "bouton", buttonLabel: "bouton" };
+
+const ADD_NAMES: Record<AddableSection, string> = {
+  showcase: "carrousel", story: "récit", manifesto: "manifeste", heritage: "savoir-faire", signature: "pièce signature", lookbook: "lookbook",
+  gallery: "galerie", featured: "sélection de produits", new_arrivals: "nouveautés", categories: "univers", closing: "invitation finale",
+};
+const DEFAULT_VARIANT: Record<AddableSection, string> = {
+  showcase: "arc", story: "sequence", manifesto: "image-right", heritage: "image-left", signature: "dark", lookbook: "mosaic",
+  gallery: "masonry", featured: "grid", new_arrivals: "carousel", categories: "editorial", closing: "banner",
+};
+
+function uniqueSectionId(blocks: SectionInstance[], kind: string): string {
+  const ids = new Set(blocks.map((b) => b.id));
+  let n = 1;
+  while (ids.has(`${kind}-${n}`)) n += 1;
+  return `${kind}-${n}`;
+}
+
+/** Direction « de travail » pour composer UNE section ajoutée : textes et produits de la
+ *  demande, le reste repris du site actuel. */
+function syntheticDirection(identity: SiteIdentity, motion: SiteMotion, context: SiteAiContext, op: { title: string; text: string; productIds: string[] }): AiDirection {
+  const title = op.title.trim();
+  const text = op.text.trim();
+  return {
+    name: "",
+    pitch: "",
+    archetype: "galerie",
+    style: (identity.style as AiDirection["style"]) ?? "luxury-minimal",
+    typography: "editorial",
+    shape: "soft",
+    palette: { primary: "", accent: "", background: "" },
+    animation: motion.level,
+    heroProductId: "",
+    signatureProductId: op.productIds[0] ?? "",
+    featuredProductIds: op.productIds,
+    copy: {
+      heroEyebrow: "",
+      heroTitle: context.tenantName,
+      heroTitleAccent: "",
+      heroSubtitle: "",
+      ctaLabel: "Découvrir la collection",
+      manifesto: title,
+      manifestoBody: text,
+      selectionTitle: title,
+      storyTitle: title,
+      closingTitle: title || "Toute la collection en ligne",
+      closingText: text,
+    },
+    storySteps: [],
+  };
+}
 
 export function sectionLabel(block: SectionInstance): string {
   const title = (block.params as { title?: unknown }).title;
@@ -199,6 +251,58 @@ export function applyOperations(input: SiteState, operations: AiEditOperation[],
           motion = { ...motion, mobile: op.mobile };
           changes.push(`Animations ${MOBILE_NAMES[op.mobile]}`);
         }
+        break;
+      }
+      case "add_section": {
+        const slot = { id: uniqueSectionId(blocks, op.kind), kind: op.kind as SlotKind, variant: DEFAULT_VARIANT[op.kind] };
+        const synthetic = syntheticDirection(identity, motion, context, op);
+        const composed = compileSlots(synthetic, context, [slot]);
+        let added = composed.blocks[0];
+        if (!added) {
+          rejected.push(`Section « ${ADD_NAMES[op.kind]} » non ajoutée : ${composed.notes[0] ?? "il manque de quoi la remplir honnêtement (photos, texte)."}`);
+          break;
+        }
+        if (op.variant && op.variant !== added.variant) {
+          if (isValidVariant(added.sectionKey, op.variant)) added = { ...added, variant: op.variant };
+          else rejected.push(`Présentation « ${op.variant} » inconnue pour cette section : présentation par défaut.`);
+        }
+        const ref = op.position === "before" || op.position === "after" ? find(op.relativeTo) : -1;
+        if ((op.position === "before" || op.position === "after") && ref < 0) {
+          rejected.push(`Section de référence inconnue : « ${ADD_NAMES[op.kind]} » ajoutée en fin de page.`);
+        }
+        const at = op.position === "first" ? 0 : ref < 0 ? blocks.length : op.position === "after" ? ref + 1 : ref;
+        blocks.splice(at, 0, added);
+        changes.push(`${sectionLabel(added)} : ajoutée${at === 0 ? " en tête de page" : at >= blocks.length - 1 ? " en fin de page" : ` après ${sectionLabel(blocks[at - 1]!)}`}`);
+        break;
+      }
+      case "set_typography": {
+        if (identity.fontPair !== op.fontPair) {
+          identity = { ...identity, fontPair: op.fontPair };
+          changes.push(`Typographie : ${FONT_PAIRS[op.fontPair].label}`);
+        }
+        break;
+      }
+      case "set_shape": {
+        if (identity.shape !== op.shape) {
+          identity = { ...identity, shape: op.shape };
+          changes.push(`Formes : ${SHAPES[op.shape].label.toLowerCase()}`);
+        }
+        break;
+      }
+      case "set_spacing": {
+        const padding = { compact: { desktop: "48px", mobile: "32px" }, normal: null, airy: { desktop: "160px", mobile: "96px" } }[op.density];
+        update(
+          index,
+          (b) => {
+            const { spacingOverride: _old, ...rest } = b;
+            return padding ? { ...rest, spacingOverride: { desktop: { paddingY: padding.desktop }, mobile: { paddingY: padding.mobile } } } : rest;
+          },
+          `${sectionLabel(block!)} : espacement ${op.density === "compact" ? "resserré" : op.density === "airy" ? "plus aéré" : "par défaut"}`,
+        );
+        break;
+      }
+      case "set_alignment": {
+        update(index, (b) => ({ ...b, styleOverride: { ...(b.styleOverride ?? {}), textAlign: op.align } }), `${sectionLabel(block!)} : texte ${op.align === "center" ? "centré" : "aligné à gauche"}`);
         break;
       }
       case "remove_section": {

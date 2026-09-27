@@ -16,7 +16,7 @@ const context: SiteAiContext = {
   sectorKey: "ecommerce",
   logoUrl: null,
   products: [product(1), product(2), product(3), product(4), product(5, { imageUrl: null, imageAlt: null, imageWidth: null, imageCount: 0 })],
-  categories: [{ id: "c1", name: "Maison", slug: "maison", productCount: 5 }],
+  categories: [{ id: "c1", name: "Maison", slug: "maison", productCount: 5, hasVisual: true }],
   libraryImages: [],
 };
 const brief = { activity: "Objets de décoration faits main à Dakar.", audience: "Jeunes actifs", styles: ["épuré"], likes: "" };
@@ -144,5 +144,52 @@ describe("filtre des promesses non vérifiables", () => {
     for (const fine of ["Céramiques tournées à la main à Ngor.", "Des bols pour tous les jours.", "Émaux inspirés de la mer."]) {
       expect(guardText(fine, [], "test"), fine).toBe(fine);
     }
+  });
+});
+
+describe("assistant : nouvelles capacités, toujours limitées à la demande", () => {
+  const base = compileDirection({ ...directionsOutputSchema.parse(simulateDirections(brief, context)).directions[0]!, archetype: "vitrine" }, context);
+  const state: SiteState = { blocks: base.blocks, identity: base.identity, motion: { level: "dynamic", mobile: "same" } };
+
+  it("ajoute une galerie composée avec les photos de l'entreprise, sans toucher au reste", () => {
+    const { state: next, changes } = applyOperations(state, [{ op: "add_section", kind: "gallery", variant: "", position: "after", relativeTo: "hero", title: "", text: "", productIds: [] }], context);
+    expect(next.blocks).toHaveLength(state.blocks.length + 1);
+    const added = next.blocks[1]!;
+    expect(added.sectionKey).toBe("gallery");
+    const urls = (added.params as { images: { url: string }[] }).images.map((i) => i.url);
+    expect(urls.every((u) => context.products.some((p) => p.imageUrl === u))).toBe(true);
+    expect(next.blocks.filter((b) => b.id !== added.id).map(({ order: _o, ...b }) => b)).toEqual(state.blocks.map(({ order: _o, ...b }) => b));
+    expect(changes[0]).toMatch(/ajoutée/);
+  });
+
+  it("refuse un manifeste sans phrase : rien n'est inventé pour le remplir", () => {
+    const { state: next, rejected } = applyOperations(state, [{ op: "add_section", kind: "manifesto", variant: "", position: "last", relativeTo: "", title: "", text: "", productIds: [] }], context);
+    expect(next.blocks).toHaveLength(state.blocks.length);
+    expect(rejected).toHaveLength(1);
+  });
+
+  it("typographie, formes, espacement et alignement : seule la cible change", () => {
+    const { state: next } = applyOperations(
+      state,
+      [
+        { op: "set_typography", fontPair: "couture" },
+        { op: "set_shape", shape: "round" },
+        { op: "set_spacing", sectionId: "vitrine", density: "airy" },
+        { op: "set_alignment", sectionId: "cloture", align: "center" },
+      ],
+      context,
+    );
+    expect(next.identity).toEqual({ ...state.identity, fontPair: "couture", shape: "round" });
+    expect(next.blocks.find((b) => b.id === "vitrine")!.spacingOverride?.desktop?.paddingY).toBe("160px");
+    expect(next.blocks.find((b) => b.id === "cloture")!.styleOverride?.textAlign).toBe("center");
+    expect(next.blocks.find((b) => b.id === "hero")).toEqual(state.blocks.find((b) => b.id === "hero"));
+  });
+
+  it("mode simulé : « Ajoute une galerie » et un texte entre guillemets deviennent des opérations valides", () => {
+    const add = editOutputSchema.parse(simulateEdit("Ajoute une galerie de mes produits", state, null));
+    expect(add.operations[0]).toMatchObject({ op: "add_section", kind: "gallery" });
+    const rename = editOutputSchema.parse(simulateEdit("Mets le titre « Nos pièces du moment »", state, "vitrine"));
+    const { state: next } = applyOperations(state, rename.operations, context);
+    expect((next.blocks.find((b) => b.id === "vitrine")!.params as { title: string }).title).toBe("Nos pièces du moment");
   });
 });

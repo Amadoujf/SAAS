@@ -27,6 +27,8 @@ export interface CatalogCategory {
   name: string;
   slug: string;
   productCount: number;
+  /** Un visuel existe (image de la catégorie ou produit photographié). */
+  hasVisual: boolean;
 }
 
 export interface SiteBrief {

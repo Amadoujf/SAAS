@@ -5,6 +5,7 @@ import { DEFAULT_DESIGN_TOKENS, type DesignTokens, type DesignTokensOverrides } 
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { RESIDENCES_TOKENS } from "@/lib/real-estate/estate-templates";
+import { isFontPair, isShape } from "@/lib/storefront/brand-kit";
 import { applyBranding, parseHomeContent } from "@/lib/storefront/home-content";
 import { invalidateSiteCache } from "@/lib/publishing/cache";
 
@@ -40,8 +41,22 @@ const GENERIC_MANIFEST = {
  *  même règle que le reste du site (`applyBranding`) — une seule source. */
 function brandingOverrides(branding: Record<string, unknown>, templateTokens: DesignTokens): DesignTokensOverrides {
   const applied = applyBranding(templateTokens, branding);
-  const colors = Object.fromEntries(Object.entries(applied.colors).filter(([k, v]) => templateTokens.colors[k as keyof typeof templateTokens.colors] !== v));
-  return (Object.keys(colors).length ? { colors } : {}) as DesignTokensOverrides;
+  const overrides: Record<string, unknown> = {};
+  // Couleurs toujours ; typographie et formes seulement quand le kit de marque les fixe
+  // (sinon les réglages faits à la main dans l'éditeur restent intacts).
+  const groups = ["colors", ...(isFontPair(branding.fontPair) ? ["typography"] : []), ...(isShape(branding.shape) ? ["radii", "buttonStyle", "cardStyle", "formStyle"] : [])] as const;
+  for (const group of groups) {
+    const base = templateTokens[group as keyof DesignTokens] as Record<string, unknown>;
+    const next = applied[group as keyof DesignTokens] as Record<string, unknown>;
+    const diff = Object.fromEntries(Object.entries(next).filter(([k, v]) => JSON.stringify(base[k]) !== JSON.stringify(v)));
+    if (Object.keys(diff).length) overrides[group] = diff;
+  }
+  return overrides as DesignTokensOverrides;
+}
+
+/** Groupes de tokens pilotés par l'identité (« Mon site ») : réécrits à chaque synchronisation. */
+function managedGroups(branding: Record<string, unknown>): string[] {
+  return ["colors", ...(isFontPair(branding.fontPair) ? ["typography"] : []), ...(isShape(branding.shape) ? ["radii", "buttonStyle", "cardStyle", "formStyle"] : [])];
 }
 
 type Pool = { products: { id: string; slug: string; name: string; shortDescription: string | null; image?: string; alt?: string; category?: string }[]; listings: { id: string; slug: string; title: string; summary: string | null; image?: string; alt?: string }[] };
@@ -164,7 +179,8 @@ export async function syncEditorSiteIdentity(tenantId: string): Promise<void> {
   const branding = (info.tenant.branding ?? {}) as Record<string, unknown>;
   const entry = templateFor(typeof branding.templatePreference === "string" ? branding.templatePreference : undefined, info.tenant.sectorKey ?? "ecommerce");
   const templateId = await ensureTemplate(entry);
-  const { colors: _previous, ...rest } = (info.site.designTokenOverrides ?? {}) as Record<string, unknown>;
+  const managed = new Set(managedGroups(branding));
+  const rest = Object.fromEntries(Object.entries((info.site.designTokenOverrides ?? {}) as Record<string, unknown>).filter(([k]) => !managed.has(k)));
   const overrides = { ...rest, ...brandingOverrides(branding, entry.tokens) };
   await withTenant(tenantId, (tx) => tx.tenantSite.update({ where: { id: info.site!.id }, data: { templateId, designTokenOverrides: overrides as Prisma.InputJsonValue } }));
   // Le site public est mis en cache par entreprise : la nouvelle identité doit y

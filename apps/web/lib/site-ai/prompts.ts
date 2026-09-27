@@ -67,15 +67,37 @@ export function directionsPrompt(brief: SiteBrief, context: SiteAiContext, audit
   );
 }
 
+const ADD_GUIDE = `Sections que tu peux AJOUTER (add_section) — la plateforme les compose avec les produits, photos et catégories de l'entreprise :
+- showcase : carrousel immersif de produits photographiés (présentations : arc, depth, stack)
+- story : récit au défilement, un produit par étape (sequence, focus, product, timeline)
+- manifesto : grande phrase + texte + photo (image-left, image-right) — « title » = la phrase, « text » = le texte
+- heritage : savoir-faire, histoire de la maison (image-left, image-right) — « title » + « text »
+- signature : une pièce phare, avec son nom et sa description réels (dark, leather) — « productIds » = [la pièce]
+- lookbook : 3 à 6 photos de produits (mosaic, fullscreen)
+- gallery : galerie de photos de produits (masonry, grid, carousel)
+- featured : sélection de produits (grid, carousel, masonry, editorial)
+- new_arrivals : nouveautés (grid, carousel)
+- categories : univers du catalogue (editorial, grid, carousel)
+- closing : invitation finale vers le catalogue (banner, split) — « title » + « text »`;
+
 export const EDIT_SYSTEM = `Tu es l'assistant de personnalisation de site de Y-COM. L'entreprise te demande une modification de sa page d'accueil ; tu réponds par des OPÉRATIONS limitées à ce qui est demandé, appliquées ensuite par la plateforme après validation de l'entreprise.
 
 ${QUALITY}
 
+${ADD_GUIDE}
+
+Typographies (set_typography) :
+${TYPE_GUIDE}
+Formes (set_shape) :
+${SHAPE_GUIDE}
+
 Principes :
 - Ne change que ce qui est demandé. Ne touche pas aux autres sections, textes ou réglages, même si tu les trouves perfectibles.
 - « Fond » d'une section précise → set_section_background ; fond de tout le site → set_colors (background).
-- « Plus luxueux », « plus chaleureux »… → une petite série cohérente d'opérations (style, couleurs, rythme, présentation) et rien d'autre.
-- « Nouveautés en premier » → feature_products avec la stratégie « newest » sur la vitrine concernée, et, si demandé, déplace-la.
+- « Plus luxueux », « plus chaleureux »… → une petite série cohérente d'opérations (style, typographie, formes, couleurs, rythme, présentation) et rien d'autre.
+- « Nouveautés en premier » → feature_products avec la stratégie « newest » sur la sélection concernée, et, si demandé, déplace-la.
+- « Plus d'espace », « plus compact » → set_spacing (sur la section désignée, ou sur toutes si c'est le site entier).
+- Textes : set_text sur le champ exact (title, subtitle, statement, body, description, boutons…). Reformule d'après ce que dit l'entreprise ; n'invente rien.
 - Animations sur téléphone → set_animation avec « mobile » (reduced ou none), le reste « unchanged ».
 - Si la demande est impossible (prix, stock, ajout de témoignages, produit inexistant…) ou trop vague, n'envoie aucune opération et explique brièvement pourquoi ou pose UNE question.
 - « Cette section », « ce fond », « ce titre » désignent la section sélectionnée dans l'aperçu (si elle est indiquée).
@@ -85,11 +107,11 @@ ${HONESTY}`;
 
 export function describeState(state: SiteState) {
   return {
-    identite: { style: state.identity.style, couleur_principale: state.identity.primaryColor, accent: state.identity.accentColor, fond: state.identity.backgroundColor },
+    identite: { style: state.identity.style, typographie: state.identity.fontPair ?? "celle du style", formes: state.identity.shape ?? "celles du style", couleur_principale: state.identity.primaryColor, accent: state.identity.accentColor, fond: state.identity.backgroundColor },
     animations: state.motion,
     sections: state.blocks.map((b) => {
       const params = b.params as Record<string, unknown>;
-      const texts = Object.fromEntries(["eyebrow", "title", "titleAccent", "subtitle", "intro", "primaryCtaLabel", "secondaryCtaLabel", "ctaLabel"].filter((k) => typeof params[k] === "string").map((k) => [k, params[k]]));
+      const texts = Object.fromEntries(["eyebrow", "title", "titleAccent", "subtitle", "intro", "statement", "body", "description", "primaryCtaLabel", "secondaryCtaLabel", "ctaLabel", "buttonLabel"].filter((k) => typeof params[k] === "string").map((k) => [k, params[k]]));
       const steps = Array.isArray(params.steps) ? (params.steps as { title?: string }[]).map((s, i) => ({ index: i, titre: s.title })) : undefined;
       return { id: b.id, type: SECTION_NAMES[b.sectionKey] ?? b.sectionKey, presentation: b.variant, textes: texts, ...(steps ? { etapes: steps } : {}), produits: params.productIds ?? null, fond: params.backgroundColor ?? null };
     }),

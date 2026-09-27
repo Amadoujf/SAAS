@@ -1,4 +1,6 @@
-import type { AiDirection, AiDirectionsOutput, AiEditOperation, AiEditOutput, ArchetypeKey } from "./schemas";
+import type { AddableSection, AiDirection, AiDirectionsOutput, AiEditOperation, AiEditOutput, ArchetypeKey } from "./schemas";
+import { isValidVariant } from "@yamacommerce/templates";
+import { TEXT_FIELDS } from "./schemas";
 import { ARCHETYPES } from "./archetypes";
 import type { SiteState } from "./operations";
 import type { SiteAiContext, SiteBrief } from "./types";
@@ -85,40 +87,114 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
   };
 }
 
+/** Mots qui désignent un type de section (ajout, suppression, déplacement). */
+const KIND_WORDS: [RegExp, AddableSection, string[]][] = [
+  [/galerie/, "gallery", ["gallery"]],
+  [/récit|recit|histoire|raconte/, "story", ["scroll_story"]],
+  [/manifeste/, "manifesto", ["brand_manifesto"]],
+  [/savoir-faire|savoir faire|atelier|héritage|heritage/, "heritage", ["heritage"]],
+  [/signature|pièce phare|piece phare|produit phare/, "signature", ["signature_product"]],
+  [/lookbook/, "lookbook", ["lookbook"]],
+  [/carrousel|carousel|vitrine/, "showcase", ["immersive_showcase"]],
+  [/nouveaut/, "new_arrivals", ["new_arrivals"]],
+  [/univers|catégorie|categorie/, "categories", ["categories"]],
+  [/invitation|appel|bandeau final/, "closing", ["cta"]],
+  [/sélection|selection|produits/, "featured", ["featured_products"]],
+];
+const VARIANT_WORDS: [RegExp, string[]][] = [
+  [/carrousel|carousel|défil/, ["carousel", "stack", "depth"]],
+  [/grille/, ["grid"]],
+  [/mosaïque|mosaique/, ["masonry", "mosaic", "editorial"]],
+  [/arc/, ["arc"]],
+];
+
 export function simulateEdit(message: string, state: SiteState, selectedSectionId: string | null): AiEditOutput {
   const text = message.toLowerCase();
   const ops: AiEditOperation[] = [];
   const replies: string[] = [];
+  const selected = selectedSectionId ? state.blocks.find((b) => b.id === selectedSectionId) ?? null : null;
   const showcase = state.blocks.find((b) => b.sectionKey === "immersive_showcase") ?? state.blocks.find((b) => b.sectionKey === "featured_products");
-  const hero = state.blocks.find((b) => b.sectionKey === "immersive_hero");
+  const hero = state.blocks[0];
+  const kind = KIND_WORDS.find(([re]) => re.test(text));
+  const quoted = /[«"“]\s*([^»"”]{2,160}?)\s*[»"”]/.exec(message)?.[1];
 
-  if (/nouveaut|nouveaux|récent|recent/.test(text) && showcase) {
-    ops.push({ op: "feature_products", sectionId: showcase.id, strategy: "newest", productIds: [] });
-    if (/premier|d'abord|en tête|en haut/.test(text)) ops.push(hero ? { op: "move_section", sectionId: showcase.id, to: "after", relativeTo: hero.id } : { op: "move_section", sectionId: showcase.id, to: "first", relativeTo: "" });
-    replies.push("Vos nouveautés passent en premier dans la vitrine, placée juste après l'ouverture.");
+  // Ajouter une section
+  if (/ajout|ajoute|crée|cree|créer|insère|insere|rajoute/.test(text) && kind) {
+    const [, k] = kind;
+    const position = selected ? "after" : /en haut|en tête|au début|en premier/.test(text) ? "after" : "last";
+    ops.push({ op: "add_section", kind: k, variant: "", position: position === "after" ? "after" : "last", relativeTo: selected?.id ?? (position === "after" ? hero?.id ?? "" : ""), title: quoted ?? "", text: "", productIds: [] });
+    replies.push(`J'ajoute une section « ${kind[0].source.split("|")[0]} » composée avec vos produits${selected ? ", juste après la section sélectionnée" : ""}.`);
   }
-  if (/lux|haut de gamme|élégant|elegant|chic/.test(text)) {
-    ops.push({ op: "set_style", style: "luxury-minimal" }, { op: "set_colors", primary: "#1C1C1C", accent: "#8A6A3D", background: "#F7F3EC" }, { op: "set_animation", level: "dynamic", mobile: "unchanged" });
+  // Retirer
+  else if (/supprim|retire|enl[eè]ve|enlever/.test(text) && (selected || kind)) {
+    const target = selected ?? state.blocks.find((b) => kind![2].includes(b.sectionKey));
+    if (target) {
+      ops.push({ op: "remove_section", sectionId: target.id });
+      replies.push("Je retire cette section de la page.");
+    }
+  }
+  // Réécrire un texte entre guillemets
+  else if (quoted && selected) {
+    const params = selected.params as Record<string, unknown>;
+    const field = /sous-titre|sous titre/.test(text) ? "subtitle" : /bouton/.test(text) ? (["primaryCtaLabel", "buttonLabel", "ctaLabel"].find((f) => f in params) ?? "ctaLabel") : "statement" in params && !/titre/.test(text) ? "statement" : "title";
+    ops.push({ op: "set_text", sectionId: selected.id, field: field as (typeof TEXT_FIELDS)[number], value: quoted });
+    replies.push("Je remplace ce texte, sans toucher au reste.");
+  }
+
+  if (/nouveaut|nouveaux|récent|recent/.test(text) && showcase && !ops.some((o) => o.op === "add_section")) {
+    ops.push({ op: "feature_products", sectionId: showcase.id, strategy: "newest", productIds: [] });
+    if (/premier|d'abord|en tête|en haut/.test(text)) ops.push(hero && hero.id !== showcase.id ? { op: "move_section", sectionId: showcase.id, to: "after", relativeTo: hero.id } : { op: "move_section", sectionId: showcase.id, to: "first", relativeTo: "" });
+    replies.push("Vos nouveautés passent en premier dans la sélection, placée juste après l'ouverture.");
+  }
+  if (/lux|haut de gamme|élégant|elegant|chic/.test(text) && !/typo|police|écriture/.test(text)) {
+    ops.push({ op: "set_style", style: "luxury-minimal" }, { op: "set_colors", primary: "#1C1C1C", accent: "#8A6A3D", background: "#F7F3EC" }, { op: "set_typography", fontPair: "couture" }, { op: "set_shape", shape: "sharp" }, { op: "set_animation", level: "dynamic", mobile: "unchanged" });
     if (showcase?.sectionKey === "immersive_showcase") ops.push({ op: "set_option", sectionId: showcase.id, option: "backdrop", value: "dark" });
-    replies.push("Version plus luxueuse : style « Maison », noir profond et doré discret, fond ivoire, rythme posé.");
+    replies.push("Version plus luxueuse : style « Maison », Didone contrastée, angles vifs, noir profond et doré discret sur fond ivoire, rythme posé.");
+  }
+  if (/typo|police|écriture|ecriture|caractère/.test(text)) {
+    const pair = /élég|eleg|lux|chic|couture/.test(text) ? "couture" : /modern|jeune|dynamique/.test(text) ? "moderne" : /sobre|simple|neutre|lisible/.test(text) ? "neutre" : "editorial";
+    ops.push({ op: "set_typography", fontPair: pair });
+    replies.push(`Typographie « ${pair} » sur tout le site.`);
+  }
+  if (/arrondi|rond/.test(text)) (ops.push({ op: "set_shape", shape: "round" }), replies.push("Formes plus rondes : boutons et images arrondis."));
+  else if (/carré|carre|angle|anguleux|droit/.test(text)) (ops.push({ op: "set_shape", shape: "sharp" }), replies.push("Angles vifs partout."));
+  if (/plus d'espace|aér|aer|respir/.test(text)) {
+    for (const b of selected ? [selected] : state.blocks) ops.push({ op: "set_spacing", sectionId: b.id, density: "airy" });
+    replies.push(selected ? "Plus d'espace autour de cette section." : "Plus d'espace entre toutes les sections.");
+  } else if (/compact|resserr|moins d'espace/.test(text)) {
+    for (const b of selected ? [selected] : state.blocks) ops.push({ op: "set_spacing", sectionId: b.id, density: "compact" });
+    replies.push(selected ? "Section resserrée." : "Page plus compacte.");
+  }
+  if (selected && /centr/.test(text)) (ops.push({ op: "set_alignment", sectionId: selected.id, align: "center" }), replies.push("Texte centré dans cette section."));
+  if (selected && /présent|present|en grille|en carrousel|en mosaïque|en mosaique|en arc/.test(text)) {
+    const want = VARIANT_WORDS.find(([re]) => re.test(text))?.[1] ?? [];
+    const variant = want.find((v) => isValidVariant(selected.sectionKey, v));
+    if (variant) (ops.push({ op: "set_variant", sectionId: selected.id, variant }), replies.push(`Présentation « ${variant} » pour cette section.`));
+  }
+  if (/en premier|en haut|remonte/.test(text) && kind && !/nouveaut|ajout|ajoute/.test(text)) {
+    const target = state.blocks.find((b) => kind[2].includes(b.sectionKey));
+    if (target && hero && target.id !== hero.id) (ops.push({ op: "move_section", sectionId: target.id, to: "after", relativeTo: hero.id }), replies.push("Section remontée juste après l'ouverture."));
   }
   const cream = /crème|creme/.test(text);
   if (cream) {
-    const target = selectedSectionId ? state.blocks.find((b) => b.id === selectedSectionId) : null;
-    if (target && ["immersive_hero", "scroll_story"].includes(target.sectionKey)) ops.push({ op: "set_section_background", sectionId: target.id, color: "#F4EDE1" });
+    if (selected && ["immersive_hero", "scroll_story"].includes(selected.sectionKey)) ops.push({ op: "set_section_background", sectionId: selected.id, color: "#F4EDE1" });
     else ops.push({ op: "set_colors", primary: "", accent: "", background: "#F4EDE1" });
-    replies.push(target ? "Le fond de la section sélectionnée passe en crème." : "Le fond du site passe en crème (sélectionnez une section dans l'aperçu pour ne changer que la sienne).");
+    replies.push(selected && ["immersive_hero", "scroll_story"].includes(selected.sectionKey) ? "Le fond de la section sélectionnée passe en crème." : "Le fond du site passe en crème.");
   }
   if (/anim/.test(text) && /téléphone|telephone|mobile|portable/.test(text)) {
     const off = /coupe|supprim|désactiv|desactiv|enl[eè]v|aucune/.test(text);
     ops.push({ op: "set_animation", level: "unchanged", mobile: off ? "none" : "reduced" });
     replies.push(off ? "Animations désactivées sur téléphone ; rien ne change sur ordinateur." : "Animations allégées sur téléphone ; rien ne change sur ordinateur.");
-  } else if (/moins d'anim|plus calme|sobre/.test(text)) {
+  } else if (/moins d'anim|plus calme|sobre/.test(text) && !/typo|police/.test(text)) {
     ops.push({ op: "set_animation", level: "discreet", mobile: "unchanged" });
     replies.push("Animations plus discrètes partout.");
   }
   if (!ops.length) {
-    return { reply: "Mode simulé : je ne reconnais que quelques demandes types (nouveautés en premier, version plus luxueuse, fond crème, animations sur téléphone). Une vraie IA comprendra toutes les formulations une fois la clé du fournisseur configurée.", operations: [] };
+    return {
+      reply:
+        "Mode simulé : je comprends les demandes courantes (ajouter une galerie, un récit, un manifeste ou une pièce signature ; changer la typographie, les formes, l'espacement ; remplacer un texte entre « guillemets » sur la section sélectionnée ; nouveautés en premier ; version plus luxueuse ; fond crème ; animations sur téléphone). Une vraie IA comprendra toutes les formulations une fois la clé du fournisseur configurée.",
+      operations: [],
+    };
   }
   return { reply: replies.join(" "), operations: ops };
 }
