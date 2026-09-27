@@ -170,7 +170,8 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           jobId={studio.directions.jobId}
           directions={(studio.directions as unknown as { directions: DirectionCard[] }).directions}
           advice={(studio.directions as unknown as { audit?: string[] }).audit ?? []}
-          simulated={studio.ai.simulated}
+          simulated={Boolean((studio.directions as { simulated?: boolean }).simulated)}
+          unavailableReason={aiBlocked}
           busy={busy !== null}
           onBack={() => setMode("onboarding")}
           onRegenerate={() => studio.brief && generateDirections(studio.brief)}

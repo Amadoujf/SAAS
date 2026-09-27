@@ -132,6 +132,7 @@ export function StudioAssistant({
               ) : (
                 <div className="max-w-[92%] rounded-2xl rounded-bl-md bg-[#F3F4F8] px-3.5 py-3 text-[14px] text-yc-ink">
                   <p className="leading-relaxed">{item.reply}</p>
+                  {item.simulated && <p className="mt-1.5 text-[11px] font-semibold text-[rgb(146_84_0)]">Réponse simulée (règles locales), pas une génération IA</p>}
                   {hasChanges && (
                     <ul className="mt-2.5 grid gap-1 text-[13px]">
                       {item.changes!.map((c) => (

@@ -21,6 +21,7 @@ export function StudioDirections({
   directions,
   advice,
   simulated,
+  unavailableReason,
   busy,
   onChoose,
   onRegenerate,
@@ -30,6 +31,7 @@ export function StudioDirections({
   directions: DirectionCard[];
   advice: string[];
   simulated: boolean;
+  unavailableReason: string | null;
   busy: boolean;
   onChoose: (index: number) => void;
   onRegenerate: () => void;
@@ -44,11 +46,12 @@ export function StudioDirections({
           </p>
           <h2 id="directions" className="mt-2 font-display text-[clamp(1.6rem,3vw,2.2rem)] font-semibold tracking-[-0.02em] text-yc-ink">Choisissez celle qui vous ressemble.</h2>
           <p className="mt-1.5 max-w-2xl text-[15px] text-yc-ink-soft">Chacune utilise vos produits et vos photos. Vous pourrez tout ajuster ensuite, en conversation ou à la main.</p>
-          {simulated && <p className="mt-2 inline-flex rounded-full bg-yc-warning/[0.14] px-3 py-1 text-[12px] font-semibold text-[rgb(146_84_0)]">Simulation locale — le fournisseur IA n&apos;est pas configuré</p>}
+          {simulated && <p className="mt-2 inline-flex rounded-full bg-yc-warning/[0.14] px-3 py-1 text-[12px] font-semibold text-[rgb(146_84_0)]">Simulation locale — propositions produites par des règles de développement, pas par l&apos;IA</p>}
+          {unavailableReason && <p className="mt-2 max-w-2xl rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">{unavailableReason} Vous pouvez choisir une direction déjà proposée ou modifier le site à la main.</p>}
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onBack}>Modifier ma description</Button>
-          <Button variant="secondary" onClick={onRegenerate} loading={busy}>Nouvelles propositions</Button>
+          <Button variant="ghost" onClick={onBack} disabled={Boolean(unavailableReason)}>Modifier ma description</Button>
+          <Button variant="secondary" onClick={onRegenerate} loading={busy} disabled={Boolean(unavailableReason)}>Nouvelles propositions</Button>
         </div>
       </div>
       <div className="grid gap-5 lg:grid-cols-3">
