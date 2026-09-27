@@ -46,35 +46,40 @@ enum TenantStatus {
 }
 
 model Tenant {
-  id               String       @id @default(uuid())
-  name             String
-  slug             String       @unique
-  businessType     BusinessType // legacy Phase 0 — conservé pour compatibilité d'affichage,
+  id                String       @id @default(uuid())
+  name              String
+  slug              String       @unique
+  businessType      BusinessType // legacy Phase 0 — conservé pour compatibilité d'affichage,
   // remplacé fonctionnellement par `sectorKey` (registre secteurs, voir docs/11).
-  sectorKey        String? // clé vers Sector.key — null tant que le tenant n'a pas terminé
+  sectorKey         String? // clé vers Sector.key — null tant que le tenant n'a pas terminé
   // l'assistant de création (choix du secteur, voir docs/09 Phase 1).
-  sector           Sector?      @relation(fields: [sectorKey], references: [key])
-  status           TenantStatus @default(PENDING)
-  branding         Json         @default("{}") // { logoUrl, primaryColor, secondaryColor, defaultMode }
-  currency         String       @default("XOF")
-  locale           String       @default("fr") // fr | en | wo
-  supportedLocales String[]     @default(["fr"])
-  timezone         String       @default("Africa/Dakar")
-  trialEndsAt      DateTime?
+  sector            Sector?      @relation(fields: [sectorKey], references: [key])
+  status            TenantStatus @default(PENDING)
+  branding          Json         @default("{}") // { logoUrl, primaryColor, secondaryColor, defaultMode }
+  currency          String       @default("XOF")
+  locale            String       @default("fr") // fr | en | wo
+  supportedLocales  String[]     @default(["fr"])
+  timezone          String       @default("Africa/Dakar")
+  trialEndsAt       DateTime?
   /// Dérogation Super Admin EXPLICITE pour un tenant antérieur à la facturation SaaS
   /// (voir docs/14, « aucune souscription = accès illimité » — corrigé le 22
   /// septembre 2026) : SEUL un tenant marqué ici échappe encore au blocage par défaut
   /// lorsqu'aucun `TenantSubscription` n'existe. `null` = aucune dérogation (nouveau
   /// tenant standard) — jamais l'inverse, jamais un défaut permissif.
   billingExemptedAt DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  deletedAt        DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
 
   domains                  Domain[]
   users                    TenantUser[]
   invitations              TenantInvitation[]
   storefrontContent        StorefrontContent?
+  listings                 Listing[]
+  listingRevisions         ListingRevision[]
+  listingAvailabilities    ListingAvailability[]
+  reservations             Reservation[]
+  reservationHistory       ReservationStatusHistory[]
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -309,8 +314,8 @@ model SubscriptionPlan {
   /// secteur choisi — voir docs/11-secteurs-et-modules.md §11.1 et modèle TenantModule.
   includedModuleKeys String[] @default([])
 
-  features Json    @default("[]")
-  isActive Boolean @default(true)
+  features    Json    @default("[]")
+  isActive    Boolean @default(true)
   /// Formule « sur devis » (ex. Sur mesure) : jamais souscrite en libre-service, jamais
   /// envoyée au checkout — le prix est négocié et la formule attribuée par un Super Admin.
   isQuoteOnly Boolean @default(false)
@@ -852,21 +857,166 @@ model StorefrontContent {
   updatedAt DateTime @updatedAt
 }
 
+/// Fiche générique des secteurs hors commerce (bien immobilier, offre de voyage,
+/// prestation, chambre, véhicule, formation) — docs/04 §4.5.2. Porte UNIQUEMENT les
+/// champs communs à tous ces secteurs ; les données métier interrogeables vivent dans
+/// une table d'extension 1-1 typée par secteur (ajoutée avec chaque secteur), jamais
+/// dans un JSON fourre-tout. Une fiche non supprimée compte dans le quota « fiches »
+/// de la formule (voir subscription-usage.ts, RECORD_COUNTERS).
+model Listing {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  /// Module qui gère la fiche ("properties", "travel_offers", "services", …).
+  moduleKey   String
+  /// property | travel_package | service_offering | room | vehicle | course (CHECK en base).
+  type        String
+  /// draft | published | unavailable | archived (CHECK en base) — seul `published` est
+  /// visible et réservable sur le site public.
+  status      String    @default("draft")
+  title       String
+  slug        String
+  summary     String?
+  description String?
+  /// Prix en FCFA fixé par l'entreprise. Toute réservation le RELIT côté serveur :
+  /// un prix venu du navigateur n'est jamais utilisé.
+  price       Int?
+  /// total | per_person | per_night | per_month | per_session | on_request
+  priceUnit   String    @default("total")
+  currency    String    @default("XOF")
+  /// { region, commune, neighborhood } — affichage, pas de recherche fine dessus.
+  location    Json?
+  /// [{ url, alt, demo? }] — URLs de la médiathèque de l'entreprise.
+  media       Json      @default("[]")
+  featured    Boolean   @default(false)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  revisions      ListingRevision[]
+  availabilities ListingAvailability[]
+  reservations   Reservation[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, moduleKey, status])
+}
+
+/// Instantané complet d'une fiche à chaque enregistrement — opposable en cas de litige
+/// (annonce modifiée après une réservation). IMMUABLE en base (REVOKE UPDATE/DELETE).
+model ListingRevision {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  snapshot  Json
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  @@index([listingId, changedAt])
+}
+
+/// Créneau réservable d'une fiche : départ d'un circuit (places), créneau de rendez-vous,
+/// nuitée, créneau de visite. `reservedCount` n'est JAMAIS modifié hors du registre des
+/// réservations, et une contrainte CHECK interdit de dépasser `capacity`.
+model ListingAvailability {
+  id            String    @id @default(uuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id])
+  startAt       DateTime  @db.Timestamptz(3)
+  endAt         DateTime? @db.Timestamptz(3)
+  capacity      Int       @default(1)
+  reservedCount Int       @default(0)
+  /// open | closed (CHECK en base) — un créneau fermé n'accepte plus de réservation.
+  status        String    @default("open")
+  /// Prix spécifique à ce créneau (haute saison, départ spécial) ; sinon prix de la fiche.
+  priceOverride Int?
+  label         String?
+  createdAt     DateTime  @default(now())
+
+  reservations Reservation[]
+
+  @@unique([listingId, startAt])
+  @@index([tenantId, startAt])
+}
+
+/// Réservation commune (visite, rendez-vous, place sur un départ, séjour, essai).
+/// Montant calculé par le serveur ; statut changé UNIQUEMENT par
+/// `transitionReservationStatus` (reservation-registry.ts), historisé.
+model Reservation {
+  id             String               @id @default(uuid())
+  tenantId       String
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  reference      String // RES-2026-000123, séquentiel par entreprise et par année
+  listingId      String?
+  listing        Listing?             @relation(fields: [listingId], references: [id])
+  availabilityId String?
+  availability   ListingAvailability? @relation(fields: [availabilityId], references: [id])
+  customerId     String
+  customer       Customer             @relation(fields: [customerId], references: [id])
+  moduleKey      String
+  /// requested | confirmed | completed | canceled | no_show (CHECK en base)
+  status         String               @default("requested")
+  startAt        DateTime             @db.Timestamptz(3)
+  endAt          DateTime?            @db.Timestamptz(3)
+  /// Nombre de places / personnes / nuits réservées selon la fiche.
+  quantity       Int                  @default(1)
+  unitPrice      Int?
+  totalAmount    Int?
+  currency       String               @default("XOF")
+  customerNote   String?
+  internalNote   String?
+  channel        String               @default("web")
+  /// Jeton opaque : le client invité revoit SA réservation sans compte (même principe
+  /// que `Order.accessToken`) — jamais celle d'un autre.
+  accessToken    String               @unique @default(uuid())
+  confirmedAt    DateTime?
+  canceledAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  history ReservationStatusHistory[]
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, moduleKey, startAt])
+  @@index([tenantId, status])
+}
+
+/// Historique IMMUABLE des statuts de réservation (REVOKE UPDATE/DELETE en base).
+model ReservationStatusHistory {
+  id            String      @id @default(uuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  fromStatus    String?
+  toStatus      String
+  changedBy     String?
+  changedByType String // owner | employee | system | customer
+  note          String?
+  createdAt     DateTime    @default(now())
+
+  @@index([reservationId, createdAt])
+}
+
 /// Invitation d'un membre de l'équipe. Le jeton n'est JAMAIS stocké en clair (seule
 /// son empreinte SHA-256) ; une invitation en attente compte dans le quota
 /// d'utilisateurs de la formule, comme un membre actif.
 model TenantInvitation {
-  id          String    @id @default(uuid())
-  tenantId    String
-  tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  email       String
-  roleName    String
-  tokenHash   String    @unique
-  invitedBy   String?
-  expiresAt   DateTime
-  acceptedAt  DateTime?
-  revokedAt   DateTime?
-  createdAt   DateTime  @default(now())
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  email      String
+  roleName   String
+  tokenHash  String    @unique
+  invitedBy  String?
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
 
   @@index([tenantId, email])
 }
@@ -874,16 +1024,16 @@ model TenantInvitation {
 /// Demande de devis (formule Sur mesure) ou de contact commercial — donnée PLATEFORME,
 /// visible uniquement par le Super Admin (RLS), jamais par une entreprise.
 model PlatformInquiry {
-  id           String   @id @default(uuid())
-  kind         String   @default("custom_plan") // custom_plan | contact
-  fullName     String
-  email        String
-  phone        String?
-  companyName  String?
-  sectorKey    String?
-  message      String
-  status       String   @default("new") // new | contacted | closed
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid())
+  kind        String   @default("custom_plan") // custom_plan | contact
+  fullName    String
+  email       String
+  phone       String?
+  companyName String?
+  sectorKey   String?
+  message     String
+  status      String   @default("new") // new | contacted | closed
+  createdAt   DateTime @default(now())
 
   @@index([status, createdAt])
 }
@@ -1147,11 +1297,12 @@ model Customer {
   internalNotes String?
   createdAt     DateTime @default(now())
 
-  addresses CustomerAddress[]
-  orders    Order[]
-  wishlists Wishlist[]
-  reviews   Review[]
-  carts     Cart[]
+  addresses    CustomerAddress[]
+  orders       Order[]
+  wishlists    Wishlist[]
+  reviews      Review[]
+  carts        Cart[]
+  reservations Reservation[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -1421,13 +1572,13 @@ model OrderStatusHistory {
 // ============================================================================
 
 model PaymentProviderConfig {
-  id        String  @id @default(uuid())
-  tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id])
-  provider  String // paydunya | paytech | cod | wave_direct | orange_money_direct
-  isEnabled Boolean @default(false)
-  mode      String  @default("sandbox") // sandbox | live
-  label     String?
+  id                 String  @id @default(uuid())
+  tenantId           String
+  tenant             Tenant  @relation(fields: [tenantId], references: [id])
+  provider           String // paydunya | paytech | cod | wave_direct | orange_money_direct
+  isEnabled          Boolean @default(false)
+  mode               String  @default("sandbox") // sandbox | live
+  label              String?
   /// Paiement MANUEL (`wave_direct`, `orange_money_direct`) — numéro du portefeuille
   /// marchand affiché au client pour qu'il envoie le montant exact. Donnée publique
   /// (le client doit la voir), jamais un secret : ne remplace pas les identifiants
@@ -1632,27 +1783,27 @@ model Refund {
 // ============================================================================
 
 model DeliveryZone {
-  id             String  @id @default(uuid())
-  tenantId       String
-  tenant         Tenant  @relation(fields: [tenantId], references: [id])
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
   /// Nom affiché au client (ex. « Dakar Plateau — express »). Null = libellé dérivé
   /// de la région/commune.
-  name           String?
-  isActive       Boolean @default(true)
+  name                String?
+  isActive            Boolean  @default(true)
   /// Catégories exclues de cette zone (ex. produits fragiles ou encombrants non
   /// livrables hors Dakar) : un panier contenant un article d'une de ces catégories
   /// ne peut pas choisir cette zone — recalculé côté serveur (`quoteDelivery`).
   excludedCategoryIds String[] @default([])
-  region         String
-  department     String?
-  commune        String?
-  neighborhood   String?
-  fee            Int
-  freeThreshold  Int?
+  region              String
+  department          String?
+  commune             String?
+  neighborhood        String?
+  fee                 Int
+  freeThreshold       Int?
   /// Supplément ajouté au montant de livraison si le panier contient au moins un
   /// article `Product.isBulky` — voir étape 2.
-  bulkySurcharge Int     @default(0)
-  estimatedDays  Int?
+  bulkySurcharge      Int      @default(0)
+  estimatedDays       Int?
 }
 
 model Deliverer {

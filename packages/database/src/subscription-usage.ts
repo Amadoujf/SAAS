@@ -30,6 +30,9 @@ type QuotaCounter = (tx: Prisma.TransactionClient, tenantId: string) => Promise<
  */
 export const RECORD_COUNTERS: { label: string; count: QuotaCounter }[] = [
   { label: "Produits", count: (tx, tenantId) => tx.product.count({ where: { tenantId, deletedAt: null } }) },
+  // Biens, offres de voyage, prestations, chambres, véhicules, formations (docs/04
+  // §4.5.2). Les réservations, comme les commandes, ne sont jamais comptées.
+  { label: "Fiches", count: (tx, tenantId) => tx.listing.count({ where: { tenantId, deletedAt: null } }) },
 ];
 
 const QUOTA_COUNTERS: Record<QuotaResourceKey, QuotaCounter> = {

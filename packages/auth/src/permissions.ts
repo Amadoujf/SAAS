@@ -79,6 +79,20 @@ export const PERMISSIONS = [
 
   "inventory.manage_stock",
   "inventory.manage_suppliers",
+
+  // Fiches et réservations des secteurs à primitives génériques (immobilier, voyage,
+  // services, hôtellerie, automobile, éducation — voir docs/04 §4.5.2). Distinctes de
+  // "products.*" : un bien ou un départ n'est jamais un produit du catalogue commerce.
+  "listings.view",
+  "listings.create",
+  "listings.edit",
+  "listings.publish",
+  "listings.delete",
+  "listings.manage_availability",
+
+  "reservations.view",
+  "reservations.update_status",
+  "reservations.cancel",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -112,6 +126,9 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "orders.update_status",
     "customers.view",
     "customers.edit",
+    "listings.view",
+    "reservations.view",
+    "reservations.update_status",
   ],
   INVENTORY_MANAGER: [
     "products.view",
@@ -121,6 +138,11 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "products.bulk_edit",
     "inventory.manage_stock",
     "inventory.manage_suppliers",
+    "listings.view",
+    "listings.create",
+    "listings.edit",
+    "listings.publish",
+    "listings.manage_availability",
   ],
   MARKETING: [
     "customers.view",
