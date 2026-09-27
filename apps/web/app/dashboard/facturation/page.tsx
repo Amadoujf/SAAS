@@ -20,7 +20,7 @@ export default async function FacturationPage() {
 
   return (
     <div>
-      <PageHeader title="Abonnement et facturation" description="Votre formule YamaCommerce, son échéance et son renouvellement." />
+      <PageHeader title="Abonnement et facturation" description="Votre formule Y-COM, son échéance et son renouvellement." />
       <BillingPanel />
     </div>
   );

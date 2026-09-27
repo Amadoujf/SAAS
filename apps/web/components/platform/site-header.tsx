@@ -63,7 +63,7 @@ export function PlatformHeader({ availableSectors }: { availableSectors: string[
   return (
     <header className={`sticky top-0 z-50 border-b transition-colors duration-300 ${scrolled ? "border-yc-navy/10 bg-yc-paper/90 backdrop-blur-md" : "border-transparent bg-yc-paper xl:bg-transparent"}`}>
       <div className="mx-auto flex h-[72px] max-w-[1200px] items-center gap-10 px-4 sm:px-8">
-        <Link href="/" aria-label="YamaCommerce, accueil" className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal"><YcLogo /></Link>
+        <Link href="/" aria-label="Y-COM, accueil" className="rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal"><YcLogo /></Link>
 
         <nav aria-label="Principale" className="hidden items-center gap-1 text-[15px] text-yc-navy-ink lg:flex">
           <div ref={solutionsRef} className="relative">

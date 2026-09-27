@@ -8,7 +8,7 @@ import { formatAmount, formatDate } from "@/lib/format";
 import { PAYMENT_METHOD_LABEL } from "@/lib/commerce/order-status-meta";
 import { PrintButton } from "./print-button";
 
-export const metadata: Metadata = { title: "Document — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Document — Y-COM", robots: { index: false, follow: false } };
 
 const TITLES = { preparation: "Bon de préparation", livraison: "Bon de livraison", facture: "Facture" } as const;
 
@@ -36,7 +36,7 @@ export default async function OrderDocumentPage({ params, searchParams }: { para
       <div className="mb-8 flex items-start justify-between gap-6 border-b-2 border-yc-ink pb-6">
         <div>
           <p className="font-display text-2xl font-semibold">{membership?.tenantName}</p>
-          <p className="text-yc-ink-soft">Document émis via YamaCommerce</p>
+          <p className="text-yc-ink-soft">Document émis via Y-COM</p>
         </div>
         <div className="text-right">
           <p className="font-display text-xl font-semibold uppercase tracking-wide">{TITLES[type]}</p>

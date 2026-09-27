@@ -2,7 +2,7 @@ import type { Config } from "tailwindcss";
 
 /**
  * Configuration Tailwind. Deux familles de couleurs strictement séparées :
- * - `yc-*` : identité YamaCommerce (plateforme + dashboard), variables `--yc-*`.
+ * - `yc-*` : identité Y-COM (plateforme + dashboard), variables `--yc-*`.
  * - `brand` et les `var(--color-*)` arbitraires : design tokens d'une entreprise,
  *   actifs uniquement sous `SiteShell`/`StoreShell` (voir app/globals.css).
  */

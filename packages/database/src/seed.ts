@@ -107,7 +107,7 @@ async function main() {
     update: {},
     create: {
       email: superAdminEmail,
-      fullName: "Super Administrateur YamaCommerce",
+      fullName: "Super Administrateur Y-COM",
       passwordHash: await hashPassword(superAdminPassword),
       isSuperAdmin: true,
     },

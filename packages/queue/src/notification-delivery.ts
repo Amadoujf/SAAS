@@ -56,15 +56,15 @@ export function renderText(job: NotificationJobData): { subject: string; text: s
     const when = MILESTONE_TEXT[job.templateType.slice("billing_reminder_".length)] ?? "arrive bientôt à échéance";
     const who = str(v.tenantName) ? ` pour ${str(v.tenantName)}` : "";
     return {
-      subject: `Votre abonnement YamaCommerce ${when}`,
-      text: `${hello}\n\nVotre abonnement${who} ${when}. Il n'est pas débité automatiquement : renouvelez-le depuis votre espace (Facturation) pour garder votre site en ligne.\n\nL'équipe YamaCommerce`,
+      subject: `Votre abonnement Y-COM ${when}`,
+      text: `${hello}\n\nVotre abonnement${who} ${when}. Il n'est pas débité automatiquement : renouvelez-le depuis votre espace (Facturation) pour garder votre site en ligne.\n\nL'équipe Y-COM`,
     };
   }
   const billing = job.templateType.startsWith("billing_") ? BILLING_STATUS_TEXT[job.templateType.slice("billing_".length)] : undefined;
   const simple = billing ?? SIMPLE_TEXT[job.templateType];
   if (simple) {
     const who = str(v.tenantName) ? ` (${str(v.tenantName)})` : "";
-    return { subject: simple.subject, text: `${hello}\n\n${simple.body}${who ? `\n\nEntreprise : ${str(v.tenantName)}` : ""}\n\nL'équipe YamaCommerce` };
+    return { subject: simple.subject, text: `${hello}\n\n${simple.body}${who ? `\n\nEntreprise : ${str(v.tenantName)}` : ""}\n\nL'équipe Y-COM` };
   }
   // Notifications de commande (order_received, payment_received…).
   const total = fcfa(v.total);

@@ -8,7 +8,7 @@ import { OnboardingFlow } from "@/components/onboarding/onboarding-flow";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { createStoreAction } from "./actions";
 
-export const metadata: Metadata = { title: "Créer ma boutique — YamaCommerce" };
+export const metadata: Metadata = { title: "Créer ma boutique — Y-COM" };
 
 /** Onboarding : compte → boutique (adresse vérifiée en direct) → secteur → style.
  *  La création réelle (entreprise, domaine, essai, propriétaire) est faite par

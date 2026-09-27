@@ -10,7 +10,7 @@ import { Pill } from "@/components/yc/status-pill";
 import { InviteForm, MemberActions, RevokeButton } from "@/components/dashboard-team/team-manager";
 import { ROLE_LABELS } from "@/lib/team/roles";
 
-export const metadata: Metadata = { title: "Équipe — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Équipe — Y-COM", robots: { index: false, follow: false } };
 
 /** Équipe de l'entreprise : membres, rôles, invitations — dans la limite
  *  d'utilisateurs de la formule (invitations en attente comprises). */

@@ -15,7 +15,7 @@ export function QuoteForm({ sectors }: { sectors: { key: string; name: string }[
       <div role="status" className="rounded-xl bg-white p-8 text-center ring-1 ring-yc-navy/10">
         <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-yc-royal text-white"><IconCheck size={22} /></span>
         <p className="mt-4 font-editorial text-[28px] leading-tight">Demande bien reçue.</p>
-        <p className="mt-2 text-sm text-yc-ink-soft">L&apos;équipe YamaCommerce vous répondra à l&apos;adresse indiquée.</p>
+        <p className="mt-2 text-sm text-yc-ink-soft">L&apos;équipe Y-COM vous répondra à l&apos;adresse indiquée.</p>
       </div>
     );
   }

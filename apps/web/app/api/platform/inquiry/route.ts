@@ -17,7 +17,7 @@ const schema = z.object({
   website: z.string().max(0).optional(), // champ piège anti-robot : doit rester vide
 });
 
-/** Demande de devis « Sur mesure » — enregistrée pour l'équipe YamaCommerce (visible
+/** Demande de devis « Sur mesure » — enregistrée pour l'équipe Y-COM (visible
  *  uniquement dans l'administration plateforme). Limité en fréquence par visiteur. */
 export async function POST(request: NextRequest) {
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });

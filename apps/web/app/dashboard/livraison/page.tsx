@@ -5,7 +5,7 @@ import { resolveDashboardTenant } from "@/lib/orders/dashboard-pipeline";
 import { PageHeader, Panel, PanelHeader } from "@/components/yc/panel";
 import { DeliverersManager, StoreSettingsForm, ZonesManager } from "@/components/dashboard-settings/delivery-settings";
 
-export const metadata: Metadata = { title: "Livraison — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Livraison — Y-COM", robots: { index: false, follow: false } };
 
 export default async function DeliverySettingsPage() {
   const ctx = await resolveDashboardTenant("delivery.view");

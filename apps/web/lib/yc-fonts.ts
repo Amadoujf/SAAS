@@ -1,10 +1,10 @@
 import localFont from "next/font/local";
 
 /**
- * Typographies YamaCommerce — AUTO-HÉBERGÉES (app/fonts, SIL OFL 1.1). Auparavant
+ * Typographies Y-COM — AUTO-HÉBERGÉES (app/fonts, SIL OFL 1.1). Auparavant
  * `next/font/google`, qui télécharge les polices pendant le build : un build sans
  * accès à Google (CI derrière un proxy, environnement isolé) échouait. Importées
- * UNIQUEMENT par les pages de l'univers YamaCommerce (vitrine, connexion,
+ * UNIQUEMENT par les pages de l'univers Y-COM (vitrine, connexion,
  * onboarding, dashboard, documents) : Next.js ne les précharge que sur ces routes,
  * jamais sur les boutiques des entreprises, qui gardent leurs propres polices.
  */

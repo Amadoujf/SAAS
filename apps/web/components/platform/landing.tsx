@@ -20,7 +20,7 @@ const primaryBtn = "inline-flex items-center justify-center gap-2 rounded-lg bg-
 const outlineBtn = "inline-flex items-center justify-center gap-2 rounded-lg border border-yc-royal/80 bg-transparent px-6 py-3.5 text-[15px] font-semibold text-yc-royal transition-colors hover:bg-yc-royal/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-royal focus-visible:ring-offset-2 focus-visible:ring-offset-yc-paper";
 const eyebrow = "text-[11px] font-semibold uppercase tracking-[0.24em] text-yc-ink-soft";
 
-/** Site public YamaCommerce — direction éditoriale : papier ivoire, serif de
+/** Site public Y-COM — direction éditoriale : papier ivoire, serif de
  *  magazine, encre marine, photographie. Tous les faits affichés sont vrais
  *  (formules réelles en base, moyens de paiement branchés) ; les secteurs et
  *  fonctions non ouverts sont marqués « bientôt ». */

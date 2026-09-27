@@ -4,7 +4,7 @@
 
 /*
  * Deux périmètres de style STRICTEMENT séparés :
- * - `--yc-*` : identité YamaCommerce (site plateforme, connexion, onboarding,
+ * - `--yc-*` : identité Y-COM (site plateforme, connexion, onboarding,
  *   dashboard). Jamais surchargé par la personnalisation d'une entreprise.
  * - `--color-*`, `--font-heading`, … : design tokens d'une entreprise, injectés
  *   uniquement à l'intérieur de `<SiteShell>` / `<StoreShell>` (voir
@@ -19,7 +19,7 @@
   --color-muted: #64748b;
   --color-border: #e2e8f0;
 
-  /* Identité YamaCommerce */
+  /* Identité Y-COM */
   /* Marine profond (barre latérale, bandeaux) — même famille que le site public. */
   --yc-night-950: 9 20 48;
   --yc-night-900: 14 36 82;

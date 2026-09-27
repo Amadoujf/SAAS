@@ -18,7 +18,7 @@ import { PublicSiteBillingSuspended } from "@/components/public-site-billing-sus
  * un tenant ACTIF avec une version PUBLIÉE, rend sa page d'accueil réelle (jamais un
  * brouillon, voir `resolvePublicSite`/`resolveTenantSiteForRendering`). Un tenant
  * suspendu reçoit un écran dédié ; un tenant sans site publié (ou inconnu) reçoit la
- * vitrine plateforme YamaCommerce AI — un visiteur qui atterrit ici avant que
+ * vitrine plateforme Y-COM — un visiteur qui atterrit ici avant que
  * l'entreprise ait publié quoi que ce soit ne doit jamais voir une erreur.
  */
 export default async function HomePage() {

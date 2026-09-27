@@ -1,4 +1,4 @@
-/** Monogramme YamaCommerce : un « Y » à empattements, plein et délié comme une
+/** Monogramme Y-COM : un « Y » à empattements, plein et délié comme une
  *  capitale didone — l'identité éditoriale de la marque. `currentColor` : il prend
  *  la couleur du texte qui l'entoure (marine sur ivoire, ivoire sur marine). */
 export function YcMark({ size = 32, className }: { size?: number; className?: string }) {
@@ -13,7 +13,7 @@ export function YcLogo({ tone = "dark", className = "" }: { tone?: "dark" | "lig
   return (
     <span className={`inline-flex items-center gap-2 ${tone === "light" ? "text-yc-paper" : "text-yc-navy"} ${className}`}>
       <YcMark size={34} />
-      <span className="font-editorial text-[1.55rem] leading-none tracking-[-0.01em]">YamaCommerce</span>
+      <span className="font-editorial text-[1.55rem] leading-none tracking-[-0.01em]">Y-COM</span>
     </span>
   );
 }
@@ -34,7 +34,7 @@ export function YcAppLogo({ className = "", compact = false, id = "yc-app-mark" 
         <path fill={`url(#${id})`} d="M2 4h11.5l6.6 11.2L26.6 4H38L25.4 22.6V36h-10.8V22.6z" />
         <path fill="#fff" fillOpacity=".22" d="M2 4h11.5l6.6 11.2-3.9 5.9z" />
       </svg>
-      <span className={`font-ui font-bold tracking-[-0.02em] ${compact ? "text-[17px]" : "text-[21px]"}`}>YamaCommerce</span>
+      <span className={`font-ui font-bold tracking-[-0.02em] ${compact ? "text-[17px]" : "text-[21px]"}`}>Y-COM</span>
     </span>
   );
 }

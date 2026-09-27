@@ -5,7 +5,7 @@ import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { PageHeader, Panel } from "@/components/yc/panel";
 import { MediaLibrary } from "@/components/media/media-library";
 
-export const metadata: Metadata = { title: "Médiathèque — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Médiathèque — Y-COM", robots: { index: false, follow: false } };
 
 /** Médiathèque réelle de l'entreprise : import, variantes optimisées, quotas de la formule. */
 export default async function MediaPage() {

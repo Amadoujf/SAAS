@@ -13,7 +13,7 @@ import { OrderStatusPill, PaymentStatusPill, Pill } from "@/components/yc/status
 import { IconArrowLeft, IconMapPin, IconPhone, IconPrinter, IconStore, IconTruck, IconWallet } from "@/components/yc/icons";
 import { DelivererPicker, InternalNotes, InvoiceButton, ManualPaymentReview, StatusActions } from "@/components/dashboard-orders/order-actions";
 
-export const metadata: Metadata = { title: "Commande — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Commande — Y-COM", robots: { index: false, follow: false } };
 
 const NOTIF_STATUS: Record<string, { label: string; tone: "neutral" | "warning" | "success" | "danger" | "info" }> = {
   queued: { label: "En file d'attente", tone: "info" },

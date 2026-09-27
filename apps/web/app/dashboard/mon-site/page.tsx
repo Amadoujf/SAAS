@@ -8,7 +8,7 @@ import { SiteEditor } from "@/components/dashboard-site/site-editor";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { parseHomeContent } from "@/lib/storefront/home-content";
 
-export const metadata: Metadata = { title: "Mon site — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Mon site — Y-COM", robots: { index: false, follow: false } };
 
 /** Personnalisation de la boutique : template, identité et contenus mis en avant. */
 export default async function MySitePage() {

@@ -1,7 +1,7 @@
 import localFont from "next/font/local";
 
 /**
- * Polices des TEMPLATES de boutique (jamais l'identité YamaCommerce). `preload: false` :
+ * Polices des TEMPLATES de boutique (jamais l'identité Y-COM). `preload: false` :
  * aucun préchargement sur les boutiques qui ne les utilisent pas — le navigateur ne
  * télécharge une police que si une règle CSS de la page l'emploie réellement.
  */

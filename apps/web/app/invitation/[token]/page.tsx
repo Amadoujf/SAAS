@@ -7,7 +7,7 @@ import { YcLogo } from "@/components/yc/logo";
 import { ROLE_LABELS } from "@/lib/team/roles";
 import { InvitationForm } from "./invitation-form";
 
-export const metadata: Metadata = { title: "Invitation — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Invitation — Y-COM", robots: { index: false, follow: false } };
 
 export default async function InvitationPage({ params }: { params: { token: string } }) {
   const [invitation, session] = await Promise.all([withSuperAdminAccess((tx) => findInvitationByToken(tx, params.token)), auth()]);

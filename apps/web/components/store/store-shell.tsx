@@ -9,7 +9,7 @@ import { templateFontVariables } from "@/lib/storefront/template-fonts";
 
 /** Coque des pages commerce d'une boutique : TOUTES les couleurs, polices et rayons
  *  viennent des design tokens de l'entreprise (template + personnalisation). Rien de
- *  l'identité YamaCommerce n'y fuit, hormis la mention discrète en pied de page. */
+ *  l'identité Y-COM n'y fuit, hormis la mention discrète en pied de page. */
 export function StoreShell({ store, children }: { store: StoreContext; children: ReactNode }) {
   return (
     <div style={designTokensToStyle(store.tokens)} className={`${templateFontVariables} flex min-h-screen flex-col bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}>
@@ -33,7 +33,7 @@ export function StoreShell({ store, children }: { store: StoreContext; children:
               <Link href="/panier" className="hover:underline">Panier</Link>
               <Link href="/suivi" className="hover:underline">Suivre ma commande</Link>
             </nav>
-            <p className="text-xs text-[var(--color-text-muted)] sm:text-right">Boutique propulsée par YamaCommerce</p>
+            <p className="text-xs text-[var(--color-text-muted)] sm:text-right">Boutique propulsée par Y-COM</p>
           </div>
         </footer>
         <LazyCartDrawer />

@@ -12,7 +12,7 @@ import { OrderStatusPill, PaymentStatusPill, Pill } from "@/components/yc/status
 import { EmptyState } from "@/components/yc/empty-state";
 import { IconChevronRight, IconDownload, IconSearch, IconStore, IconTruck } from "@/components/yc/icons";
 
-export const metadata: Metadata = { title: "Commandes — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Commandes — Y-COM", robots: { index: false, follow: false } };
 
 export default async function OrdersPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
   const ctx = await resolveDashboardTenant("orders.view");

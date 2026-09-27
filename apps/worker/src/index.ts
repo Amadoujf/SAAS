@@ -393,7 +393,7 @@ for (const worker of workers) {
 }
 
 console.info(
-  `Worker YamaCommerce AI démarré — files actives : ${workers.map((w) => w.name).join(", ")}`,
+  `Worker Y-COM démarré — files actives : ${workers.map((w) => w.name).join(", ")}`,
 );
 
 async function shutdown() {

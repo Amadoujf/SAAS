@@ -13,7 +13,7 @@ import { IconArrowRight, IconBag, IconBox, IconChart, IconCheck, IconChevronRigh
 import { SalesChart } from "@/components/dashboard-home/sales-chart";
 import { PeriodSelect } from "@/components/dashboard-home/period-select";
 
-export const metadata: Metadata = { title: "Vue d'ensemble — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Vue d'ensemble — Y-COM", robots: { index: false, follow: false } };
 
 function dakarHour(now = new Date()) {
   return Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hour12: false, timeZone: "Africa/Dakar" }).format(now));

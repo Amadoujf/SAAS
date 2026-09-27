@@ -9,7 +9,7 @@ import { YcLogo } from "@/components/yc/logo";
 import { IconCheck } from "@/components/yc/icons";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Connexion — YamaCommerce" };
+export const metadata: Metadata = { title: "Connexion — Y-COM" };
 
 /** N'autorise qu'une redirection interne (jamais une URL externe fournie en
  *  paramètre : pas de redirection ouverte). */

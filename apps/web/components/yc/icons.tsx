@@ -1,6 +1,6 @@
 import type { SVGProps } from "react";
 
-/** Iconographie YamaCommerce — tracés 1.75 px, coins arrondis, grille 24. Inline :
+/** Iconographie Y-COM — tracés 1.75 px, coins arrondis, grille 24. Inline :
  *  aucune dépendance ni requête réseau, héritent de `currentColor`. */
 type IconProps = SVGProps<SVGSVGElement> & { size?: number };
 

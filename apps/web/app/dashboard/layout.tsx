@@ -98,7 +98,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     <div className={`${ycFontVariables} min-h-screen bg-[#F6F7FB] font-ui text-yc-ink lg:flex`}>
       <DashboardSidebar
         groups={groups}
-        tenantName={membership?.tenantName ?? "YamaCommerce"}
+        tenantName={membership?.tenantName ?? "Y-COM"}
         roleName={membership?.roleName ?? null}
         storeUrl={storeUrl}
         supportUrl={process.env.SUPPORT_URL?.startsWith("https://") ? process.env.SUPPORT_URL : null}

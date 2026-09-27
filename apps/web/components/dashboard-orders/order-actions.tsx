@@ -56,7 +56,7 @@ export function StatusActions({ orderId, status, pickup, canCancel, canRefund, o
         <p className="text-sm text-yc-ink-soft">
           {dialog === "CANCELED"
             ? "Le stock réservé sera libéré (ou réapprovisionné). Le client sera prévenu. Cette action est définitive."
-            : "Le remboursement lui-même (Wave, Orange Money, espèces) se fait hors de YamaCommerce : cette action l'enregistre comme demandé."}
+            : "Le remboursement lui-même (Wave, Orange Money, espèces) se fait hors de Y-COM : cette action l'enregistre comme demandé."}
         </p>
         <label className="mt-4 block text-[13px] font-semibold" htmlFor="yc-reason">Motif (visible dans l&apos;historique)</label>
         <Textarea id="yc-reason" value={reason} onChange={(e) => setReason(e.target.value)} className="mt-1.5" maxLength={500} />

@@ -3,7 +3,7 @@ import "./globals.css";
 
 
 export const metadata: Metadata = {
-  title: "YamaCommerce — La boutique en ligne pensée pour l'Afrique",
+  title: "Y-COM — La boutique en ligne pensée pour l'Afrique",
   description:
     "Créez votre boutique, encaissez via Wave, Orange Money ou à la livraison, et gérez commandes et livraisons depuis un seul tableau de bord.",
 };

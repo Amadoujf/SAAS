@@ -2,7 +2,7 @@
   "name": "yamacommerce-ai",
   "private": true,
   "version": "0.1.0",
-  "description": "YamaCommerce AI — plateforme SaaS multi-entreprises pour le Sénégal",
+  "description": "Y-COM — plateforme SaaS multi-entreprises pour le Sénégal",
   "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=20.0.0"

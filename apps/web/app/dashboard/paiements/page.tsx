@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/yc/empty-state";
 import { IconShield } from "@/components/yc/icons";
 import { CodCard, ManualMethodCard, type ManualMethodView } from "@/components/dashboard-settings/payment-settings";
 
-export const metadata: Metadata = { title: "Paiements — YamaCommerce", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Paiements — Y-COM", robots: { index: false, follow: false } };
 
 export default async function PaymentsPage() {
   const ctx = await resolveDashboardTenant("payments.view");
@@ -63,9 +63,9 @@ export default async function PaymentsPage() {
               </p>
               <p className="mt-1 text-sm text-yc-ink-soft">
                 Avec votre propre compte marchand (PayDunya), le paiement est confirmé automatiquement par un webhook vérifié. Les identifiants sont chiffrés au repos.
-                {!pspReady && " La connexion d'un compte marchand se fait avec l'équipe YamaCommerce."}
+                {!pspReady && " La connexion d'un compte marchand se fait avec l'équipe Y-COM."}
               </p>
-              <p className="mt-3 text-xs text-yc-ink-soft">Les abonnements YamaCommerce (Chariow) sont totalement séparés : ils ne transitent jamais par vos paiements clients.</p>
+              <p className="mt-3 text-xs text-yc-ink-soft">Les abonnements Y-COM (Chariow) sont totalement séparés : ils ne transitent jamais par vos paiements clients.</p>
             </div>
           </div>
         </Panel>
