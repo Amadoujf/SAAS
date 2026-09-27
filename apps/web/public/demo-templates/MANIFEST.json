@@ -182,6 +182,48 @@
    "height": 492,
    "bytes": 23650,
    "source": "Maquette « Résidences » fournie par le client (planche des templates), recadrage sans texte"
+  },
+  {
+   "file": "demo-templates/scene-lampe/abat-jour.webp",
+   "width": 900,
+   "height": 560,
+   "bytes": 18300,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/scene-lampe/galet.webp",
+   "width": 360,
+   "height": 240,
+   "bytes": 7746,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/scene-lampe/lumiere.webp",
+   "width": 800,
+   "height": 520,
+   "bytes": 39426,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/scene-lampe/pied.webp",
+   "width": 160,
+   "height": 620,
+   "bytes": 5260,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/scene-lampe/socle.webp",
+   "width": 760,
+   "height": 300,
+   "bytes": 39000,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
+  },
+  {
+   "file": "demo-templates/scene-lampe/vase.webp",
+   "width": 420,
+   "height": 640,
+   "bytes": 13348,
+   "source": "Création originale Y-COM — rendu procédural (scripts/demo-visuals/scene-lampe.py), aucune photographie ni ressource tierce ; droits entiers. Démonstration uniquement."
   }
  ]
 }
