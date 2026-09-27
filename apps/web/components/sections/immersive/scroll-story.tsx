@@ -174,8 +174,12 @@ function ProductStory({ params }: { params: ScrollStoryParams }) {
   const altOf = (i: number) => steps[i]?.imageAlt ?? params.imageAlt ?? "";
   const cur = steps[active] ?? steps[0]!;
   const visuals = [...new Set(steps.map((_, i) => imageOf(i)))];
+  const photo = params.objectStyle === "photo";
+  // Une photographie (rectangle) garde une inclinaison et un agrandissement discrets :
+  // tournée comme un objet détouré, elle sortirait du cadre et paraîtrait bancale.
+  const poseOf = (st: Step) => (photo ? { r: st.rotate * 0.25, s: 1 + (st.objectScale - 1) * 0.4 } : { r: st.rotate, s: st.objectScale });
   const pose = (st: Step): CSSProperties => ({
-    transform: `rotate(${st.rotate}deg) scale(${st.objectScale})`,
+    transform: `rotate(${poseOf(st).r}deg) scale(${poseOf(st).s})`,
     transition: animate ? "transform 1.1s cubic-bezier(0.22, 1, 0.36, 1)" : "none",
   });
   const goTo = (i: number) => stepsRef.current[i]?.scrollIntoView({ behavior: animate ? "smooth" : "auto", block: "center" });
@@ -205,10 +209,16 @@ function ProductStory({ params }: { params: ScrollStoryParams }) {
               {visuals.map((src) => {
                 const shown = src === imageOf(active);
                 return (
-                  <div key={src ?? "vide"} aria-hidden={!shown} className={`absolute inset-0 ${animate ? "transition-opacity duration-700" : ""} ${shown ? "opacity-100" : "opacity-0"}`}>
-                    <div className="h-full w-full" style={pose(cur)}>
-                      <ImmersiveImage src={src} alt={shown ? altOf(active) : ""} fit="contain" className="drop-shadow-[0_40px_40px_rgba(0,0,0,0.45)]" />
-                    </div>
+                  <div key={src ?? "vide"} aria-hidden={!shown} className={`absolute inset-0 ${photo ? "grid place-items-center" : ""} ${animate ? "transition-opacity duration-700" : ""} ${shown ? "opacity-100" : "opacity-0"}`}>
+                    {photo ? (
+                      <div className="relative aspect-[4/5] h-[88%] max-w-full overflow-hidden rounded-[var(--radius-lg,18px)] shadow-[0_50px_90px_-30px_rgba(0,0,0,0.65)] ring-1 ring-white/10" style={pose(cur)}>
+                        <ImmersiveImage src={src} alt={shown ? altOf(active) : ""} />
+                      </div>
+                    ) : (
+                      <div className="h-full w-full" style={pose(cur)}>
+                        <ImmersiveImage src={src} alt={shown ? altOf(active) : ""} fit="contain" className="drop-shadow-[0_40px_40px_rgba(0,0,0,0.45)]" />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -234,9 +244,15 @@ function ProductStory({ params }: { params: ScrollStoryParams }) {
                 {/* Mobile : un panneau coloré par étape, l'objet dans sa pose. */}
                 <div className="relative mb-7 aspect-[4/5] max-h-[62vh] w-full overflow-hidden rounded-[var(--radius-lg,18px)] lg:hidden" style={{ backgroundColor: ambiance(colorOf(i)) }}>
                   <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(60%_50%_at_50%_50%,rgba(255,255,255,0.22),transparent_72%)]" />
-                  <div className="absolute inset-[8%]" style={{ transform: `rotate(${st.rotate}deg) scale(${st.objectScale})` }}>
-                    <ImmersiveImage src={imageOf(i)} alt={altOf(i)} fit="contain" className="drop-shadow-[0_30px_30px_rgba(0,0,0,0.45)]" />
-                  </div>
+                  {photo ? (
+                    <div className="absolute inset-0">
+                      <ImmersiveImage src={imageOf(i)} alt={altOf(i)} />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-[8%]" style={{ transform: `rotate(${st.rotate}deg) scale(${st.objectScale})` }}>
+                      <ImmersiveImage src={imageOf(i)} alt={altOf(i)} fit="contain" className="drop-shadow-[0_30px_30px_rgba(0,0,0,0.45)]" />
+                    </div>
+                  )}
                 </div>
                 <div className={`max-w-md ${animate ? "transition-opacity duration-500" : ""} ${i === active ? "opacity-100" : "lg:opacity-40"}`}>
                   <p className="text-[12px] font-semibold tabular-nums tracking-[0.2em] text-white/60">{String(i + 1).padStart(2, "0")} / {String(steps.length).padStart(2, "0")}</p>

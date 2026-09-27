@@ -26,7 +26,7 @@ export const SECTION_NAMES: Record<SectionKey, string> = {
   provenance: "Provenance",
   catalog_search: "Recherche du catalogue",
   immersive_hero: "Hero immersif",
-  immersive_showcase: "Carrousel en profondeur",
+  immersive_showcase: "Carrousel immersif",
   scroll_story: "Récit au défilement",
 };
 

@@ -392,6 +392,9 @@ export const sectionParamSchemas = {
     ctaLabel: z.string().trim().max(40).optional(),
     ctaHref: actionHrefSchema.optional(),
     backgroundColor: z.string().trim().max(40).optional(),
+    /** Variante « product » : « photo » (défaut sûr) = photographie classique dans un
+     *  cadre, inclinaison légère ; « cutout » = objet détouré posé librement. */
+    objectStyle: z.enum(["photo", "cutout"]).default("photo"),
   }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 

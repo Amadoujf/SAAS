@@ -159,7 +159,12 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
             }
           }}
         >
-          {arc && (
+          {arc && !cutout && (
+            // Photographies : simple ombre au sol sous la carte centrale (un socle sous un
+            // cadre rectangulaire paraîtrait posé de travers).
+            <span aria-hidden="true" className="pointer-events-none absolute bottom-[10%] left-1/2 h-[7%] w-[min(50vw,240px)] -translate-x-1/2 rounded-[50%] bg-black/35 blur-xl" />
+          )}
+          {arc && cutout && (
             // Socle lumineux sous l'élément central, teinté de sa couleur.
             <span aria-hidden="true" className="pointer-events-none absolute bottom-[9%] left-1/2 h-[13%] w-[min(56vw,280px)] -translate-x-1/2">
               <span className={`absolute inset-0 rounded-[50%] blur-2xl transition-[background-color] ${smooth}`} style={{ backgroundColor: `color-mix(in srgb, ${tint} 70%, white)`, opacity: 0.55 }} />

@@ -7,6 +7,7 @@ import { CloseSmallIcon, ResetIcon } from "@/components/editor/editor-icons";
 import { MediaLibrary } from "@/components/media/media-library";
 import { ENUM_LABELS } from "@/lib/editor/section-names";
 import { useEditorIdOptions } from "@/lib/editor/id-options-context";
+import { toPortableUrl } from "@/lib/editor/portable-url";
 
 /**
  * Formulaire générique généré à partir d'une liste de `FieldDescriptor` (voir
@@ -52,6 +53,10 @@ export interface SchemaFormProps {
    *  texte (comportement d'avant l'ajout de la médiathèque, inchangé) ; fourni =
    *  chacun gagne un bouton "Média" ouvrant `MediaLibrary` en mode sélection. */
   mediaApiBase?: string;
+  /** Champ sans effet compte tenu des choix déjà faits : masqué (sa valeur est gardée). */
+  isHidden?: (name: string) => boolean;
+  /** Idem pour les champs DES ÉLÉMENTS d'une liste (`listName` = nom du tableau). */
+  isItemHidden?: (listName: string, name: string) => boolean;
 }
 
 export function SchemaForm({
@@ -62,6 +67,8 @@ export function SchemaForm({
   originalValue,
   idPrefix = "f",
   mediaApiBase,
+  isHidden,
+  isItemHidden,
 }: SchemaFormProps) {
   function setField(name: string, next: unknown) {
     onChange({ ...value, [name]: next });
@@ -80,7 +87,7 @@ export function SchemaForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {fields.map((field) => {
+      {fields.filter((field) => !isHidden?.(field.name)).map((field) => {
         const current = fieldValue(value, field);
         const original = originalValue ? fieldValue(originalValue, field) : undefined;
         const customized = originalValue ? isCustomized(field, current, original) : false;
@@ -121,6 +128,7 @@ export function SchemaForm({
               onChange={(next) => setField(field.name, next)}
               hasError={Boolean(fieldErrors?.length)}
               mediaApiBase={mediaApiBase}
+              isItemHidden={isItemHidden ? (name) => isItemHidden(field.name, name) : undefined}
             />
 
             {fieldErrors?.map((message, index) => (
@@ -142,6 +150,7 @@ function FieldInput({
   onChange,
   hasError,
   mediaApiBase,
+  isItemHidden,
 }: {
   id: string;
   field: FieldDescriptor;
@@ -149,6 +158,7 @@ function FieldInput({
   onChange: (next: unknown) => void;
   hasError: boolean;
   mediaApiBase?: string;
+  isItemHidden?: (name: string) => boolean;
 }) {
   const baseInputClass = `w-full rounded-md border px-2.5 py-1.5 text-[13px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
     hasError ? "border-red-400" : "border-gray-300 focus:border-indigo-500"
@@ -267,6 +277,7 @@ function FieldInput({
           onChange={onChange}
           idPrefix={id}
           mediaApiBase={mediaApiBase}
+          isItemHidden={isItemHidden}
         />
       );
 
@@ -330,7 +341,7 @@ function UrlFieldInput({
             <MediaLibrary
               apiBase={mediaApiBase}
               onSelect={(asset) => {
-                onChange(asset.url);
+                onChange(toPortableUrl(asset.url, window.location.origin));
                 setPickerOpen(false);
               }}
               onClose={() => setPickerOpen(false)}
@@ -493,12 +504,14 @@ function ArrayObjectInput({
   onChange,
   idPrefix,
   mediaApiBase,
+  isItemHidden,
 }: {
   field: FieldDescriptor;
   value: Record<string, unknown>[];
   onChange: (next: Record<string, unknown>[]) => void;
   idPrefix: string;
   mediaApiBase?: string;
+  isItemHidden?: (name: string) => boolean;
 }) {
   const itemFields = field.itemFields ?? [];
   const canRemove = field.min === undefined || value.length > field.min;
@@ -527,6 +540,7 @@ function ArrayObjectInput({
             onChange={(next) => onChange(value.map((existing, i) => (i === index ? next : existing)))}
             idPrefix={`${idPrefix}-${index}`}
             mediaApiBase={mediaApiBase}
+            isHidden={isItemHidden}
           />
         </div>
       ))}

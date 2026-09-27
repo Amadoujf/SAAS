@@ -6,6 +6,7 @@ import { z } from "zod";
 import { sectionParamSchemas, type SectionInstance } from "@yamacommerce/templates";
 import { describeObjectSchema } from "@/lib/editor/schema-introspect";
 import { validateWithMessages } from "@/lib/editor/field-errors";
+import { isFieldHidden, isItemFieldHidden } from "@/lib/editor/field-visibility";
 import { SchemaForm } from "./schema-form";
 
 /**
@@ -47,6 +48,8 @@ export function ContentPanel({
         errors={validation.success ? undefined : validation.fieldErrors}
         idPrefix={`content-${section.id}`}
         mediaApiBase={mediaApiBase}
+        isHidden={(name) => isFieldHidden(section.sectionKey, section.variant, name, section.params)}
+        isItemHidden={(list, name) => isItemFieldHidden(section.sectionKey, section.variant, list, name)}
       />
     </div>
   );

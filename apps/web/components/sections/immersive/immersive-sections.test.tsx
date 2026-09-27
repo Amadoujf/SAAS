@@ -126,5 +126,8 @@ describe("Récit au défilement", () => {
     fireEvent.click(screen.getByRole("button", { name: "Étape 2 : L'émail" }));
     expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
     expect(screen.getByRole("link", { name: "Voir la jarre" })).toHaveAttribute("href", "/p/jarre-indigo");
+    // Présentation par défaut « photo » : photographie classique recadrée dans un cadre,
+    // jamais tournée librement comme un objet détouré.
+    expect(screen.getAllByRole("img", { name: "Jarre Indigo" })[0]).toHaveClass("object-cover");
   });
 });

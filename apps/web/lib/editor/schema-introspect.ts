@@ -211,6 +211,7 @@ const FIELD_LABELS: Record<string, string> = {
   overrides: "Habillage par élément (visuel détouré, couleur)",
   recordId: "Produit ou fiche",
   objectScale: "Taille de l'objet",
+  objectStyle: "Présentation de l'objet",
 };
 
 /** Traduction MOT PAR MOT (repli quand le nom complet n'a pas d'entrée dédiée). */

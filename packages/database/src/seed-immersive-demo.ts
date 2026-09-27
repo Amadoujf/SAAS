@@ -99,6 +99,7 @@ function sunuMarche(ceramics: Record<string, string>, otherProductIds: string[])
       title: "Une pièce, quatre gestes.",
       image: `${C}/jarre-indigo.webp`,
       imageAlt: "Jarre Indigo, céramique émaillée bleu profond",
+      objectStyle: "cutout",
       steps: [
         { eyebrow: "Le tournage", title: "Montée à la main", body: "Chaque jarre naît sur le tour : aucune n'a tout à fait le même galbe.", rotate: -14, objectScale: 0.9, accentColor: "#1d3f8f" },
         { eyebrow: "L'émail", title: "Indigo profond", body: "Trois couches d'émail, cuites à haute température : une surface qui reflète la lumière.", rotate: 9, objectScale: 1.08, accentColor: "#27306b" },
