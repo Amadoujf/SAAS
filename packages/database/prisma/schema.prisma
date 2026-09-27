@@ -88,6 +88,11 @@ model Tenant {
   propertyDetails          PropertyDetails[]
   leases                   Lease[]
   rentPayments             RentPayment[]
+  travelPackages           TravelPackageDetails[]
+  travelItineraryDays      TravelItineraryDay[]
+  reservationTravelers     ReservationTraveler[]
+  travelerDocuments        TravelerDocument[]
+  reservationPayments      ReservationPayment[]
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -909,6 +914,7 @@ model Listing {
   availabilities ListingAvailability[]
   reservations   Reservation[]
   property       PropertyDetails?
+  travel         TravelPackageDetails?
   leases         Lease[]
 
   @@unique([tenantId, slug])
@@ -992,7 +998,9 @@ model Reservation {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  history ReservationStatusHistory[]
+  history   ReservationStatusHistory[]
+  travelers ReservationTraveler[]
+  payments  ReservationPayment[]
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -2145,4 +2153,117 @@ model NotificationLog {
 
   @@index([tenantId, createdAt])
   @@index([tenantId, orderId])
+}
+
+/// Extension typée VOYAGE d'une fiche (`type = "travel_package"`) : champs
+/// interrogeables (type de voyage, destination, durée), jamais dans un JSON. Les
+/// départs sont des `ListingAvailability` (places), les réservations des `Reservation`.
+model TravelPackageDetails {
+  listingId          String               @id
+  listing            Listing              @relation(fields: [listingId], references: [id])
+  tenantId           String
+  tenant             Tenant               @relation(fields: [tenantId], references: [id])
+  /// circuit | stay | pilgrimage | excursion | cruise (CHECK en base)
+  tripType           String
+  destinationCountry String
+  destinationCity    String?
+  durationDays       Int
+  durationNights     Int                  @default(0)
+  /// Prestations incluses — liste fermée (vols, hôtel, transferts, repas, guide…).
+  included           String[]             @default([])
+  /// Ce qui n'est pas compris, en clair pour le client.
+  excludedNote       String?
+  /// Acompte demandé à la confirmation, en % du total (0 = règlement complet à la confirmation).
+  depositPercent     Int                  @default(30)
+  /// Pièces demandées à chaque voyageur (passeport, visa, fièvre jaune…).
+  requiredDocuments  String[]             @default([])
+  meetingPoint       String?
+  itinerary          TravelItineraryDay[]
+
+  @@index([tenantId, tripType, destinationCountry, durationDays])
+}
+
+/// Programme jour par jour d'un voyage.
+model TravelItineraryDay {
+  id          String               @id @default(uuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  listingId   String
+  travel      TravelPackageDetails @relation(fields: [listingId], references: [listingId])
+  dayNumber   Int
+  title       String
+  description String?
+
+  @@unique([listingId, dayNumber])
+}
+
+/// Voyageur nominatif d'une réservation (autant de voyageurs que de places). Le numéro
+/// de passeport est CHIFFRÉ au repos ; seuls les 4 derniers caractères sont lisibles.
+model ReservationTraveler {
+  id             String             @id @default(uuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  reservationId  String
+  reservation    Reservation        @relation(fields: [reservationId], references: [id])
+  position       Int
+  firstName      String
+  lastName       String
+  birthDate      DateTime?          @db.Date
+  nationality    String?
+  passportCipher Json?
+  passportLast4  String?
+  passportExpiry DateTime?          @db.Date
+  isLead         Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  documents      TravelerDocument[]
+
+  @@unique([reservationId, position])
+  @@index([tenantId, reservationId])
+}
+
+/// Suivi d'une pièce d'un voyageur (passeport, visa, carnet de vaccination…). Le statut
+/// reflète ce que l'agence a réellement reçu ou obtenu — jamais déduit.
+model TravelerDocument {
+  id         String              @id @default(uuid())
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  travelerId String
+  traveler   ReservationTraveler @relation(fields: [travelerId], references: [id])
+  /// passport | id_card | visa | yellow_fever | photo | travel_insurance (CHECK en base)
+  kind       String
+  /// missing | received | submitted | approved | refused (CHECK en base)
+  status     String              @default("missing")
+  note       String?
+  updatedBy  String?
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([travelerId, kind])
+  @@index([tenantId, kind, status])
+}
+
+/// Encaissement RÉEL enregistré par l'agence sur une réservation (acompte, solde).
+/// Jamais simulé, jamais Chariow (réservé aux abonnements Y-COM). Immuable : une erreur
+/// se corrige par annulation motivée (`voidedAt`), jamais par modification.
+model ReservationPayment {
+  id            String      @id @default(uuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  receiptNumber String
+  /// deposit | balance | other (CHECK en base)
+  kind          String
+  amount        Int
+  /// cash | wave | orange_money | bank_transfer | card_terminal (CHECK en base)
+  method        String
+  reference     String?
+  paidAt        DateTime    @db.Timestamptz(3)
+  recordedBy    String?
+  voidedAt      DateTime?   @db.Timestamptz(3)
+  voidReason    String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId, reservationId])
 }
