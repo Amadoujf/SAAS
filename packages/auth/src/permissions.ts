@@ -93,6 +93,12 @@ export const PERMISSIONS = [
   "reservations.view",
   "reservations.update_status",
   "reservations.cancel",
+
+  // Immobilier : baux et loyers (un encaissement de loyer est de l'argent réel —
+  // permission distincte, accordée au comptable).
+  "leases.view",
+  "leases.manage",
+  "rents.record",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -129,6 +135,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "listings.view",
     "reservations.view",
     "reservations.update_status",
+    "leases.view",
   ],
   INVENTORY_MANAGER: [
     "products.view",
@@ -156,6 +163,8 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "reports.view",
     "reports.export",
     "payments.view",
+    "leases.view",
+    "rents.record",
   ],
   DELIVERY_STAFF: ["delivery.view", "delivery.update_status"],
 };

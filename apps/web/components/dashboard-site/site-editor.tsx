@@ -294,7 +294,7 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
         )}
       </Section>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-yc-ink/10 bg-white/95 backdrop-blur lg:left-[268px]">
+      <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-yc-ink/10 bg-white/95 backdrop-blur lg:bottom-0 lg:left-[268px]">
         <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-3 px-4 py-3 sm:px-8 max-lg:pb-20">
           {message && <p role={message.ok ? "status" : "alert"} className={`text-sm font-medium ${message.ok ? "text-[rgb(4_120_87)]" : "text-yc-danger"}`}>{message.text}</p>}
           <div className="ml-auto flex gap-2">

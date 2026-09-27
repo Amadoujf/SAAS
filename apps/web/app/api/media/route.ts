@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import type { MediaAssetStatus, MediaAssetType } from "@/lib/media/media-repository";
 import { realMediaRepository } from "@/lib/media/real-media-context";
-import { requireTenantPermission } from "@/lib/tenant-permissions";
+import { requireAnyTenantPermission } from "@/lib/tenant-permissions";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 
 /** Liste les médias RÉELS du tenant courant — voir `app/api/demo-media/route.ts`
@@ -10,7 +10,7 @@ import { getCurrentTenantMembership } from "@/lib/current-tenant";
 export async function GET(request: NextRequest) {
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
-  const actor = await requireTenantPermission(membership.tenantId, "products.view");
+  const actor = await requireAnyTenantPermission(membership.tenantId, ["products.view", "listings.view"]);
   if (!actor) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 
   const { searchParams } = request.nextUrl;

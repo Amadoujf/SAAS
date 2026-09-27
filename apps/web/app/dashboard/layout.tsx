@@ -5,6 +5,7 @@ import { withTenant, countOrdersByQueue } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
+import { getTenantModuleKeys, isRealEstate } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -25,10 +26,21 @@ export default async function DashboardLayout({ children }: { children: ReactNod
 
   const membership = await getCurrentTenantMembership();
   const catalogEnabled = membership ? await isCatalogModuleEnabled(membership.tenantId) : false;
+  const modules = membership ? await getTenantModuleKeys(membership.tenantId) : new Set<string>();
+  const realEstate = isRealEstate(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
   let storeUrl: string | null = null;
+  let visitsToConfirm = 0;
+  let lateRents = 0;
+  if (membership && realEstate) {
+    const startOfToday = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00.000Z");
+    [visitsToConfirm, lateRents] = await withTenant(membership.tenantId, async (tx) => [
+      await tx.reservation.count({ where: { tenantId: membership.tenantId, moduleKey: "visit_requests", status: "requested" } }),
+      await tx.rentPayment.count({ where: { tenantId: membership.tenantId, status: "pending", dueDate: { lt: startOfToday } } }),
+    ]);
+  }
   if (membership) {
     const data = await withTenant(membership.tenantId, async (tx) => ({
       queues: catalogEnabled ? await countOrdersByQueue(tx, membership.tenantId) : null,
@@ -67,6 +79,14 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
       { href: "/dashboard/categories", label: "Catégories", icon: "categories", permission: "products.view" },
     );
+  } else if (membership && realEstate) {
+    pilot.push(
+      { href: "/dashboard/biens", label: "Biens", icon: "property", permission: "listings.view" },
+      { href: "/dashboard/visites", label: "Visites", icon: "calendar", badge: visitsToConfirm || undefined, permission: "reservations.view" },
+      { href: "/dashboard/baux", label: "Baux et loyers", icon: "key", badge: lateRents || undefined, permission: "leases.view" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
+    );
+    manage.push({ href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" });
   } else if (membership) {
     pilot.push({ href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" });
   }
@@ -81,7 +101,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     { label: "Gestion", items: manage.filter((i) => allowed(i.permission)) },
   ].filter((g) => g.items.length > 0);
 
-  const alerts = queues
+  const alerts = realEstate
+    ? [
+        { href: "/dashboard/visites", label: "Visites à confirmer", count: visitsToConfirm },
+        { href: "/dashboard/baux?filtre=retard", label: "Loyers en retard", count: lateRents },
+      ]
+    : queues
     ? [
         { href: "/dashboard/commandes?file=preuves", label: "Preuves de paiement à vérifier", count: queues.awaitingProof },
         { href: "/dashboard/commandes?file=a-traiter", label: "Commandes à préparer", count: queues.toProcess },

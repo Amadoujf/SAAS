@@ -36,3 +36,16 @@ export async function requireTenantPermission(
 
   return { userId: session.user.id, isSuperAdmin: false };
 }
+
+/** Au moins UNE des permissions (ex. médiathèque : produits d'une boutique OU fiches
+ *  d'une agence) — mêmes garanties d'adhésion active que `requireTenantPermission`. */
+export async function requireAnyTenantPermission(
+  tenantId: string,
+  permissions: Permission[],
+): Promise<AuthorizedTenantActor | null> {
+  for (const permission of permissions) {
+    const actor = await requireTenantPermission(tenantId, permission);
+    if (actor) return actor;
+  }
+  return null;
+}

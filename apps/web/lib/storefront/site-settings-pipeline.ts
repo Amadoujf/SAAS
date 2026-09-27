@@ -6,6 +6,7 @@ import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { STORE_TEMPLATES } from "./store-templates";
 import { homeContentSchema, validateBrandColor } from "./home-content";
+import { checkImage } from "@/lib/media/image-refs";
 
 export const siteSettingsSchema = z.object({
   templatePreference: z.string().refine((s) => STORE_TEMPLATES.some((t) => t.slug === s), "Template inconnu."),
@@ -15,22 +16,6 @@ export const siteSettingsSchema = z.object({
   content: homeContentSchema,
 });
 export type SiteSettingsInput = z.infer<typeof siteSettingsSchema>;
-
-const MEDIA_URL = /^\/api\/media\/([0-9a-f-]{36})\/file(?:\?variant=(?:thumbnail|small|medium|large))?$/;
-const DEMO_URL = /^\/demo-templates\/[a-z0-9-]+\/[a-z0-9-]+\.webp$/;
-
-/** Une image de la boutique vient de la médiathèque de l'entreprise, des visuels de
- *  démonstration, ou d'une adresse https — jamais d'un autre chemin de l'application. */
-function checkImage(url: string | null | undefined, mediaIds: Set<string>): string | null {
-  if (!url) return null;
-  const media = url.match(MEDIA_URL);
-  if (media) {
-    mediaIds.add(media[1]!);
-    return null;
-  }
-  if (DEMO_URL.test(url) || /^https:\/\/[^\s]+$/.test(url)) return null;
-  return "Image invalide : choisissez-la dans la médiathèque.";
-}
 
 export type SiteSettingsResult = { ok: true } | { ok: false; status: number; error: string };
 

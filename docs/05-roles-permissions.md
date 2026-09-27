@@ -33,6 +33,7 @@ ai.use_product_assistant / ai.use_chat_agent
 inventory.manage_stock / inventory.manage_suppliers
 listings.view / listings.create / listings.edit / listings.publish / listings.delete / listings.manage_availability
 reservations.view / reservations.update_status / reservations.cancel
+leases.view / leases.manage / rents.record
 ```
 
 Fiches et réservations (octobre 2026, secteurs hors commerce) : Sales voit les fiches et
