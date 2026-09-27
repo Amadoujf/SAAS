@@ -42,7 +42,7 @@ export function TenantSiteEditor(props: {
   return (
     <div className="flex h-screen flex-col bg-gray-100">
       <div className="flex items-center gap-4 border-b border-gray-200 bg-white px-4 py-2 text-[13px]">
-        <Link href="/dashboard" className="font-medium text-gray-600 hover:text-gray-900">← Tableau de bord</Link>
+        <Link href="/dashboard/mon-site" className="font-medium text-gray-600 hover:text-gray-900">← Mon site</Link>
         <span className="text-gray-300">|</span>
         <span className="font-semibold text-gray-900">{props.tenantName}</span>
         <span className="text-gray-500">Le site en ligne ne change qu&apos;à la publication.</span>
@@ -56,6 +56,11 @@ export function TenantSiteEditor(props: {
           resolvedContent={props.resolvedContent}
           previewSrc="/editeur/apercu"
           mediaApiBase="/api/media"
+          siteSettingsElsewhere={{
+            href: "/dashboard/mon-site",
+            text: "Votre logo, vos couleurs et le style de votre site se règlent dans « Mon site ». Ils s'appliquent partout : en-tête, pages, panier et cette page d'accueil.",
+            linkLabel: "Ouvrir Mon site › Identité",
+          }}
           sectorKey={props.sectorKey}
           idOptions={props.idOptions}
           onSaveDraft={async (content) => {

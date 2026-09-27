@@ -7,6 +7,7 @@ import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { STORE_TEMPLATES } from "./store-templates";
 import { homeContentSchema, validateBrandColor } from "./home-content";
 import { checkImage } from "@/lib/media/image-refs";
+import { syncEditorSiteIdentity } from "@/lib/site-editor/tenant-site";
 
 export const siteSettingsSchema = z.object({
   templatePreference: z.string().refine((s) => STORE_TEMPLATES.some((t) => t.slug === s), "Template inconnu."),
@@ -74,6 +75,48 @@ export async function saveSiteSettings(raw: unknown): Promise<SiteSettingsResult
       });
       await saveStorefrontContent(tx, tenantId, input.content as unknown as Prisma.InputJsonValue, actor.userId);
     });
+    await syncEditorSiteIdentity(tenantId);
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, status: 409, error: error instanceof Error ? error.message : "Enregistrement impossible." };
+  }
+}
+
+export const identitySchema = z.object({
+  logoUrl: z.string().trim().max(300).nullable(),
+  primaryColor: z.string().nullable(),
+  accentColor: z.string().nullable(),
+});
+
+/** Identité seule (logo, couleurs) — secteurs sans « accueil standard » à régler (agence
+ *  immobilière…). Mêmes contrôles que la personnalisation complète. */
+export async function saveIdentitySettings(raw: unknown): Promise<SiteSettingsResult> {
+  const membership = await getCurrentTenantMembership();
+  if (!membership) return { ok: false, status: 403, error: "Action non autorisée." };
+  const actor = await requireTenantPermission(membership.tenantId, "settings.branding");
+  if (!actor) return { ok: false, status: 403, error: "Action non autorisée." };
+  const parsed = identitySchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, status: 400, error: "Données invalides." };
+  const input = parsed.data;
+  for (const color of [input.primaryColor, input.accentColor]) {
+    if (color) {
+      const problem = validateBrandColor(color);
+      if (problem) return { ok: false, status: 400, error: problem };
+    }
+  }
+  const mediaIds = new Set<string>();
+  const problem = checkImage(input.logoUrl, mediaIds);
+  if (problem) return { ok: false, status: 400, error: problem };
+  const tenantId = membership.tenantId;
+  try {
+    await withTenant(tenantId, async (tx) => {
+      if (mediaIds.size && (await tx.mediaAsset.count({ where: { tenantId, id: { in: [...mediaIds] }, status: "READY" } })) !== mediaIds.size) {
+        throw new Error("Une image choisie n'est plus disponible dans la médiathèque.");
+      }
+      for (const id of mediaIds) await setMediaAssetPublic(tx, tenantId, id, true);
+      await updateTenantBranding(tx, tenantId, { logoUrl: input.logoUrl, primaryColor: input.primaryColor, accentColor: input.accentColor });
+    });
+    await syncEditorSiteIdentity(tenantId);
     return { ok: true };
   } catch (error) {
     return { ok: false, status: 409, error: error instanceof Error ? error.message : "Enregistrement impossible." };

@@ -73,8 +73,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/livraison", label: "Livraisons", icon: "delivery", permission: "delivery.view" },
     );
     manage.push(
+      // Une seule entrée pour le site public : « Mon site » mène à l'éditeur visuel.
       { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
-      { href: "/editeur", label: "Éditeur du site", icon: "site", permission: "site.edit" },
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Paiements", icon: "payments", permission: "payments.view" },
       { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
@@ -88,7 +88,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
     );
     manage.push(
-      { href: "/editeur", label: "Éditeur du site", icon: "site", permission: "site.edit" },
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
     );
   } else if (membership) {

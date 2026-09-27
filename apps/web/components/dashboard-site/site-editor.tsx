@@ -17,6 +17,9 @@ export interface SiteEditorProps {
   products: EditorProduct[];
   categories: EditorCategory[];
   initial: { templatePreference: string; logoUrl: string | null; primaryColor: string | null; accentColor: string | null; content: HomeContent };
+  /** L'accueil en ligne est composé dans l'éditeur : les réglages de l'accueil standard
+   *  (sans effet) sont masqués — ils restent enregistrés tels quels. */
+  homeComposedInEditor?: boolean;
 }
 
 const input = "h-11 w-full rounded-lg bg-white px-3 text-[15px] ring-1 ring-inset ring-yc-ink/12 focus:outline-none focus:ring-2 focus:ring-yc-electric";
@@ -46,7 +49,7 @@ function Section({ title, description, children, defaultOpen = false }: { title:
   );
 }
 
-function ImageField({ value, demo, onPick, onClear, labelText }: { value: string | null; demo?: boolean; onPick: () => void; onClear: () => void; labelText: string }) {
+export function ImageField({ value, demo, onPick, onClear, labelText }: { value: string | null; demo?: boolean; onPick: () => void; onClear: () => void; labelText: string }) {
   return (
     <div className="grid min-w-0 gap-1.5">
       <span className="text-[13px] font-semibold">{labelText}</span>
@@ -68,7 +71,7 @@ function ImageField({ value, demo, onPick, onClear, labelText }: { value: string
   );
 }
 
-function ColorField({ labelText, value, onChange, hint }: { labelText: string; value: string | null; onChange: (v: string | null) => void; hint: string }) {
+export function ColorField({ labelText, value, onChange, hint }: { labelText: string; value: string | null; onChange: (v: string | null) => void; hint: string }) {
   const ratio = value && /^#[0-9a-fA-F]{6}$/.test(value) ? contrastRatio(value, "#FFFFFF") : null;
   const ok = ratio === null || ratio >= 4.5;
   return (
@@ -76,7 +79,7 @@ function ColorField({ labelText, value, onChange, hint }: { labelText: string; v
       <span className="text-[13px] font-semibold">{labelText}</span>
       <div className="flex items-center gap-2">
         <input type="color" aria-label={`${labelText} (sélecteur)`} value={value ?? "#10224F"} onChange={(e) => onChange(e.target.value.toUpperCase())} className="h-11 w-14 cursor-pointer rounded-lg ring-1 ring-yc-ink/12" />
-        <input value={value ?? ""} placeholder="Couleur du template" onChange={(e) => onChange(e.target.value || null)} aria-label={labelText} className={`${input} max-w-[160px] font-mono`} />
+        <input value={value ?? ""} placeholder="Par défaut" onChange={(e) => onChange(e.target.value || null)} aria-label={labelText} className={`${input} max-w-[160px] font-mono`} />
         {value && <button type="button" onClick={() => onChange(null)} className="text-xs text-yc-ink-soft hover:underline">Réinitialiser</button>}
       </div>
       <span className={`text-xs ${ok ? "text-yc-ink-soft" : "font-semibold text-yc-danger"}`}>{ok ? hint : "Trop claire : le texte blanc des boutons ne serait pas lisible (contraste insuffisant)."}</span>
@@ -94,7 +97,7 @@ function move<T>(list: T[], i: number, d: number) {
 
 /** Éditeur « Mon site » : template, identité, carrousel, univers, produits en vedette,
  *  collections, bandeau et engagements. Tout est revalidé par le serveur. */
-export function SiteEditor({ storeUrl, templates, products, categories, initial }: SiteEditorProps) {
+export function SiteEditor({ storeUrl, templates, products, categories, initial, homeComposedInEditor = false }: SiteEditorProps) {
   const router = useRouter();
   const [state, setState] = useState(initial);
   const [picker, setPicker] = useState<null | { size: "large" | "medium"; apply: (url: string, alt: string) => void }>(null);
@@ -125,13 +128,13 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
 
   return (
     <div className="flex flex-col gap-4 pb-24">
-      {demoCount > 0 && (
+      {demoCount > 0 && !homeComposedInEditor && (
         <p role="status" className="rounded-xl bg-yc-warning/[0.12] px-4 py-3 text-sm">
           <strong>{demoCount} visuel{demoCount > 1 ? "s" : ""} de démonstration</strong> affiché{demoCount > 1 ? "s" : ""} sur votre boutique. Remplacez-les par des photos représentant fidèlement vos produits.
         </p>
       )}
 
-      <Section title="Template" description="La composition et le style de votre boutique. Vos contenus sont conservés si vous changez." defaultOpen>
+      <Section title="Template" description="Le style de votre boutique (polices, formes, ambiance). Vos contenus sont conservés si vous changez.">
         <div role="radiogroup" aria-label="Template" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {templates.map((t) => {
             const active = state.templatePreference === t.slug;
@@ -149,7 +152,7 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
         </div>
       </Section>
 
-      <Section title="Identité" description="Votre logo et vos couleurs, appliqués par-dessus le template.">
+      <Section title="Identité" description="Votre logo et vos couleurs, appliqués à tout le site : en-tête, pages, panier et page d'accueil." defaultOpen>
         <div className="grid gap-5 lg:grid-cols-3">
           <ImageField labelText="Logo" value={state.logoUrl} onPick={() => setPicker({ size: "medium", apply: (url) => setState((s) => ({ ...s, logoUrl: url })) })} onClear={() => setState((s) => ({ ...s, logoUrl: null }))} />
           <ColorField labelText="Couleur principale" value={state.primaryColor} onChange={(v) => setState((s) => ({ ...s, primaryColor: v }))} hint="Boutons, bandeau, liens forts." />
@@ -157,6 +160,24 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
         </div>
       </Section>
 
+      <Section title="Bandeau d'annonce" description="Une courte phrase en haut de toutes les pages (livraison offerte, nouveauté…).">
+        <div className="grid gap-3 sm:grid-cols-[1fr_280px]">
+          <label className={label}>Texte (vide = pas de bandeau)
+            <input value={content.announcement?.text ?? ""} maxLength={120} onChange={(e) => setContent({ announcement: e.target.value ? { text: e.target.value, href: content.announcement?.href ?? "" } : null })} className={input} />
+          </label>
+          <label className={label}>Lien (facultatif)
+            <input value={content.announcement?.href ?? ""} disabled={!content.announcement} onChange={(e) => content.announcement && setContent({ announcement: { ...content.announcement, href: e.target.value } })} className={input} placeholder="/catalogue" />
+          </label>
+        </div>
+      </Section>
+
+      {homeComposedInEditor ? (
+        <p className="rounded-xl bg-yc-ink/[0.04] px-4 py-3 text-sm leading-relaxed text-yc-ink-soft">
+          <strong className="text-yc-ink">Contenus de l&apos;accueil standard</strong> (carrousel, univers, produits en vedette, collections, engagements) : masqués ici car votre page d&apos;accueil est composée dans l&apos;éditeur visuel. Ils restent enregistrés et reviennent si vous revenez à l&apos;accueil standard.
+        </p>
+      ) : (
+        <>
+          <h2 className="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-yc-ink-soft">Accueil standard</h2>
       <Section title={`Carrousel d'accueil (${content.hero.slides.length})`} description="Chaque diapositive associe un visuel, un texte et, si vous le souhaitez, un produit mis en scène." defaultOpen>
         <label className={`${label} mb-5 max-w-xs`}>Défilement automatique (secondes)
           <input type="number" min={3} max={15} value={content.hero.autoplaySeconds} onChange={(e) => setContent({ hero: { ...content.hero, autoplaySeconds: Math.min(15, Math.max(3, Number(e.target.value) || 6)) } })} className={input} />
@@ -263,17 +284,6 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
         )}
       </Section>
 
-      <Section title="Bandeau d'annonce" description="Une courte phrase en haut de toutes les pages (livraison offerte, nouveauté…).">
-        <div className="grid gap-3 sm:grid-cols-[1fr_280px]">
-          <label className={label}>Texte (vide = pas de bandeau)
-            <input value={content.announcement?.text ?? ""} maxLength={120} onChange={(e) => setContent({ announcement: e.target.value ? { text: e.target.value, href: content.announcement?.href ?? "" } : null })} className={input} />
-          </label>
-          <label className={label}>Lien (facultatif)
-            <input value={content.announcement?.href ?? ""} disabled={!content.announcement} onChange={(e) => content.announcement && setContent({ announcement: { ...content.announcement, href: e.target.value } })} className={input} placeholder="/catalogue" />
-          </label>
-        </div>
-      </Section>
-
       <Section title={`Engagements (${content.reassurance.length}/4)`} description="La bande de réassurance sous le carrousel.">
         <ol className="flex flex-col gap-3">
           {content.reassurance.map((r, i) => (
@@ -293,6 +303,8 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial 
           <Button type="button" variant="secondary" size="sm" className="mt-3" onClick={() => setContent({ reassurance: [...content.reassurance, { icon: "truck", title: "Nouvel engagement", text: "" }] })}><IconPlus size={16} /> Ajouter</Button>
         )}
       </Section>
+        </>
+      )}
 
       <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-yc-ink/10 bg-white/95 backdrop-blur lg:bottom-0 lg:left-[268px]">
         <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-3 px-4 py-3 sm:px-8 max-lg:pb-20">

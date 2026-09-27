@@ -71,6 +71,8 @@ export interface VisualEditorProps {
    *  ajout, texte libre uniquement) — l'éditeur reste utilisable sans médiathèque
    *  branchée, comme sans backend de sauvegarde. */
   mediaApiBase?: string;
+  /** Voir CustomizationPanel : réglages généraux gérés hors de l'éditeur. */
+  siteSettingsElsewhere?: { href: string; text: string; linkLabel: string };
 }
 
 /**
@@ -98,6 +100,7 @@ export function VisualEditor({
   onSaveDraft,
   onPublish,
   mediaApiBase,
+  siteSettingsElsewhere,
   sectorKey,
   idOptions = {},
 }: VisualEditorProps) {
@@ -463,6 +466,7 @@ export function VisualEditor({
           tokens={effectiveTokens}
           viewport={spacingBreakpointForWidth(dimensions.width)}
           mediaApiBase={mediaApiBase}
+          siteSettingsElsewhere={siteSettingsElsewhere}
           siteSettings={content.siteSettings}
           originalSiteSettings={originalContentRef.current.siteSettings}
           onUpdateParams={(params) => {

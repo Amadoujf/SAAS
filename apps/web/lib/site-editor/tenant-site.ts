@@ -6,6 +6,7 @@ import { validateSectionInstance, type SectionInstance } from "@yamacommerce/tem
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { RESIDENCES_TOKENS } from "@/lib/real-estate/estate-templates";
 import { parseHomeContent } from "@/lib/storefront/home-content";
+import { invalidateSiteCache } from "@/lib/publishing/cache";
 
 /**
  * Mise en service du site d'une entreprise dans l'éditeur visuel (moteur de sections,
@@ -131,6 +132,48 @@ async function loadPool(tx: Prisma.TransactionClient, tenantId: string): Promise
   };
 }
 
+/** Modèle publié correspondant au style choisi (créé à la première utilisation). */
+async function ensureTemplate(entry: TemplateEntry): Promise<string> {
+  return withSuperAdminAccess(async (tx) => {
+    const template = await upsertTemplate(tx, {
+      key: entry.key,
+      name: entry.name,
+      sectorKey: entry.sectorKey,
+      artDirectionKey: entry.key,
+      pageManifest: GENERIC_MANIFEST as never,
+      defaultDesignTokens: entry.tokens,
+      defaultAnimationLevel: entry.tokens.animation.level,
+      availableSectionKeys: [],
+    });
+    if (template.status !== "published") await publishTemplate(tx, template.id);
+    return template.id;
+  });
+}
+
+/**
+ * UNE seule identité : le style, le logo et les couleurs choisis dans « Mon site »
+ * s'appliquent aussi à la page composée dans l'éditeur (en-tête, pages et accueil
+ * restent cohérents). Appelée après chaque enregistrement de « Mon site » ; sans effet
+ * tant que l'entreprise n'a pas ouvert l'éditeur. Les autres réglages du site (boutons,
+ * cartes…) sont conservés.
+ */
+export async function syncEditorSiteIdentity(tenantId: string): Promise<void> {
+  const info = await withTenant(tenantId, async (tx) => ({
+    site: await tx.tenantSite.findUnique({ where: { tenantId }, select: { id: true, designTokenOverrides: true } }),
+    tenant: await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { sectorKey: true, branding: true } }),
+  }));
+  if (!info.site) return;
+  const branding = (info.tenant.branding ?? {}) as Record<string, unknown>;
+  const entry = templateFor(typeof branding.templatePreference === "string" ? branding.templatePreference : undefined, info.tenant.sectorKey ?? "ecommerce");
+  const templateId = await ensureTemplate(entry);
+  const { colors: _previous, ...rest } = (info.site.designTokenOverrides ?? {}) as Record<string, unknown>;
+  const overrides = { ...rest, ...brandingOverrides(branding) };
+  await withTenant(tenantId, (tx) => tx.tenantSite.update({ where: { id: info.site!.id }, data: { templateId, designTokenOverrides: overrides as Prisma.InputJsonValue } }));
+  // Le site public est mis en cache par entreprise : la nouvelle identité doit y
+  // apparaître tout de suite, sans attendre une nouvelle publication.
+  invalidateSiteCache(tenantId);
+}
+
 /** Garantit modèle + site + brouillon ; renvoie l'identifiant du site de l'entreprise. */
 export async function ensureTenantEditorSite(tenantId: string, tenantName: string): Promise<string> {
   const existing = await withTenant(tenantId, (tx) => tx.tenantSite.findUnique({ where: { tenantId }, select: { id: true } }));
@@ -145,20 +188,7 @@ export async function ensureTenantEditorSite(tenantId: string, tenantName: strin
   const branding = (info.tenant.branding ?? {}) as Record<string, unknown>;
   const entry = templateFor(typeof branding.templatePreference === "string" ? branding.templatePreference : undefined, info.tenant.sectorKey ?? "ecommerce");
 
-  const templateId = await withSuperAdminAccess(async (tx) => {
-    const template = await upsertTemplate(tx, {
-      key: entry.key,
-      name: entry.name,
-      sectorKey: entry.sectorKey,
-      artDirectionKey: entry.key,
-      pageManifest: GENERIC_MANIFEST as never,
-      defaultDesignTokens: entry.tokens,
-      defaultAnimationLevel: entry.tokens.animation.level,
-      availableSectionKeys: [],
-    });
-    if (template.status !== "published") await publishTemplate(tx, template.id);
-    return template.id;
-  });
+  const templateId = await ensureTemplate(entry);
 
   const sector = info.modules.has("catalog") ? "commerce" : info.modules.has("listings") ? "real_estate" : "other";
   const blocks = buildStarterSections({ tenantName, sector, content: parseHomeContent(info.content, tenantName), pool: info.pool });
