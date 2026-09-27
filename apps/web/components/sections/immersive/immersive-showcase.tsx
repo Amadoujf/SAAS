@@ -62,13 +62,20 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
 
   // Balayage : pointer events (souris et tactile), seuil de 45 px.
   const start = useRef<{ x: number; y: number } | null>(null);
-  const onPointerDown = (e: React.PointerEvent) => { start.current = { x: e.clientX, y: e.clientY }; };
+  const swiped = useRef(false);
+  const onPointerDown = (e: React.PointerEvent) => {
+    start.current = { x: e.clientX, y: e.clientY };
+    swiped.current = false;
+  };
   const onPointerUp = (e: React.PointerEvent) => {
     const s = start.current;
     start.current = null;
     if (!s) return;
     const dx = e.clientX - s.x;
-    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(e.clientY - s.y)) go(index + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(e.clientY - s.y)) {
+      swiped.current = true; // le relâchement d'un glissement n'est jamais un clic
+      go(index + (dx < 0 ? 1 : -1));
+    }
   };
 
   if (count === 0) return null;
@@ -126,6 +133,15 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
           onPointerDown={onPointerDown}
           onPointerUp={onPointerUp}
           onPointerCancel={() => { start.current = null; }}
+          // Le glisser-déposer natif d'un lien ou d'une image annulerait le geste.
+          onDragStart={(e) => e.preventDefault()}
+          onClickCapture={(e) => {
+            if (swiped.current) {
+              e.preventDefault();
+              e.stopPropagation();
+              swiped.current = false;
+            }
+          }}
         >
           {items.map((item, i) => {
             let offset = i - index;
@@ -152,7 +168,7 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
                 style={{ ...slideStyle(offset), translate: "-50% 0" } as CSSProperties}
               >
                 {center && item.href ? (
-                  <Link href={item.href} className="block h-full rounded-[var(--radius-lg,18px)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-4" aria-label={`${item.title} — voir la fiche`}>{card}</Link>
+                  <Link href={item.href} draggable={false} className="block h-full rounded-[var(--radius-lg,18px)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)] focus-visible:ring-offset-4" aria-label={`${item.title} — voir la fiche`}>{card}</Link>
                 ) : center ? (
                   <div className="h-full">{card}</div>
                 ) : (

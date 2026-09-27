@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import type { z } from "zod";
 import type { sectionParamSchemas } from "@yamacommerce/templates";
@@ -10,6 +10,19 @@ import { ImmersiveImage } from "./immersive-image";
 
 export type ImmersiveHeroParams = z.infer<typeof sectionParamSchemas.immersive_hero>;
 type Layer = ImmersiveHeroParams["layers"][number];
+
+/** Petits écrans : la scène est plus petite, ses mouvements aussi (rien ne sort du cadre). */
+function useCompactFactor() {
+  const [factor, setFactor] = useState(1);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const update = () => setFactor(mq.matches ? 0.45 : 1);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  return factor;
+}
 
 /** Texte clair sur fond sombre : choisi d'après la luminance de la couleur de fond. */
 export function isDarkColor(color?: string) {
@@ -27,10 +40,10 @@ const DIRECTION: Record<Layer["arriveFrom"], [number, number]> = { top: [0, -1],
 
 /** Un élément détouré de la scène : position/échelle/rotation choisies dans l'éditeur,
  *  mouvement lié au défilement (assemblage, séparation, parallaxe, zoom). */
-function SceneLayer({ layer, index, progress, effect, amp, floating }: { layer: Layer; index: number; progress: MotionValue<number>; effect: ImmersiveHeroParams["scrollEffect"]; amp: number; floating: boolean }) {
+function SceneLayer({ layer, index, progress, effect, amp, floating, compact }: { layer: Layer; index: number; progress: MotionValue<number>; effect: ImmersiveHeroParams["scrollEffect"]; amp: number; floating: boolean; compact: number }) {
   const [dx, dy] = layer.arriveFrom === "none" ? [Math.sign(layer.offsetX) || 0, Math.sign(layer.offsetY) || -1] : DIRECTION[layer.arriveFrom];
   // Éclatement mesuré : les éléments restent dans la scène (jamais hors du cadre).
-  const distance = (36 + layer.depth * 96) * amp;
+  const distance = (36 + layer.depth * 96) * amp * compact;
   const spread = useTransform(progress, (p) => {
     if (amp === 0) return 0;
     if (effect === "assemble") return Math.max(0, 1 - p / 0.32);
@@ -130,6 +143,7 @@ export function ImmersiveHeroSection({ variant, params }: { variant: string; par
   const visible = usePageVisible();
   const low = useLowPower();
   const fine = useFinePointer();
+  const compact = useCompactFactor();
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
   const active = amp > 0 && inView && visible;
   const floating = params.floating && active && !low;
@@ -186,7 +200,7 @@ export function ImmersiveHeroSection({ variant, params }: { variant: string; par
   }
 
   const stage = (
-    <div className="relative mx-auto aspect-square w-full max-w-[640px]" style={{ perspective: "1200px" }}>
+    <div className="relative mx-auto aspect-square w-full max-w-[640px] max-sm:overflow-hidden" style={{ perspective: "1200px" }}>
       <span aria-hidden="true" className="absolute inset-[14%] rounded-full bg-[radial-gradient(circle,color-mix(in_srgb,#FFE2B8_70%,transparent),transparent_68%)] blur-2xl" />
       {params.subjectImage && params.subjectStyle === "framed" && (
         <motion.div className="absolute inset-x-[12%] inset-y-[4%] z-10" style={{ y: subjectY, scale: subjectScale }}>
@@ -207,7 +221,7 @@ export function ImmersiveHeroSection({ variant, params }: { variant: string; par
         </motion.div>
       )}
       {params.layers.map((layer, i) => (
-        <SceneLayer key={`${layer.imageUrl}-${i}`} layer={layer} index={i} progress={scrollYProgress} effect={params.scrollEffect} amp={amp} floating={floating} />
+        <SceneLayer key={`${layer.imageUrl}-${i}`} layer={layer} index={i} progress={scrollYProgress} effect={params.scrollEffect} amp={amp} floating={floating} compact={compact} />
       ))}
       {!params.subjectImage && params.layers.length === 0 && <span className="absolute inset-[18%] rounded-full bg-[color-mix(in_srgb,var(--color-primary)_8%,transparent)]" aria-hidden="true" />}
     </div>

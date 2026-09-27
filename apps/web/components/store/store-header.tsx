@@ -42,7 +42,7 @@ function CartButton() {
 
 function Brand({ tenantName, logoUrl, editorial }: { tenantName: string; logoUrl: string | null; editorial: boolean }) {
   return (
-    <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+    <Link href="/" className="flex min-w-0 items-center gap-2.5 rounded-md md:shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       {logoUrl ? <img src={logoUrl} alt="" className="h-9 w-auto" /> : null}
       <span className={`truncate font-[family-name:var(--font-heading)] ${editorial ? "text-[20px] uppercase tracking-[0.14em] sm:text-[22px]" : "text-[22px] font-semibold leading-none tracking-tight sm:text-[26px]"}`}>{tenantName}</span>

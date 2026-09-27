@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 /**
  * Image des sections immersives : dimensions toujours réservées par le conteneur
@@ -23,6 +23,13 @@ export function ImmersiveImage({
   fit?: "cover" | "contain";
 }) {
   const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+  // Une image en échec AVANT l'hydratation de la page ne redéclenche pas `onError` :
+  // son état est donc vérifié au montage (chargement terminé mais sans pixels).
+  useEffect(() => {
+    const img = ref.current;
+    if (img && img.complete && img.naturalWidth === 0) setFailed(true);
+  }, [src]);
   if (!src || failed) {
     return (
       <span
@@ -36,6 +43,7 @@ export function ImmersiveImage({
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img
+      ref={ref}
       src={src}
       alt={alt}
       loading={eager ? "eager" : "lazy"}
