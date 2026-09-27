@@ -77,6 +77,8 @@ export interface CreateReservationInput {
   channel?: "web" | "dashboard" | "phone" | "whatsapp";
   /** "none" : réservation sans montant (ex. visite gratuite d'un bien). */
   pricing?: "listing" | "none";
+  /** Module de rattachement (ex. "visit_requests") ; par défaut celui de la fiche. */
+  moduleKey?: string;
   actor: { userId: string | null; type: "owner" | "employee" | "system" | "customer" };
 }
 
@@ -148,7 +150,7 @@ export async function createReservation(tx: Prisma.TransactionClient, tenantId: 
       listingId: listing.id,
       availabilityId,
       customerId,
-      moduleKey: listing.moduleKey,
+      moduleKey: input.moduleKey ?? listing.moduleKey,
       startAt,
       endAt,
       quantity,

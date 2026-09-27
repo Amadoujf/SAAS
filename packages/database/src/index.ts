@@ -34,3 +34,4 @@ export * from "./subscription-reminders";
 export * from "./tenant-provisioning";
 export * from "./listing-registry";
 export * from "./reservation-registry";
+export * from "./real-estate-registry";

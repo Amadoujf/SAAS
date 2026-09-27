@@ -80,6 +80,9 @@ model Tenant {
   listingAvailabilities    ListingAvailability[]
   reservations             Reservation[]
   reservationHistory       ReservationStatusHistory[]
+  propertyDetails          PropertyDetails[]
+  leases                   Lease[]
+  rentPayments             RentPayment[]
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -897,6 +900,8 @@ model Listing {
   revisions      ListingRevision[]
   availabilities ListingAvailability[]
   reservations   Reservation[]
+  property       PropertyDetails?
+  leases         Lease[]
 
   @@unique([tenantId, slug])
   @@index([tenantId, moduleKey, status])
@@ -938,6 +943,7 @@ model ListingAvailability {
   createdAt     DateTime  @default(now())
 
   reservations Reservation[]
+  leases       Lease[]
 
   @@unique([listingId, startAt])
   @@index([tenantId, startAt])
@@ -1000,6 +1006,98 @@ model ReservationStatusHistory {
   createdAt     DateTime    @default(now())
 
   @@index([reservationId, createdAt])
+}
+
+/// Extension typée IMMOBILIER d'une fiche (docs/04 §4.5.2) : champs interrogeables
+/// (recherche par type, transaction, pièces, surface), jamais dans un JSON.
+model PropertyDetails {
+  listingId        String   @id
+  listing          Listing  @relation(fields: [listingId], references: [id])
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  /// apartment | house | villa | land | commercial | office (CHECK en base)
+  propertyType     String
+  /// sale | rent (CHECK en base)
+  dealType         String
+  bedrooms         Int?
+  bathrooms        Int?
+  surfaceM2        Int?
+  landSurfaceM2    Int?
+  furnished        Boolean  @default(false)
+  /// Équipements (piscine, gardien, climatisation…) — liste courte, filtrable.
+  amenities        String[] @default([])
+  /// Référence interne de l'agence (ex. ALM-0042).
+  agencyReference  String?
+  customAttributes Json?
+
+  @@index([tenantId, propertyType, dealType, bedrooms, surfaceM2])
+}
+
+/// Bail d'un bien en location (docs/04 §4.5.3). Un seul bail actif par bien (index
+/// unique partiel en base). Les loyers sont des lignes `RentPayment`, jamais un solde.
+model Lease {
+  id                 String    @id @default(uuid())
+  tenantId           String
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  reference          String // BAIL-2026-0001
+  listingId          String
+  listing            Listing   @relation(fields: [listingId], references: [id])
+  /// Locataire : un client de l'agence.
+  occupantCustomerId String
+  occupant           Customer  @relation(fields: [occupantCustomerId], references: [id])
+  /// Propriétaire bailleur (mandat de gestion) — nom et contact, pas un compte.
+  landlordName       String?
+  landlordPhone      String?
+  startDate          DateTime  @db.Date
+  endDate            DateTime? @db.Date
+  monthlyRent        Int
+  charges            Int       @default(0)
+  depositAmount      Int       @default(0)
+  /// Jour d'échéance du loyer dans le mois (1 à 28).
+  dueDay             Int       @default(5)
+  /// active | ended | terminated (CHECK en base)
+  status             String    @default("active")
+  notes              String?
+  createdBy          String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  endedAt            DateTime?
+
+  rentPayments          RentPayment[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, status])
+}
+
+/// Échéance de loyer. `paid` UNIQUEMENT quand l'agence enregistre un encaissement réel
+/// (montant, moyen, référence) — jamais déduit, jamais simulé. « En retard » se calcule
+/// (échéance passée et non payée), il n'est pas stocké.
+model RentPayment {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  leaseId          String
+  lease            Lease     @relation(fields: [leaseId], references: [id])
+  /// Mois concerné, format AAAA-MM.
+  period           String
+  dueDate          DateTime  @db.Date
+  amountDue        Int
+  amountPaid       Int       @default(0)
+  /// pending | paid | canceled (CHECK en base)
+  status           String    @default("pending")
+  /// cash | wave | orange_money | bank_transfer | check
+  method           String?
+  paymentReference String?
+  paidAt           DateTime?
+  recordedBy       String?
+  receiptNumber    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([leaseId, period])
+  @@index([tenantId, status, dueDate])
 }
 
 /// Invitation d'un membre de l'équipe. Le jeton n'est JAMAIS stocké en clair (seule
@@ -1303,6 +1401,7 @@ model Customer {
   reviews      Review[]
   carts        Cart[]
   reservations Reservation[]
+  Lease        Lease[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
