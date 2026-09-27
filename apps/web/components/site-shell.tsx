@@ -51,7 +51,7 @@ export function SiteShell({
         <CurrencyProvider initialCurrency={initialCurrency}>
           <CartProvider initialLines={initialCartLines}>
             <FavoritesProvider>
-              <AnimationLevelProvider level={animationLevel}>
+              <AnimationLevelProvider level={animationLevel} mobile={tokens.animation.mobile}>
                 {children}
               </AnimationLevelProvider>
             </FavoritesProvider>

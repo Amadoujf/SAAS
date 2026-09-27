@@ -122,16 +122,22 @@ export function validateBrandColor(hex: string): string | null {
 }
 
 /** Applique les couleurs de l'entreprise par-dessus le template. */
-export function applyBranding(tokens: DesignTokens, branding: { primaryColor?: unknown; accentColor?: unknown }): DesignTokens {
+export function applyBranding(tokens: DesignTokens, branding: { primaryColor?: unknown; accentColor?: unknown; backgroundColor?: unknown }): DesignTokens {
   const primary = typeof branding.primaryColor === "string" && HEX.test(branding.primaryColor) ? branding.primaryColor : null;
   const accent = typeof branding.accentColor === "string" && HEX.test(branding.accentColor) ? branding.accentColor : null;
-  if (!primary && !accent) return tokens;
+  // Fond : appliqué seulement s'il reste lisible avec le texte du style choisi.
+  const background =
+    typeof branding.backgroundColor === "string" && HEX.test(branding.backgroundColor) && contrastRatio(branding.backgroundColor, tokens.colors.textPrimary) >= 7
+      ? branding.backgroundColor
+      : null;
+  if (!primary && !accent && !background) return tokens;
   return {
     ...tokens,
     colors: {
       ...tokens.colors,
       ...(primary ? { primary, mutedSurface: primary } : {}),
       ...(accent ? { accentPrimary: accent, secondary: accent } : {}),
+      ...(background ? { background } : {}),
     },
   };
 }

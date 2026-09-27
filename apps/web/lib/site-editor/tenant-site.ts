@@ -5,7 +5,7 @@ import { DEFAULT_DESIGN_TOKENS, type DesignTokens, type DesignTokensOverrides } 
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { RESIDENCES_TOKENS } from "@/lib/real-estate/estate-templates";
-import { parseHomeContent } from "@/lib/storefront/home-content";
+import { applyBranding, parseHomeContent } from "@/lib/storefront/home-content";
 import { invalidateSiteCache } from "@/lib/publishing/cache";
 
 /**
@@ -36,13 +36,11 @@ const GENERIC_MANIFEST = {
   pages: [{ slug: "accueil", title: "Accueil", isHome: true, sections: [{ id: "hero-immersif", sectionKey: "immersive_hero", variant: "stage", params: { title: "Bienvenue" }, order: 0, isEnabled: true }] }],
 };
 
-function brandingOverrides(branding: Record<string, unknown>): DesignTokensOverrides {
-  const hex = (v: unknown) => (typeof v === "string" && /^#[0-9a-fA-F]{6}$/.test(v) ? v : undefined);
-  const primary = hex(branding.primaryColor);
-  const accent = hex(branding.accentColor);
-  const colors: Record<string, string> = {};
-  if (primary) Object.assign(colors, { primary, mutedSurface: primary });
-  if (accent) Object.assign(colors, { accentPrimary: accent, secondary: accent });
+/** Couleurs de l'identité (« Mon site ») exprimées en surcharge des tokens du style :
+ *  même règle que le reste du site (`applyBranding`) — une seule source. */
+function brandingOverrides(branding: Record<string, unknown>, templateTokens: DesignTokens): DesignTokensOverrides {
+  const applied = applyBranding(templateTokens, branding);
+  const colors = Object.fromEntries(Object.entries(applied.colors).filter(([k, v]) => templateTokens.colors[k as keyof typeof templateTokens.colors] !== v));
   return (Object.keys(colors).length ? { colors } : {}) as DesignTokensOverrides;
 }
 
@@ -167,7 +165,7 @@ export async function syncEditorSiteIdentity(tenantId: string): Promise<void> {
   const entry = templateFor(typeof branding.templatePreference === "string" ? branding.templatePreference : undefined, info.tenant.sectorKey ?? "ecommerce");
   const templateId = await ensureTemplate(entry);
   const { colors: _previous, ...rest } = (info.site.designTokenOverrides ?? {}) as Record<string, unknown>;
-  const overrides = { ...rest, ...brandingOverrides(branding) };
+  const overrides = { ...rest, ...brandingOverrides(branding, entry.tokens) };
   await withTenant(tenantId, (tx) => tx.tenantSite.update({ where: { id: info.site!.id }, data: { templateId, designTokenOverrides: overrides as Prisma.InputJsonValue } }));
   // Le site public est mis en cache par entreprise : la nouvelle identité doit y
   // apparaître tout de suite, sans attendre une nouvelle publication.
@@ -197,7 +195,7 @@ export async function ensureTenantEditorSite(tenantId: string, tenantName: strin
     // Course entre deux premières ouvertures simultanées : l'unicité (tenantId) tranche.
     const already = await tx.tenantSite.findUnique({ where: { tenantId }, select: { id: true } });
     if (already) return already.id;
-    const site = await tx.tenantSite.create({ data: { tenantId, templateId, designTokenOverrides: brandingOverrides(branding) as Prisma.InputJsonValue } });
+    const site = await tx.tenantSite.create({ data: { tenantId, templateId, designTokenOverrides: brandingOverrides(branding, entry.tokens) as Prisma.InputJsonValue } });
     await tx.tenantSiteVersion.create({
       data: {
         tenantId,

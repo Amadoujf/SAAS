@@ -1964,6 +1964,14 @@ model AIGenerationJob {
   model           String?
   imagesCount     Int       @default(0)
   costEstimateXOF Int       @default(0)
+  /// Jetons facturés par le fournisseur (0 pour une génération simulée).
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  /// Génération SIMULÉE (développement, sans fournisseur IA) : jamais présentée
+  /// comme une vraie génération. Voir apps/web/lib/ai/provider.ts.
+  simulated       Boolean   @default(false)
+  errorMessage    String?
+  finishedAt      DateTime?
   createdBy       String?
   createdAt       DateTime  @default(now())
   // Aucun contenu IA n'est publiable sans validation humaine explicite.
@@ -1972,6 +1980,7 @@ model AIGenerationJob {
   approved        Boolean   @default(false)
 
   @@index([tenantId, createdAt])
+  @@index([tenantId, type, createdAt])
 }
 
 /// Compteur d'utilisation IA par tenant et par période mensuelle (YYYY-MM),

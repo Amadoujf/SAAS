@@ -13,6 +13,7 @@ export interface TenantBrandingPatch {
   logoMediaAssetId?: string | null;
   primaryColor?: string | null;
   accentColor?: string | null;
+  backgroundColor?: string | null;
 }
 
 export async function getStorefrontCustomization(tx: Prisma.TransactionClient, tenantId: string) {

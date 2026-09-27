@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import type { AnimationLevel } from "@yamacommerce/design-tokens";
+import type { AnimationLevel, MobileAnimation } from "@yamacommerce/design-tokens";
 import type { EffectiveAnimationLevel } from "./variants";
 
 const AnimationLevelContext = createContext<EffectiveAnimationLevel>("dynamic");
@@ -33,18 +33,38 @@ export function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
+/** Petit écran (< 768 px), lu après l'hydratation comme la préférence de mouvement. */
+function useSmallScreen(): boolean {
+  const [small, setSmall] = useState(false);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia("(max-width: 767px)");
+    const update = () => setSmall(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+  return small;
+}
+
 export function AnimationLevelProvider({
   level,
+  mobile = "same",
   children,
 }: {
   level: AnimationLevel;
+  /** Réglage « animations sur téléphone » du site (design tokens). */
+  mobile?: MobileAnimation;
   children: React.ReactNode;
 }) {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const effectiveLevel: EffectiveAnimationLevel = useMemo(
-    () => (prefersReducedMotion ? "none" : level),
-    [prefersReducedMotion, level],
-  );
+  const small = useSmallScreen();
+  const effectiveLevel: EffectiveAnimationLevel = useMemo(() => {
+    if (prefersReducedMotion) return "none";
+    if (small && mobile === "none") return "none";
+    if (small && mobile === "reduced") return "discreet";
+    return level;
+  }, [prefersReducedMotion, level, small, mobile]);
 
   return (
     <AnimationLevelContext.Provider value={effectiveLevel}>
