@@ -17,3 +17,8 @@ export function isRealEstate(modules: Set<string>) {
 export function isTravel(modules: Set<string>) {
   return modules.has("listings") && modules.has("departures");
 }
+
+/** Salon / prestataire : carte des prestations et rendez-vous. */
+export function isSalon(modules: Set<string>) {
+  return modules.has("service_catalog") && modules.has("appointments");
+}

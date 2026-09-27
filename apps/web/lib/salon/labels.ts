@@ -6,9 +6,9 @@ type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 export const APPOINTMENT_STATUS_LABELS: Record<string, { label: string; tone: Tone; guest: string }> = {
   requested: { label: "À confirmer", tone: "warning", guest: "Demande reçue : le salon vous confirme le rendez-vous rapidement." },
   confirmed: { label: "Confirmé", tone: "info", guest: "Rendez-vous confirmé. À bientôt !" },
-  completed: { label: "Venu", tone: "success", guest: "Prestation réalisée. Merci de votre visite." },
+  completed: { label: "Réalisé", tone: "success", guest: "Prestation réalisée. Merci de votre visite." },
   canceled: { label: "Annulé", tone: "neutral", guest: "Rendez-vous annulé." },
-  no_show: { label: "Absent", tone: "danger", guest: "Rendez-vous manqué." },
+  no_show: { label: "Manqué", tone: "danger", guest: "Rendez-vous manqué." },
 };
 
 export const WEEKDAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
@@ -49,3 +49,12 @@ export function dayChip(date: string, today: string) {
   const month = new Intl.DateTimeFormat("fr-FR", { month: "short", timeZone: "UTC" }).format(d).replace(".", "");
   return { top: diff === 0 ? "Auj." : diff === 1 ? "Demain" : week, num, month };
 }
+
+/** Couleurs des rendez-vous dans l'agenda du tableau de bord, par statut. */
+export const STATUS_STYLE: Record<string, string> = {
+  requested: "bg-[#FFF6E5] ring-[#F0B44C] text-[#6B4300]",
+  confirmed: "bg-[#EAF0FF] ring-[#5B7FE0] text-[#15296B]",
+  completed: "bg-[#E8F6EF] ring-[#3FA176] text-[#0F4D31]",
+  no_show: "bg-[#FDECEC] ring-[#D65A5A] text-[#7A1717]",
+  canceled: "bg-yc-ink/[0.04] ring-yc-ink/15 text-yc-ink-soft line-through",
+};
