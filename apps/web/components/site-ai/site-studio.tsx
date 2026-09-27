@@ -111,6 +111,22 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
       setMode("directions");
     });
 
+  const applyProposal = (jobId: string) =>
+    run("write", async () => {
+      const r = await post<{ changes: string[] }>("apply", { jobId });
+      setPreviewJobId(null);
+      await refresh();
+      setNotice(`${r.changes.length} modification${r.changes.length > 1 ? "s" : ""} appliquée${r.changes.length > 1 ? "s" : ""} au brouillon. Annulable tant que rien d'autre ne change.`);
+    });
+
+  // Sur téléphone, l'aperçu est au-dessus de la conversation : une proposition y amène.
+  const showProposal = (jobId: string | null) => {
+    setPreviewJobId(jobId);
+    if (jobId && window.matchMedia?.("(max-width: 1279px)").matches) {
+      requestAnimationFrame(() => document.getElementById("studio-apercu")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  };
+
   const aiBlocked = !studio.ai.available ? studio.ai.reason : studio.ai.usage.limit !== null && studio.ai.usage.used >= studio.ai.usage.limit ? "Quota IA du mois atteint." : null;
 
   return (
@@ -121,6 +137,12 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           {state.tone === "busy" ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />}
           {state.text}
         </span>
+        {mode === "studio" && previewJobId && (
+          <span className="hidden items-center gap-2 md:flex">
+            <Button size="sm" loading={busy === "write"} onClick={() => applyProposal(previewJobId)}>Appliquer</Button>
+            <Button size="sm" variant="ghost" onClick={() => setPreviewJobId(null)}>Revenir au brouillon</Button>
+          </span>
+        )}
         {mode === "studio" && (
           <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="flex rounded-xl bg-white p-1 ring-1 ring-inset ring-yc-ink/10" role="group" aria-label="Aperçu">
@@ -194,7 +216,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
 
       {mode === "studio" && (
         <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="grid min-w-0 content-start gap-3">
+          <div id="studio-apercu" className="grid min-w-0 scroll-mt-24 content-start gap-3">
             <StudioPreview
               src={previewJobId ? `/editeur/site?job=${previewJobId}` : `/editeur/site?v=${studio.draft.signature}`}
               device={device}
@@ -223,13 +245,13 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
               previewJobId={previewJobId}
               onClearSelection={() => setSelectedId(null)}
               onReplaceImage={(sectionId, field) => setPicker({ kind: "image", sectionId, field })}
-              onPreview={setPreviewJobId}
+              onPreview={showProposal}
               onSend={(message) =>
                 run("generate", async () => {
                   const { jobId } = await post<{ jobId: string }>("propose", { message, selectedSectionId: selectedId });
                   const data = await refresh();
                   const item = data?.conversation.find((c) => c.jobId === jobId) as ConversationItem | undefined;
-                  setPreviewJobId(item?.changes?.length ? jobId : null);
+                  showProposal(item?.changes?.length ? jobId : null);
                 })
               }
               onImprove={() =>
@@ -237,17 +259,10 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
                   const { jobId } = await post<{ jobId: string }>("propose", { message: "Améliorer mon site avec l'IA", improve: true });
                   const data = await refresh();
                   const item = data?.conversation.find((c) => c.jobId === jobId) as ConversationItem | undefined;
-                  setPreviewJobId(item?.changes?.length ? jobId : null);
+                  showProposal(item?.changes?.length ? jobId : null);
                 })
               }
-              onApply={(jobId) =>
-                run("write", async () => {
-                  const r = await post<{ changes: string[] }>("apply", { jobId });
-                  setPreviewJobId(null);
-                  await refresh();
-                  setNotice(`${r.changes.length} modification${r.changes.length > 1 ? "s" : ""} appliquée${r.changes.length > 1 ? "s" : ""} au brouillon. Annulable tant que rien d'autre ne change.`);
-                })
-              }
+              onApply={applyProposal}
             />
           </div>
         </div>
@@ -269,6 +284,14 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           {advanced}
         </div>
       </details>
+
+      {mode === "studio" && previewJobId && (
+        <div className="fixed inset-x-3 bottom-[76px] z-40 flex items-center gap-2 rounded-2xl bg-yc-night-950 p-2 pl-4 text-white shadow-yc-float md:hidden" role="region" aria-label="Proposition en aperçu">
+          <span className="min-w-0 flex-1 truncate text-[13px] font-medium">Proposition en aperçu</span>
+          <button type="button" onClick={() => setPreviewJobId(null)} className="min-h-10 rounded-xl px-3 text-[13px] font-semibold text-white/75">Ignorer</button>
+          <button type="button" disabled={busy !== null} onClick={() => applyProposal(previewJobId)} className="min-h-10 rounded-xl bg-white px-4 text-[13px] font-semibold text-yc-night-950 disabled:opacity-50">Appliquer</button>
+        </div>
+      )}
 
       {picker && (
         <MediaPickerDialog
