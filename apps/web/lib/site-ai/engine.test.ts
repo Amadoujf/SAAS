@@ -104,3 +104,10 @@ describe("modification par conversation : opérations limitées à la demande", 
     expect(audit.advice.join(" ")).toMatch(/logo/);
   });
 });
+
+describe("empreinte du brouillon", () => {
+  it("identique quel que soit l'ordre des clés (JSONB) et sans les valeurs absentes", async () => {
+    const { canonicalJson } = await import("./canonical-json");
+    expect(canonicalJson({ b: 1, a: { d: undefined, c: [1, { y: 2, x: 1 }] } })).toBe(canonicalJson({ a: { c: [1, { x: 1, y: 2 }] }, b: 1 }));
+  });
+});

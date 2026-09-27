@@ -20,6 +20,11 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
   const newest = newestFirst(illustrated);
   const ids = newest.map((p) => p.id);
   const lead = newest[0];
+  // Chaque direction met en scène une pièce différente (la plus récente, la plus
+  // précieuse, une troisième) : trois propositions qui ne se ressemblent pas.
+  const byPrice = [...illustrated].sort((a, b) => Number(b.priceLabel.replace(/\D/g, "")) - Number(a.priceLabel.replace(/\D/g, "")));
+  const premium = byPrice[0] ?? lead;
+  const third = illustrated.find((p) => p.id !== lead?.id && p.id !== premium?.id) ?? lead;
   const steps = newest.slice(0, 3).map((p) => ({ productId: p.id, title: p.name.slice(0, 60), body: firstSentence(p.description, 200) }));
   const activity = firstSentence(brief.activity, 180);
   const base = (over: Partial<AiDirection>): AiDirection => ({
@@ -38,14 +43,21 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
   });
   return {
     directions: [
-      base({ name: "Épure", pitch: "Beaucoup d'espace, une palette neutre et vos produits en vedette : une boutique calme et haut de gamme.", style: "luxury-minimal", showcase: { layout: illustrated.length >= 4 ? "arc" : "depth", eyebrow: "La collection", title: "Choisissez la vôtre", productIds: ids.slice(0, 8) } }),
+      base({
+        name: "Épure",
+        pitch: "Beaucoup d'espace, une palette neutre et vos produits en vedette : une boutique calme et haut de gamme.",
+        style: "luxury-minimal",
+        palette: { primary: "#1F2A37", accent: "#7A5C32", background: "#F4F2EE" },
+        hero: { layout: premium ? "centered" : "centered", eyebrow: "Collection", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Découvrir la collection", subjectProductId: premium?.id ?? "" },
+        showcase: { layout: illustrated.length >= 4 ? "arc" : "depth", eyebrow: "La collection", title: "Choisissez la vôtre", productIds: ids.slice(0, 8) },
+      }),
       base({
         name: "Atelier chaleureux",
         pitch: "Des tons de terre, une mise en page éditoriale et un récit qui raconte chaque produit : proche et artisanal.",
         style: "teranga-atelier",
         palette: { primary: "#5B3A29", accent: "#9C4F2E", background: "#FBF5EE" },
         animation: "discreet",
-        hero: { layout: "centered", eyebrow: "Fait avec soin", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Voir les produits", subjectProductId: lead?.id ?? "" },
+        hero: { layout: third ? "stage" : "centered", eyebrow: "Fait avec soin", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Voir les produits", subjectProductId: third?.id ?? "" },
         story: { enabled: steps.length >= 2, layout: "product", eyebrow: "Nos produits", title: "Pièce par pièce", steps },
         order: ["hero", "story", "showcase", "categories", "grid"],
       }),
@@ -55,6 +67,7 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
         style: "commerce-moderne",
         palette: { primary: "#14213D", accent: "#B23A1E", background: "#FFFFFF" },
         animation: "immersive",
+        hero: { layout: lead ? "stage" : "centered", eyebrow: "Nouveautés", title: context.tenantName, titleAccent: "", subtitle: activity, ctaLabel: "Voir les nouveautés", subjectProductId: lead?.id ?? "" },
         showcase: { layout: "stack", eyebrow: "Nouveautés", title: "À découvrir maintenant", productIds: ids.slice(0, 8) },
         story: { enabled: false, layout: "timeline", eyebrow: "", title: "", steps: [] },
         order: ["hero", "showcase", "grid", "categories"],

@@ -11,10 +11,10 @@ import { DemoBanner } from "@/components/demo/demo-banner";
 /** Coque des pages commerce d'une boutique : TOUTES les couleurs, polices et rayons
  *  viennent des design tokens de l'entreprise (template + personnalisation). Rien de
  *  l'identité Y-COM n'y fuit, hormis la mention discrète en pied de page. */
-export function StoreShell({ store, children }: { store: StoreContext; children: ReactNode }) {
+export function StoreShell({ store, children, preview = false }: { store: StoreContext; children: ReactNode; preview?: boolean }) {
   return (
     <div style={designTokensToStyle(store.tokens)} className={`${templateFontVariables} flex min-h-screen flex-col bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}>
-      <StoreCartProvider>
+      <StoreCartProvider preview={preview}>
         <a href="#contenu-boutique" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2">Aller au contenu</a>
         {store.demoData && <DemoBanner kind="boutique" />}
         {store.announcement && (

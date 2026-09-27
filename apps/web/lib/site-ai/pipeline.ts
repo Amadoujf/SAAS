@@ -113,7 +113,7 @@ export async function loadStudio() {
       canUndo: Boolean(lastRevision && lastRevision.afterSignature === draft.signature),
       lastRevision: lastRevision ? { label: lastRevision.label, source: lastRevision.source, at: lastRevision.createdAt.toISOString() } : null,
       brief: (lastDirections?.inputPayload as { brief?: SiteBrief } | null)?.brief ?? null,
-      directions: lastDirections ? { jobId: lastDirections.id, ...(lastDirections.outputPayload as object) } : null,
+      directions: lastDirections ? { jobId: lastDirections.id, chosen: lastDirections.approved, ...(lastDirections.outputPayload as object) } : null,
       conversation: jobs
         .filter((j) => j.type !== "site_directions")
         .reverse()

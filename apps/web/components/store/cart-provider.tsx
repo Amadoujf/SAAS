@@ -39,7 +39,7 @@ const Ctx = createContext<CartContextValue | null>(null);
  * variante et une quantité ; chaque réponse renvoie le panier recalculé, affiché tel
  * quel. Un changement de stock ou de prix entre deux visites est donc toujours visible.
  */
-export function StoreCartProvider({ children }: { children: ReactNode }) {
+export function StoreCartProvider({ children, preview = false }: { children: ReactNode; /** Aperçu de « Mon site » : aucun panier réel (ni lecture ni écriture). */ preview?: boolean }) {
   const [cart, setCart] = useState<StoreCart | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyLine, setBusyLine] = useState<string | null>(null);
@@ -63,6 +63,10 @@ export function StoreCartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (preview) {
+      setLoading(false);
+      return;
+    }
     let alive = true;
     fetch("/api/storefront/cart", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -72,7 +76,7 @@ export function StoreCartProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [accept]);
+  }, [accept, preview]);
 
   const call = useCallback(
     async (url: string, init: RequestInit, key: string) => {

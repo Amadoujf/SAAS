@@ -50,6 +50,13 @@ export async function resolveCatalogContentForManifest(
   if (categorySections.length > 0) {
     const categories = await tx.category.findMany({ where: { tenantId } });
     const bySlug = new Map(categories.map((c) => [c.id, c]));
+    // Catégorie sans visuel : la photo d'un de SES produits publiés (réelle), sinon rien.
+    const missing = categories.filter((c) => !c.imageUrl).map((c) => c.id);
+    const productPhotos = missing.length
+      ? await tx.product.findMany({ where: { tenantId, categoryId: { in: missing }, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, select: { categoryId: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } }, orderBy: { createdAt: "desc" } })
+      : [];
+    const photoByCategory = new Map<string, string>();
+    for (const p of productPhotos) if (p.categoryId && p.images[0] && !photoByCategory.has(p.categoryId)) photoByCategory.set(p.categoryId, p.images[0].url);
     for (const section of categorySections) {
       const params = section.params as { title?: string; categoryIds: string[] };
       const items = params.categoryIds
@@ -58,7 +65,7 @@ export async function resolveCatalogContentForManifest(
         .map((c) => ({
           id: c.id,
           name: c.name,
-          imageUrl: c.imageUrl ?? "",
+          imageUrl: c.imageUrl ?? photoByCategory.get(c.id) ?? "",
           href: `/catalogue?categorie=${encodeURIComponent(c.slug)}`,
         }));
       const content: ResolvedCategoriesContent = { title: params.title, categories: items };

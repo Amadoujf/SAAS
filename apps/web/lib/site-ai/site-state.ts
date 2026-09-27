@@ -8,6 +8,7 @@ import { applyBranding } from "@/lib/storefront/home-content";
 import { templateTokens } from "@/lib/storefront/store-templates";
 import type { SiteState } from "./operations";
 import type { SiteIdentity, SiteMotion } from "./types";
+import { canonicalJson } from "./canonical-json";
 
 /**
  * L'UNIQUE brouillon du site, vu par « Mon site », l'assistant, l'éditeur avancé et la
@@ -55,7 +56,8 @@ export async function liveSettings(tx: Prisma.TransactionClient, tenantId: strin
 }
 
 export function draftSignature(snapshot: DraftSnapshot): string {
-  return createHash("sha256").update(JSON.stringify([snapshot.blocks, snapshot.settings])).digest("hex").slice(0, 32);
+  const blocks = snapshot.blocks.map((b, i) => ({ ...b, order: i }));
+  return createHash("sha256").update(canonicalJson([blocks, snapshot.settings])).digest("hex").slice(0, 32);
 }
 
 /** Brouillon courant (créé depuis la version publiée s'il n'existe pas), VERROUILLÉ

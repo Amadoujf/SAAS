@@ -21,7 +21,7 @@ export function PublishedSectorHome({ site, store, estate, annotate = false }: {
       <RenderTemplatePage page={page} tokens={site.tokens} animationLevel={site.animationLevel} resolvedContent={site.resolvedContent} locale="fr" annotate={annotate} />
     </SiteShell>
   );
-  if (store) return <StoreShell store={store}>{content}</StoreShell>;
+  if (store) return <StoreShell store={store} preview={annotate}>{content}</StoreShell>;
   if (estate) return <EstateShell estate={estate}>{content}</EstateShell>;
   return content;
 }

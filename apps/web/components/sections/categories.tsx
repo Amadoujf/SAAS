@@ -114,13 +114,17 @@ function EditorialCategoryTile({
       className={`group relative block aspect-[4/5] overflow-hidden rounded-[var(--card-radius)] lg:aspect-auto ${span}`}
       {...hover}
     >
-      <Image
-        src={category.imageUrl}
-        alt={category.name}
-        fill
-        sizes="(max-width: 1024px) 100vw, 60vw"
-        className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-110"
-      />
+      {category.imageUrl ? (
+        <Image
+          src={category.imageUrl}
+          alt={category.name}
+          fill
+          sizes="(max-width: 1024px) 100vw, 60vw"
+          className="object-cover transition-transform duration-[1200ms] ease-out group-hover:scale-110"
+        />
+      ) : (
+        <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))]" />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent transition-opacity group-hover:from-black/80" />
       <div className="absolute inset-0 flex flex-col justify-end p-6 lg:p-8">
         <span className="font-[family-name:var(--font-heading)] text-white text-[length:var(--text-heading-lg)]">
@@ -150,13 +154,17 @@ function CategoryCard({
       className={`group relative block aspect-[4/5] overflow-hidden rounded-[var(--card-radius)] ${className ?? ""}`}
       {...hover}
     >
-      <Image
-        src={category.imageUrl}
-        alt={category.name}
-        fill
-        sizes="(max-width: 640px) 50vw, 25vw"
-        className="object-cover transition-transform duration-[var(--motion-duration-slow)] group-hover:scale-105"
-      />
+      {category.imageUrl ? (
+        <Image
+          src={category.imageUrl}
+          alt={category.name}
+          fill
+          sizes="(max-width: 640px) 50vw, 25vw"
+          className="object-cover transition-transform duration-[var(--motion-duration-slow)] group-hover:scale-105"
+        />
+      ) : (
+        <span aria-hidden="true" className="absolute inset-0 bg-[linear-gradient(160deg,var(--color-primary),color-mix(in_srgb,var(--color-primary)_55%,black))]" />
+      )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/5 to-transparent transition-opacity group-hover:from-black/65" />
       <div className="absolute inset-x-0 bottom-0 flex items-end justify-between p-5">
         <span className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-white">
