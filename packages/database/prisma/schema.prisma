@@ -93,6 +93,13 @@ model Tenant {
   reservationTravelers     ReservationTraveler[]
   travelerDocuments        TravelerDocument[]
   reservationPayments      ReservationPayment[]
+  serviceDetails           ServiceDetails[]
+  serviceStaff             ServiceStaff[]
+  serviceStaffSkills       ServiceStaffSkill[]
+  staffWorkingHours        StaffWorkingHours[]
+  staffTimeOff             StaffTimeOff[]
+  serviceAppointments      ServiceAppointment[]
+  serviceBookingSettings   ServiceBookingSettings?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -915,6 +922,7 @@ model Listing {
   reservations   Reservation[]
   property       PropertyDetails?
   travel         TravelPackageDetails?
+  service        ServiceDetails?
   leases         Lease[]
 
   @@unique([tenantId, slug])
@@ -998,9 +1006,10 @@ model Reservation {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  history   ReservationStatusHistory[]
-  travelers ReservationTraveler[]
-  payments  ReservationPayment[]
+  history     ReservationStatusHistory[]
+  travelers   ReservationTraveler[]
+  payments    ReservationPayment[]
+  appointment ServiceAppointment?
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -2266,4 +2275,145 @@ model ReservationPayment {
 
   @@unique([tenantId, receiptNumber])
   @@index([tenantId, reservationId])
+}
+
+// ============================================================================
+// SERVICES / SALONS (secteur `services`) — étape 6
+// ============================================================================
+
+/// Extension typée SERVICE d'une fiche (`type = "service_offering"`) : une prestation
+/// (coupe, tresses, soin, manucure…) avec sa durée réelle. Le prix reste celui de la
+/// fiche ; `priceFrom` l'affiche « à partir de » (prix final fixé au salon).
+model ServiceDetails {
+  listingId       String  @id
+  listing         Listing @relation(fields: [listingId], references: [id])
+  tenantId        String
+  tenant          Tenant  @relation(fields: [tenantId], references: [id])
+  /// Rubrique libre affichée sur le site (« Coiffure », « Ongles », « Soins »…).
+  category        String
+  /// Durée de la prestation, en minutes (5 à 600, CHECK en base).
+  durationMinutes Int
+  /// Temps de préparation/nettoyage après la prestation, bloqué dans l'agenda.
+  bufferMinutes   Int     @default(0)
+  priceFrom       Boolean @default(false)
+  /// Réservable en ligne ; sinon affichée sur le site avec « sur rendez-vous par téléphone ».
+  onlineBooking   Boolean @default(true)
+  position        Int     @default(0)
+
+  skills       ServiceStaffSkill[]
+  appointments ServiceAppointment[]
+
+  @@index([tenantId, category, position])
+}
+
+/// Membre de l'équipe qui réalise des prestations (pas forcément un utilisateur du
+/// tableau de bord). Jamais supprimé s'il a des rendez-vous : on le désactive.
+model ServiceStaff {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  displayName   String
+  title         String?
+  bio           String?
+  photoUrl      String?
+  isActive      Boolean  @default(true)
+  /// Proposé au choix sur le site (sinon : réservable uniquement par l'équipe).
+  acceptsOnline Boolean  @default(true)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  skills       ServiceStaffSkill[]
+  hours        StaffWorkingHours[]
+  timeOff      StaffTimeOff[]
+  appointments ServiceAppointment[]
+
+  @@index([tenantId, isActive, position])
+}
+
+/// Prestations qu'un membre de l'équipe sait réaliser.
+model ServiceStaffSkill {
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  staffId   String
+  staff     ServiceStaff   @relation(fields: [staffId], references: [id])
+  listingId String
+  service   ServiceDetails @relation(fields: [listingId], references: [listingId])
+
+  @@id([staffId, listingId])
+  @@index([tenantId, listingId])
+}
+
+/// Horaires de travail hebdomadaires (plusieurs plages par jour possibles, ex. 9 h–13 h
+/// et 15 h–20 h). Minutes depuis minuit, heure locale du salon (`Tenant.timezone`).
+model StaffWorkingHours {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  staffId     String
+  staff       ServiceStaff @relation(fields: [staffId], references: [id])
+  /// 0 = dimanche … 6 = samedi
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+
+  @@index([tenantId, staffId, weekday])
+}
+
+/// Absence (congé, formation, fermeture) : aucun rendez-vous ne peut y être placé.
+model StaffTimeOff {
+  id        String       @id @default(uuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  staffId   String
+  staff     ServiceStaff @relation(fields: [staffId], references: [id])
+  startAt   DateTime     @db.Timestamptz(3)
+  endAt     DateTime     @db.Timestamptz(3)
+  reason    String?
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId, staffId, startAt])
+}
+
+/// Rendez-vous : la réservation commune + la personne qui l'assure et la plage bloquée
+/// dans son agenda (prestation + temps de préparation). Une contrainte d'EXCLUSION en
+/// base interdit deux plages actives qui se chevauchent pour une même personne, même
+/// sous des réservations simultanées. `active` suit le statut de la réservation
+/// (déclencheur en base) : une annulation libère la plage.
+model ServiceAppointment {
+  reservationId String         @id
+  reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  staffId       String
+  staff         ServiceStaff   @relation(fields: [staffId], references: [id])
+  listingId     String
+  service       ServiceDetails @relation(fields: [listingId], references: [listingId])
+  startAt       DateTime       @db.Timestamptz(3)
+  /// Fin de la prestation (affichée au client).
+  endAt         DateTime       @db.Timestamptz(3)
+  /// Fin de la plage bloquée (fin + temps de préparation).
+  blockedUntil  DateTime       @db.Timestamptz(3)
+  active        Boolean        @default(true)
+
+  @@index([tenantId, staffId, startAt])
+  @@index([tenantId, startAt])
+}
+
+/// Règles de prise de rendez-vous en ligne propres au salon.
+model ServiceBookingSettings {
+  tenantId          String   @id
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  /// Pas entre deux horaires proposés (10, 15, 20, 30 ou 60 min).
+  slotStepMinutes   Int      @default(15)
+  /// Délai minimal avant un rendez-vous pris en ligne.
+  minLeadMinutes    Int      @default(60)
+  /// Jusqu'à combien de jours à l'avance on peut réserver en ligne.
+  maxAdvanceDays    Int      @default(45)
+  /// Le client peut annuler en ligne jusqu'à N heures avant.
+  cancelCutoffHours Int      @default(3)
+  /// Un rendez-vous pris en ligne sur un horaire libre est confirmé tout de suite ;
+  /// sinon il attend la confirmation du salon (la plage reste bloquée).
+  autoConfirm       Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
 }

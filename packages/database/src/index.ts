@@ -37,3 +37,5 @@ export * from "./reservation-registry";
 export * from "./real-estate-registry";
 export * from "./ai-usage-registry";
 export * from "./travel-registry";
+export * from "./service-slots";
+export * from "./service-registry";
