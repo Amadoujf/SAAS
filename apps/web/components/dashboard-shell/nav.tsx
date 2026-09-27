@@ -156,7 +156,12 @@ export function DashboardSidebar({
   }, [open]);
 
   const all = groups.flatMap((g) => g.items);
-  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits"].map((h) => all.find((i) => i.href === h)).filter((i): i is NavItem => !!i);
+  // Onglets au pouce : les trois premières sections du secteur (commerce : commandes et
+  // produits ; immobilier : biens et visites), selon les droits du membre.
+  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites"]
+    .map((h) => all.find((i) => i.href === h))
+    .filter((i): i is NavItem => !!i)
+    .slice(0, 3);
   const panel = "bg-[linear-gradient(180deg,#0F2E70_0%,#0B2459_100%)]";
 
   return (
