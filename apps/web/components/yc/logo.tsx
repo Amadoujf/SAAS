@@ -11,9 +11,11 @@ export function YcMark({ size = 32, className }: { size?: number; className?: st
 
 export function YcLogo({ tone = "dark", className = "" }: { tone?: "dark" | "light"; className?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${tone === "light" ? "text-yc-paper" : "text-yc-navy"} ${className}`}>
+    <span className={`inline-flex items-end gap-2 ${tone === "light" ? "text-yc-paper" : "text-yc-navy"} ${className}`}>
+      {/* Le monogramme EST le « Y » du nom : « Y » + « -COM » se lit Y-COM. */}
       <YcMark size={34} />
-      <span className="font-editorial text-[1.55rem] leading-none tracking-[-0.01em]">Y-COM</span>
+      <span aria-hidden="true" className="-ml-2 font-editorial text-[1.55rem] leading-none tracking-[-0.01em]">-COM</span>
+      <span className="sr-only">Y-COM</span>
     </span>
   );
 }
@@ -23,7 +25,7 @@ export function YcLogo({ tone = "dark", className = "" }: { tone?: "dark" | "lig
  *  instance : un dégradé défini dans un élément masqué (display:none) ne s'affiche pas. */
 export function YcAppLogo({ className = "", compact = false, id = "yc-app-mark" }: { className?: string; compact?: boolean; id?: string }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`inline-flex items-end gap-2 ${className}`}>
       <svg width={compact ? 30 : 36} height={compact ? 30 : 36} viewBox="0 0 40 40" aria-hidden="true">
         <defs>
           <linearGradient id={id} x1="0" y1="0" x2="0.8" y2="1">
@@ -34,7 +36,8 @@ export function YcAppLogo({ className = "", compact = false, id = "yc-app-mark" 
         <path fill={`url(#${id})`} d="M2 4h11.5l6.6 11.2L26.6 4H38L25.4 22.6V36h-10.8V22.6z" />
         <path fill="#fff" fillOpacity=".22" d="M2 4h11.5l6.6 11.2-3.9 5.9z" />
       </svg>
-      <span className={`font-ui font-bold tracking-[-0.02em] ${compact ? "text-[17px]" : "text-[21px]"}`}>Y-COM</span>
+      <span aria-hidden="true" className={`-ml-2 font-ui font-bold tracking-[-0.02em] ${compact ? "text-[17px]" : "text-[21px]"}`}>-COM</span>
+      <span className="sr-only">Y-COM</span>
     </span>
   );
 }
