@@ -100,6 +100,11 @@ model Tenant {
   staffTimeOff             StaffTimeOff[]
   serviceAppointments      ServiceAppointment[]
   serviceBookingSettings   ServiceBookingSettings?
+  roomTypes                RoomTypeDetails[]
+  hotelRooms               HotelRoom[]
+  roomRates                RoomRate[]
+  hotelStays               HotelStay[]
+  hotelSettings            HotelSettings?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -923,6 +928,7 @@ model Listing {
   property       PropertyDetails?
   travel         TravelPackageDetails?
   service        ServiceDetails?
+  roomType       RoomTypeDetails?
   leases         Lease[]
 
   @@unique([tenantId, slug])
@@ -1010,6 +1016,7 @@ model Reservation {
   travelers   ReservationTraveler[]
   payments    ReservationPayment[]
   appointment ServiceAppointment?
+  stay        HotelStay?
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -2416,4 +2423,117 @@ model ServiceBookingSettings {
   /// sinon il attend la confirmation du salon (la plage reste bloquée).
   autoConfirm       Boolean  @default(true)
   updatedAt         DateTime @updatedAt
+}
+
+// ============================================================================
+// HÔTELS ET LOCATIONS (secteur `hospitality`) — étape 7
+// ============================================================================
+
+/// Extension typée HÔTEL d'une fiche (`type = "room"`) : un TYPE de chambre (ou de
+/// logement) avec sa capacité et ses règles. Le prix de la fiche est le prix par nuit
+/// de base ; les `RoomRate` le remplacent sur des périodes (saison, fêtes).
+model RoomTypeDetails {
+  listingId      String   @id
+  listing        Listing  @relation(fields: [listingId], references: [id])
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  maxAdults      Int
+  maxChildren    Int      @default(0)
+  /// « 1 grand lit », « 2 lits simples »…
+  bedSummary     String
+  sizeM2         Int?
+  amenities      String[] @default([])
+  minNights      Int      @default(1)
+  /// Heures d'arrivée / de départ (minutes depuis minuit, heure locale).
+  checkInMinute  Int      @default(840)
+  checkOutMinute Int      @default(720)
+  /// Acompte demandé à la confirmation (0 = règlement sur place).
+  depositPercent Int      @default(0)
+  position       Int      @default(0)
+
+  rooms HotelRoom[]
+  rates RoomRate[]
+  stays HotelStay[]
+
+  @@index([tenantId, position])
+}
+
+/// Chambre physique (numéro) d'un type. Son état de ménage est suivi ; une chambre
+/// « hors service » n'est jamais attribuée.
+model HotelRoom {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  listingId    String
+  roomType     RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  number       String
+  floor        String?
+  /// clean | dirty | inspected | out_of_service (CHECK en base)
+  housekeeping String          @default("clean")
+  note         String?
+  isActive     Boolean         @default(true)
+  updatedAt    DateTime        @updatedAt
+
+  stays HotelStay[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, listingId])
+}
+
+/// Prix par nuit sur une période [startDate, endDate) — jamais deux périodes qui se
+/// chevauchent pour un même type (contrainte d'exclusion en base).
+model RoomRate {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  listingId    String
+  roomType     RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  startDate    DateTime        @db.Date
+  endDate      DateTime        @db.Date
+  nightlyPrice Int
+  label        String?
+
+  @@index([tenantId, listingId, startDate])
+}
+
+/// Séjour : la réservation commune + la chambre attribuée et les nuits [arrival,
+/// departure). Une contrainte d'EXCLUSION interdit deux séjours actifs qui se
+/// chevauchent dans une même chambre, même sous des réservations simultanées.
+/// `active` suit le statut de la réservation (déclencheur en base).
+model HotelStay {
+  reservationId String          @id
+  reservation   Reservation     @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  listingId     String
+  roomType      RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  roomId        String
+  room          HotelRoom       @relation(fields: [roomId], references: [id])
+  arrival       DateTime        @db.Date
+  departure     DateTime        @db.Date
+  nights        Int
+  adults        Int
+  children      Int             @default(0)
+  /// Détail du prix nuit par nuit [{ date, price }] calculé par le serveur.
+  nightly       Json            @default("[]")
+  active        Boolean         @default(true)
+  checkedInAt   DateTime?
+  checkedOutAt  DateTime?
+
+  @@index([tenantId, arrival])
+  @@index([tenantId, roomId, arrival])
+}
+
+/// Règles de réservation en ligne propres à l'établissement.
+model HotelSettings {
+  tenantId        String   @id
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  /// Une demande en ligne sur une chambre libre est confirmée tout de suite.
+  autoConfirm     Boolean  @default(true)
+  /// Annulation en ligne possible jusqu'à N heures avant l'arrivée.
+  cancelFreeHours Int      @default(48)
+  /// Réservable en ligne jusqu'à N jours à l'avance.
+  maxAdvanceDays  Int      @default(365)
+  maxNights       Int      @default(30)
+  updatedAt       DateTime @updatedAt
 }

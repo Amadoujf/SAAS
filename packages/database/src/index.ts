@@ -39,3 +39,4 @@ export * from "./ai-usage-registry";
 export * from "./travel-registry";
 export * from "./service-slots";
 export * from "./service-registry";
+export * from "./hotel-registry";
