@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { designTokensToStyle } from "@/lib/design-tokens-to-css";
+import { templateFontVariables } from "@/lib/storefront/template-fonts";
+import { ENUM_LABELS, SECTION_NAMES } from "@/lib/editor/section-names";
 import { AnimationLevelProvider } from "@/lib/motion/animation-level-context";
 import { SectionRenderer } from "@/components/sections/section-renderer";
 import { LocaleProvider } from "@/lib/locale-context";
@@ -169,7 +171,7 @@ export function PreviewFrameApp({
           <FavoritesProvider>
             <div
               style={designTokensToStyle(tokens)}
-              className="bg-[var(--color-background)] text-[var(--color-text-primary)]"
+              className={`${templateFontVariables} bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}
             >
               <AnimationLevelProvider level={animationLevel}>
                 {sortedBlocks.map((block) => {
@@ -181,7 +183,7 @@ export function PreviewFrameApp({
                       role="button"
                       tabIndex={0}
                       aria-pressed={isSelected}
-                      aria-label={`Sélectionner la section ${block.sectionKey}`}
+                      aria-label={`Sélectionner la section ${SECTION_NAMES[block.sectionKey] ?? block.sectionKey}`}
                       onClick={() =>
                         postToParent({
                           channel: PREVIEW_CHANNEL,
@@ -209,7 +211,7 @@ export function PreviewFrameApp({
                     >
                       {isSelected && (
                         <span className="pointer-events-none absolute left-2 top-2 z-20 rounded bg-[#3B82F6] px-2 py-0.5 text-[11px] font-medium text-white">
-                          {block.sectionKey} · {block.variant}
+                          {SECTION_NAMES[block.sectionKey] ?? block.sectionKey} · {ENUM_LABELS[block.variant] ?? block.variant}
                         </span>
                       )}
                       <SectionRenderer

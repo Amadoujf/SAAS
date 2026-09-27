@@ -74,6 +74,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     );
     manage.push(
       { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/editeur", label: "Éditeur du site", icon: "site", permission: "site.edit" },
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Paiements", icon: "payments", permission: "payments.view" },
       { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
@@ -86,7 +87,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/baux", label: "Baux et loyers", icon: "key", badge: lateRents || undefined, permission: "leases.view" },
       { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
     );
-    manage.push({ href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" });
+    manage.push(
+      { href: "/editeur", label: "Éditeur du site", icon: "site", permission: "site.edit" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
+    );
   } else if (membership) {
     pilot.push({ href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" });
   }

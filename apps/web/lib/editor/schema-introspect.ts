@@ -168,6 +168,45 @@ const FIELD_LABELS: Record<string, string> = {
   durationMs: "Durée (ms)",
   delayMs: "Délai (ms)",
   hoverEffect: "Effet au survol",
+  // Sections immersives (octobre 2026).
+  titleAccent: "Mot mis en valeur",
+  primaryCtaLabel: "Bouton principal — texte",
+  primaryCtaHref: "Bouton principal — lien",
+  secondaryCtaLabel: "Bouton secondaire — texte",
+  secondaryCtaHref: "Bouton secondaire — lien",
+  subjectImage: "Image du sujet (détourée de préférence)",
+  subjectAlt: "Description de l'image du sujet",
+  subjectStyle: "Présentation du sujet",
+  focalX: "Point focal horizontal (%)",
+  focalY: "Point focal vertical (%)",
+  layers: "Éléments de la scène (détourés)",
+  imageUrl: "Image",
+  imageAlt: "Description de l'image",
+  depth: "Profondeur (0 = fond, 1 = premier plan)",
+  offsetX: "Décalage horizontal (%)",
+  offsetY: "Décalage vertical (%)",
+  scale: "Échelle",
+  rotate: "Rotation (degrés)",
+  arriveFrom: "Arrivée depuis",
+  mobileImage: "Image de remplacement sur mobile",
+  backgroundColor: "Couleur de fond",
+  backgroundImage: "Image de fond",
+  lighting: "Éclairage",
+  scrollEffect: "Effet au défilement",
+  floating: "Flottement léger",
+  intensity: "Intensité des animations",
+  source: "Contenus présentés",
+  listingIds: "Fiches associées",
+  showPrice: "Afficher le prix",
+  autoplay: "Défilement automatique",
+  intervalSeconds: "Intervalle (secondes)",
+  backdrop: "Arrière-plan",
+  badge: "Étiquette",
+  accentColor: "Couleur d'accent",
+  steps: "Étapes",
+  focusX: "Cadrage horizontal (%)",
+  focusY: "Cadrage vertical (%)",
+  zoom: "Zoom sur le détail",
 };
 
 /** Traduction MOT PAR MOT (repli quand le nom complet n'a pas d'entrée dédiée). */
@@ -252,6 +291,12 @@ function unwrap(schema: z.ZodTypeAny): Unwrapped {
       current = current.unwrap();
       continue;
     }
+    // Règle de validation personnalisée (`.refine`) : le champ garde la forme de son
+    // schéma interne (chaîne, nombre…), la règle reste appliquée à l'enregistrement.
+    if (current instanceof z.ZodEffects) {
+      current = current.innerType();
+      continue;
+    }
     break;
   }
   return { schema: current, required, defaultValue };
@@ -280,8 +325,11 @@ export function describeField(name: string, rawSchema: z.ZodTypeAny): FieldDescr
     const isUrl = schema._def.checks?.some((check) => check.kind === "url") ?? false;
     const isEmail = schema._def.checks?.some((check) => check.kind === "email") ?? false;
     const isColor = /color/i.test(name);
+    // Référence d'image (URL absolue OU chemin de la médiathèque) : même champ « lien »
+    // que les URL, donc même bouton Médiathèque — jamais pour un texte alternatif.
+    const isImageRef = /(^image$|image$|imageurl$)/i.test(name) && !/alt$/i.test(name);
     if (isColor) return { ...base, kind: "color" };
-    if (isUrl) return { ...base, kind: "url" };
+    if (isUrl || isImageRef) return { ...base, kind: "url" };
     if (isEmail) return { ...base, kind: "email" };
     if (TEXTAREA_FIELD_NAMES.has(name)) return { ...base, kind: "textarea" };
     return { ...base, kind: "text" };

@@ -28,6 +28,8 @@ import { PreviewControls } from "./preview-controls";
 import { SectionRow } from "./section-row";
 import { RedoIcon, UndoIcon } from "./editor-icons";
 import { CustomizationPanel } from "./panels/customization-panel";
+import { instantiatePreset, presetsForSector } from "@/lib/editor/section-library";
+import { EditorIdOptionsProvider, type EditorIdOptions } from "@/lib/editor/id-options-context";
 
 const DEFAULT_DEVICE_ID = "desktop-1440";
 
@@ -56,7 +58,13 @@ export interface VisualEditorProps {
    *  bord (Phase 1, une fois l'authentification branchée) passera ici les Server
    *  Actions qui appellent @yamacommerce/database `site-versions-registry.ts`. */
   onSaveDraft?: (content: EditorContent) => void | Promise<void>;
-  onPublish?: (content: EditorContent) => void | Promise<void>;
+  /** Peut renvoyer un message de résultat (ex. « Site publié ») ; une exception porte le
+   *  motif du refus, affiché tel quel dans la barre d'outils. */
+  onPublish?: (content: EditorContent) => void | string | Promise<void | string>;
+  /** Secteur de l'entreprise : ordonne la bibliothèque « Ajouter une section ». */
+  sectorKey?: string | null;
+  /** Contenus réels proposés par nom dans les champs « liste d'identifiants ». */
+  idOptions?: EditorIdOptions;
   /** Base d'API de la médiathèque (ex. "/api/demo-media") — voir docs/12 §12.2,
    *  « médiathèque R2 » (21 septembre 2026), « INTÉGRATION À L'ÉDITEUR ». Absent =
    *  aucun bouton "Média" dans les champs image/vidéo (comportement d'avant son
@@ -90,12 +98,16 @@ export function VisualEditor({
   onSaveDraft,
   onPublish,
   mediaApiBase,
+  sectorKey,
+  idOptions = {},
 }: VisualEditorProps) {
   const [history, dispatch] = useReducer(
     editorHistoryReducer,
     createInitialHistory(initialContent),
   );
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [status, setStatus] = useState<{ tone: "ok" | "error" | "busy"; text: string } | null>(null);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [panelMode, setPanelMode] = useState<"section" | "site">("section");
 
   // État de l'aperçu — voir docs/12 §12.2, « aperçu iframe responsive » (21 septembre
@@ -179,10 +191,38 @@ export function VisualEditor({
       return;
     }
     setSaveState("saving");
-    await onSaveDraft(content);
-    lastSavedContentRef.current = content;
-    setSaveState("saved");
-    window.setTimeout(() => setSaveState("idle"), 1600);
+    setStatus(null);
+    try {
+      await onSaveDraft(content);
+      lastSavedContentRef.current = content;
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 1600);
+    } catch (error) {
+      // Jamais « enregistré » à tort : l'échec est affiché, le brouillon reste « modifié ».
+      setSaveState("idle");
+      setStatus({ tone: "error", text: error instanceof Error ? error.message : "Enregistrement impossible." });
+    }
+  }
+
+  async function handlePublish() {
+    if (!onPublish) return;
+    setStatus({ tone: "busy", text: "Publication en cours…" });
+    try {
+      const message = await onPublish(content);
+      lastSavedContentRef.current = content;
+      setStatus({ tone: "ok", text: typeof message === "string" ? message : "Site publié." });
+    } catch (error) {
+      setStatus({ tone: "error", text: error instanceof Error ? error.message : "Publication impossible." });
+    }
+  }
+
+  function addSection(presetId: string) {
+    const preset = presetsForSector(sectorKey).find((p) => p.id === presetId);
+    if (!preset || !selectedPage) return;
+    const id = `${preset.sectionKey.replace(/_/g, "-")}-${Date.now().toString(36)}`;
+    dispatch({ type: "ADD_SECTION", pageId: selectedPage.id, section: instantiatePreset(preset, id), afterSectionId: content.selectedSectionId });
+    setPanelMode("section");
+    setLibraryOpen(false);
   }
 
   function selectSection(sectionId: string | null) {
@@ -199,6 +239,7 @@ export function VisualEditor({
     // les classes `var(--color-*)` ici les laissait non résolues hors de tout élément
     // portant `designTokensToStyle()` — boutons invisibles (même famille de bug que
     // celui du 13 septembre 2026 sur Header/Footer, voir site-shell.tsx).
+    <EditorIdOptionsProvider value={idOptions}>
     <div className="flex h-full min-h-[720px] flex-col border border-gray-200 bg-white text-gray-800">
       {/* Barre d'outils générale — voir docs/12 §12.2, « interface générale ». */}
       <div className="flex flex-wrap items-center gap-3 border-b border-gray-200 bg-white px-4 py-2.5">
@@ -250,13 +291,22 @@ export function VisualEditor({
           </button>
           <button
             type="button"
-            onClick={() => onPublish?.(content)}
-            className="rounded-md bg-indigo-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-indigo-700"
+            onClick={handlePublish}
+            disabled={status?.tone === "busy"}
+            className="rounded-md bg-indigo-600 px-3 py-1.5 text-[12px] font-medium text-white hover:bg-indigo-700 disabled:opacity-60"
           >
             Publier
           </button>
         </div>
       </div>
+      {status && (
+        <p
+          role={status.tone === "error" ? "alert" : "status"}
+          className={`border-b px-4 py-2 text-[12px] font-medium ${status.tone === "error" ? "border-red-200 bg-red-50 text-red-700" : status.tone === "ok" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-indigo-100 bg-indigo-50 text-indigo-700"}`}
+        >
+          {status.text}
+        </p>
+      )}
 
       <div className="flex min-h-0 flex-1">
         {/* Colonne gauche : pages puis sections — voir docs/12 §12.2, « liste des
@@ -352,6 +402,30 @@ export function VisualEditor({
                 ))}
               </Reorder.Group>
             )}
+            {selectedPage && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => setLibraryOpen((o) => !o)}
+                  aria-expanded={libraryOpen}
+                  className="w-full rounded-md border border-dashed border-indigo-300 px-3 py-2 text-[12px] font-semibold text-indigo-700 hover:bg-indigo-50"
+                >
+                  + Ajouter une section
+                </button>
+                {libraryOpen && (
+                  <ul className="mt-2 flex flex-col gap-1.5" aria-label="Bibliothèque de sections">
+                    {presetsForSector(sectorKey).map((preset) => (
+                      <li key={preset.id}>
+                        <button type="button" onClick={() => addSection(preset.id)} className="w-full rounded-md border border-gray-200 bg-white px-2.5 py-2 text-left hover:border-indigo-300 hover:bg-indigo-50/50">
+                          <span className="block text-[12px] font-semibold text-gray-800">{preset.label}</span>
+                          <span className="mt-0.5 block text-[11px] leading-snug text-gray-500">{preset.description}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -432,5 +506,6 @@ export function VisualEditor({
         />
       </div>
     </div>
+    </EditorIdOptionsProvider>
   );
 }

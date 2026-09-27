@@ -5,6 +5,8 @@ import type { FieldDescriptor } from "@/lib/editor/schema-introspect";
 import { emptyValueForField } from "@/lib/editor/schema-introspect";
 import { CloseSmallIcon, ResetIcon } from "@/components/editor/editor-icons";
 import { MediaLibrary } from "@/components/media/media-library";
+import { ENUM_LABELS } from "@/lib/editor/section-names";
+import { useEditorIdOptions } from "@/lib/editor/id-options-context";
 
 /**
  * Formulaire générique généré à partir d'une liste de `FieldDescriptor` (voir
@@ -225,7 +227,7 @@ function FieldInput({
           {!field.required && <option value="">— Hériter du template —</option>}
           {field.enumOptions?.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {ENUM_LABELS[option] ?? option}
             </option>
           ))}
         </select>
@@ -237,6 +239,7 @@ function FieldInput({
     case "id-list":
       return (
         <IdListInput
+          name={field.name}
           value={Array.isArray(value) ? (value as string[]) : []}
           onChange={onChange}
         />
@@ -370,13 +373,48 @@ function ColorInput({
 }
 
 function IdListInput({
+  name,
   value,
   onChange,
 }: {
+  name: string;
   value: string[];
   onChange: (next: string[]) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const options = useEditorIdOptions()[name];
+  if (options) {
+    // Contenus réels de l'entreprise, choisis par leur nom ; l'ordre de sélection est
+    // l'ordre d'affichage. Rien de coché = sélection automatique (les plus récents).
+    const labelOf = new Map(options.map((o) => [o.id, o.label]));
+    return (
+      <div className="flex flex-col gap-2">
+        {value.length > 0 && (
+          <ol className="flex flex-col gap-1">
+            {value.map((id, i) => (
+              <li key={id} className="flex items-center gap-2 rounded bg-indigo-50 px-2 py-1 text-[12px] text-indigo-800">
+                <span className="w-4 text-right tabular-nums text-indigo-400">{i + 1}.</span>
+                <span className="min-w-0 flex-1 truncate">{labelOf.get(id) ?? "Contenu supprimé"}</span>
+                <button type="button" onClick={() => onChange(value.filter((v) => v !== id))} aria-label={`Retirer ${labelOf.get(id) ?? id}`} className="text-indigo-400 hover:text-indigo-700">
+                  <CloseSmallIcon className="h-3 w-3" />
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+        <select
+          value=""
+          onChange={(e) => e.target.value && onChange([...value, e.target.value])}
+          className="rounded-md border border-gray-300 px-2 py-1.5 text-[12px]"
+          aria-label="Ajouter un contenu"
+        >
+          <option value="">{options.length ? "+ Ajouter…" : "Aucun contenu publié"}</option>
+          {options.filter((o) => !value.includes(o.id)).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        {value.length === 0 && <p className="text-[11px] text-gray-500">Aucun choix : les plus récents sont affichés automatiquement.</p>}
+      </div>
+    );
+  }
 
   function addId() {
     const trimmed = draft.trim();

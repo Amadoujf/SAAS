@@ -1,5 +1,6 @@
 "use client";
 
+import { SECTION_NAMES } from "@/lib/editor/section-names";
 import { useMemo } from "react";
 import { z } from "zod";
 import { sectionParamSchemas, type SectionInstance } from "@yamacommerce/templates";
@@ -36,7 +37,7 @@ export function ContentPanel({
   return (
     <div className="flex flex-col gap-4">
       <p className="text-[12px] text-gray-500">
-        Contenu de la section <span className="font-medium text-gray-700">{section.sectionKey}</span>.
+        Contenu de la section <span className="font-medium text-gray-700">{SECTION_NAMES[section.sectionKey] ?? section.sectionKey}</span>.
       </p>
       <SchemaForm
         fields={fields}

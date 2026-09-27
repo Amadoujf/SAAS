@@ -1,5 +1,6 @@
 "use client";
 
+import { ENUM_LABELS, SECTION_NAMES } from "@/lib/editor/section-names";
 import { Reorder, useDragControls } from "framer-motion";
 import type { SectionInstance } from "@yamacommerce/templates";
 import { DragHandleIcon, DuplicateIcon, EyeOffIcon, TrashIcon } from "./editor-icons";
@@ -57,8 +58,8 @@ export function SectionRow({
 
       <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
         <span className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-medium text-gray-800">{block.sectionKey}</p>
-          <p className="truncate text-[11px] text-gray-500">{block.variant}</p>
+          <p className="truncate text-[13px] font-medium text-gray-800">{SECTION_NAMES[block.sectionKey] ?? block.sectionKey}</p>
+          <p className="truncate text-[11px] text-gray-500">{ENUM_LABELS[block.variant] ?? block.variant}</p>
         </span>
         {hasCustomization && (
           <span
