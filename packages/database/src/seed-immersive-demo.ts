@@ -11,7 +11,8 @@
  */
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { prisma } from "./client";
-import { withSuperAdminAccess, withTenant } from "./tenant-context";
+import { withTenant } from "./tenant-context";
+import { assertDemoSeedAllowed, findDemoTenant } from "./demo-guard";
 import { getOrCreateDraftVersion, updatePageBlocks } from "./site-versions-registry";
 
 const L = "/demo-templates/scene-lampe";
@@ -186,8 +187,8 @@ function almadies(villaSlug: string | null): SectionInstance[] {
 }
 
 async function applyDraft(slug: string, blocks: SectionInstance[]) {
-  const tenant = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug }, select: { id: true } }));
-  if (!tenant) return console.info(`« ${slug} » introuvable — rien à faire.`);
+  const tenant = await findDemoTenant(slug);
+  if (!tenant) return console.info(`« ${slug} » : pas d'entreprise de démonstration — rien à faire.`);
   await withTenant(tenant.id, async (tx) => {
     const site = await tx.tenantSite.findUnique({ where: { tenantId: tenant.id } });
     if (!site) return console.info(`« ${slug} » : ouvrez d'abord l'éditeur (/editeur) pour créer le site.`);
@@ -200,11 +201,13 @@ async function applyDraft(slug: string, blocks: SectionInstance[]) {
 }
 
 async function main() {
-  const sunu = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: "sunu-marche" }, select: { id: true } }));
+  assertDemoSeedAllowed();
+  const sunu = await findDemoTenant("sunu-marche");
   const ceramics = sunu ? await ensureCeramics(sunu.id) : {};
   const others = sunu ? await withTenant(sunu.id, (tx) => tx.product.findMany({ where: { tenantId: sunu.id, status: "PUBLISHED", slug: { notIn: CERAMICS.map((c) => c.slug) } }, orderBy: { createdAt: "asc" }, select: { id: true } })) : [];
   await applyDraft("sunu-marche", sunuMarche(ceramics, others.map((p) => p.id)));
-  const villa = await withSuperAdminAccess((tx) => tx.listing.findFirst({ where: { tenant: { slug: "almadies-immobilier" }, title: "Villa contemporaine face à l'océan" }, select: { slug: true } }));
+  const agency = await findDemoTenant("almadies-immobilier");
+  const villa = agency ? await withTenant(agency.id, (tx) => tx.listing.findFirst({ where: { tenantId: agency.id, title: "Villa contemporaine face à l'océan" }, select: { slug: true } })) : null;
   await applyDraft("almadies-immobilier", almadies(villa?.slug ?? null));
 }
 

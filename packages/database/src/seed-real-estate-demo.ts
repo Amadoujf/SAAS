@@ -10,6 +10,7 @@
  */
 import { prisma } from "./client";
 import { withSuperAdminAccess, withTenant } from "./tenant-context";
+import { assertDemoSeedAllowed } from "./demo-guard";
 import { createOwnerAccount, provisionTenantForOwner } from "./tenant-provisioning";
 import { setListingStatus } from "./listing-registry";
 import { transitionReservationStatus } from "./reservation-registry";
@@ -81,6 +82,7 @@ const PROPERTIES: (PropertyInput & { key: string; publish: boolean })[] = [
 ];
 
 async function main() {
+  assertDemoSeedAllowed();
   const existing = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: SLUG } }));
   if (existing) {
     console.info("Démonstration immobilière déjà présente — rien à faire.");
@@ -100,7 +102,7 @@ async function main() {
     const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
     await tx.tenant.update({
       where: { id: tenantId },
-      data: { branding: { ...(t.branding as object), demoData: true, contactPhone: "+221 33 820 00 00", contactWhatsapp: "+221770000000", contactEmail: "contact@almadies-immobilier.sn", contactAddress: "Route des Almadies, Dakar" } },
+      data: { isDemo: true, branding: { ...(t.branding as object), contactPhone: "+221 33 820 00 00", contactWhatsapp: "+221770000000", contactEmail: "contact@almadies-immobilier.sn", contactAddress: "Route des Almadies, Dakar" } },
     });
   });
 

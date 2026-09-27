@@ -458,6 +458,17 @@ async function seedDemoTenant(input: {
   product: { name: string; price: number; sku: string };
   customer: { firstName: string; lastName: string; phone: string };
 }) {
+  // Entreprises de DÉMONSTRATION : jamais en production sans autorisation explicite,
+  // et jamais par-dessus une entreprise réelle qui aurait le même sous-domaine.
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DEMO_SEED !== "true") {
+    console.info(`  – ${input.slug} : démonstration non créée en production`);
+    return;
+  }
+  const already = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: input.slug }, select: { isDemo: true } }));
+  if (already && !already.isDemo) {
+    console.warn(`  ! ${input.slug} est une entreprise réelle : aucune donnée de démonstration ajoutée`);
+    return;
+  }
   // La création d'un tenant et son provisionnement initial (domaine, abonnement,
   // rattachement du propriétaire, moyens de paiement) sont des opérations Super Admin
   // par nature (voir docs/02-architecture-fonctionnelle.md §2.3) : sous Row-Level
@@ -483,6 +494,7 @@ async function seedDemoTenant(input: {
         businessType: input.businessType,
         sectorKey: input.sectorKey,
         status: "ACTIVE",
+        isDemo: true,
         branding: { primaryColor: "#0F766E", secondaryColor: "#F59E0B", defaultMode: "light" },
         trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       },

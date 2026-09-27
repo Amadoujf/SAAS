@@ -67,6 +67,10 @@ model Tenant {
   /// lorsqu'aucun `TenantSubscription` n'existe. `null` = aucune dérogation (nouveau
   /// tenant standard) — jamais l'inverse, jamais un défaut permissif.
   billingExemptedAt DateTime?
+  /// Entreprise de DÉMONSTRATION (données fictives) — voir la migration
+  /// 20261006000000_tenant_demo_flag : modifiable uniquement en contexte Super Admin
+  /// (déclencheur `tenant_demo_guard`). Jamais une entreprise réelle.
+  isDemo            Boolean      @default(false)
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   deletedAt         DateTime?

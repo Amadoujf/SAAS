@@ -4,6 +4,7 @@ import { designTokensToStyle } from "@/lib/design-tokens-to-css";
 import type { EstateContext } from "@/lib/real-estate/estate-context";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { EstateHeader } from "./estate-header";
+import { DemoBanner } from "@/components/demo/demo-banner";
 
 /** Coque du site d'une agence : couleurs, polices et rayons de SON template et de SA
  *  personnalisation. Rien de l'identité Y-COM, hormis la mention en pied de page. */
@@ -13,6 +14,7 @@ export function EstateShell({ estate, children }: { estate: EstateContext; child
   return (
     <div style={designTokensToStyle(estate.tokens)} className={`${templateFontVariables} flex min-h-screen flex-col bg-[var(--color-background)] font-[family-name:var(--font-body)] text-[var(--color-text-primary)]`}>
       <a href="#contenu-agence" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-white focus:px-3 focus:py-2">Aller au contenu</a>
+      {estate.demoData && <DemoBanner kind="agence" />}
       {estate.content.announcement && (
         <p className="bg-[var(--color-primary)] px-4 py-2 text-center text-[13px] font-medium text-white">
           {estate.content.announcement.href ? <Link href={estate.content.announcement.href} className="underline-offset-4 hover:underline">{estate.content.announcement.text}</Link> : estate.content.announcement.text}

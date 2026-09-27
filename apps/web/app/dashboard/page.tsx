@@ -171,11 +171,10 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
       tx.deliveryZone.count({ where: { tenantId, isActive: true } }),
       tx.paymentProviderConfig.count({ where: { tenantId, isEnabled: true, accountNumber: { not: null } } }),
       tx.order.count({ where: { tenantId } }),
-      tx.tenant.findUnique({ where: { id: tenantId }, select: { branding: true } }),
+      tx.tenant.findUnique({ where: { id: tenantId }, select: { isDemo: true } }),
       planHasFeature(tx, tenantId, "statistics"),
     ]);
-    const branding = (tenant?.branding ?? {}) as Record<string, unknown>;
-    return { insights, setup: { products, zones, wallets, orders }, demo: branding.demoData === true, stats };
+    return { insights, setup: { products, zones, wallets, orders }, demo: tenant?.isDemo === true, stats };
   });
 
   const steps = [

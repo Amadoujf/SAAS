@@ -36,9 +36,10 @@ export async function resolveEstate(path: string): Promise<EstateResolution> {
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const { modules, branding, content } = await withTenant(active.tenantId, async (tx) => ({
+  const { modules, branding, isDemo, content } = await withTenant(active.tenantId, async (tx) => ({
     modules: new Set((await getEnabledModules(tx, active.tenantId)).map((m) => m.moduleKey)),
     branding: ((await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding ?? {}) as Record<string, unknown>,
+    isDemo: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { isDemo: true } }))?.isDemo === true,
     content: (await tx.storefrontContent.findUnique({ where: { tenantId: active.tenantId } }))?.content ?? null,
   }));
   if (!modules.has("listings") || !(modules.has("leases") || modules.has("visit_requests"))) notFound();
@@ -52,7 +53,7 @@ export async function resolveEstate(path: string): Promise<EstateResolution> {
       logoUrl: str(branding.logoUrl),
       content: parseHomeContent(content, active.tenantName),
       contact: { phone: str(branding.contactPhone), whatsapp: str(branding.contactWhatsapp), email: str(branding.contactEmail), address: str(branding.contactAddress) },
-      demoData: branding.demoData === true,
+      demoData: isDemo,
     },
   };
 }

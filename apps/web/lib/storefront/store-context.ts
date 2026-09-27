@@ -35,14 +35,15 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const { tokens, categories, branding, hasSite, content } = await withTenant(active.tenantId, async (tx) => ({
+  const { tokens, categories, branding, isDemo, hasSite, content } = await withTenant(active.tenantId, async (tx) => ({
     content: (await tx.storefrontContent.findUnique({ where: { tenantId: active.tenantId } }))?.content ?? null,
     tokens: await resolveEffectiveDesignTokens(tx, active.tenantId),
     // Seul un site PUBLIÉ depuis l'éditeur impose ses tokens ; sinon le template choisi.
     hasSite: (await tx.tenantSite.count({ where: { tenantId: active.tenantId, isPublished: true } })) > 0,
     categories: await listCategories(tx, active.tenantId),
+    isDemo: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { isDemo: true } }))?.isDemo === true,
     branding: (await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true } }))?.branding as
-      | { logoUrl?: string; templatePreference?: string; primaryColor?: string; accentColor?: string; demoData?: boolean }
+      | { logoUrl?: string; templatePreference?: string; primaryColor?: string; accentColor?: string }
       | null,
   }));
   return {
@@ -57,7 +58,7 @@ export async function resolveStore(path: string): Promise<StoreResolution> {
       logoUrl: branding?.logoUrl ?? null,
       templateSlug: branding?.templatePreference ?? null,
       layout: templateLayout(branding?.templatePreference),
-      demoData: branding?.demoData === true,
+      demoData: isDemo,
       announcement: parseHomeContent(content, active.tenantName).announcement,
     },
   };

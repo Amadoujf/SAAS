@@ -43,7 +43,11 @@ export default async function AdminPage() {
         </Link>
       </nav>
       <section>
-        <h2 className="mb-3 text-lg font-medium">{t(DEFAULT_LOCALE, "admin.tenants")}</h2>
+        <h2 className="mb-1 text-lg font-medium">{t(DEFAULT_LOCALE, "admin.tenants")}</h2>
+        {/* Les entreprises de démonstration ne comptent jamais comme des clientes. */}
+        <p className="mb-3 text-sm text-[var(--color-muted)]">
+          {tenants.filter((x) => !x.isDemo).length} entreprise(s) réelle(s) · {tenants.filter((x) => x.isDemo).length} de démonstration
+        </p>
         <ul className="flex flex-col gap-2">
           {tenants.map((tenant) => (
             <li
@@ -51,7 +55,10 @@ export default async function AdminPage() {
               className="flex items-center justify-between rounded-lg border border-[var(--color-border)] px-4 py-3"
             >
               <div>
-                <p className="font-medium">{tenant.name}</p>
+                <p className="font-medium">
+                  {tenant.name}
+                  {tenant.isDemo && <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-amber-800">Démo</span>}
+                </p>
                 <p className="text-sm text-[var(--color-muted)]">
                   {tenant.slug}.yamacommerce.ai · {tenant.businessType}
                 </p>

@@ -27,6 +27,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const membership = await getCurrentTenantMembership();
   const catalogEnabled = membership ? await isCatalogModuleEnabled(membership.tenantId) : false;
   const modules = membership ? await getTenantModuleKeys(membership.tenantId) : new Set<string>();
+  // Entreprise de démonstration : signalée sur TOUTES les pages de son espace.
+  const isDemo = membership ? (await withTenant(membership.tenantId, (tx) => tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { isDemo: true } })))?.isDemo === true : false;
   const realEstate = isRealEstate(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
@@ -141,6 +143,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
           signOut={doSignOut}
           searchEnabled={!!membership && catalogEnabled}
         />
+        {isDemo && (
+          <p className="border-b border-yc-electric/15 bg-[#E8EFFF] px-4 py-2 text-center text-[12px] font-medium text-yc-ink sm:px-6">
+            <span className="mr-1.5 font-bold uppercase tracking-[0.12em] text-yc-electric">Démonstration</span>
+            Entreprise fictive : produits, clients et commandes servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
+          </p>
+        )}
         <main id="contenu" className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
           <div className="mx-auto w-full max-w-[1240px]">{children}</div>
         </main>

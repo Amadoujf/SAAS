@@ -9,6 +9,7 @@
  */
 import { prisma } from "./client";
 import { withSuperAdminAccess, withTenant } from "./tenant-context";
+import { assertDemoSeedAllowed } from "./demo-guard";
 import { addCartItem, getOrCreateActiveCart } from "./cart-registry";
 import { convertCartToOrder, type OrderPaymentMethod } from "./order-registry";
 import { createDeliveryZone, updateCommerceSettings } from "./commerce-registry";
@@ -50,8 +51,10 @@ const CUSTOMERS = [
 ];
 
 async function main() {
+  assertDemoSeedAllowed();
   const tenant = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: SLUG } }));
   if (!tenant) throw new Error(`Tenant "${SLUG}" introuvable — lancez d'abord \`pnpm db:seed\`.`);
+  if (!tenant.isDemo) throw new Error(`« ${SLUG} » est une entreprise réelle : aucune donnée de démonstration ne sera ajoutée.`);
   const tenantId = tenant.id;
 
   const existing = await withTenant(tenantId, (tx) => tx.product.count({ where: { tenantId, slug: { in: PRODUCTS.map((p) => p.slug) } } }));
@@ -60,9 +63,9 @@ async function main() {
     return;
   }
 
-  // Style de boutique choisi (comme à l'onboarding) : Atelier. `demoData` affiche le
-  // bandeau « Données de démonstration » dans le dashboard : jamais présenté comme réel.
-  await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...Object.fromEntries(Object.entries(tenant.branding as Record<string, unknown>).filter(([k]) => k !== "primaryColor" && k !== "secondaryColor")), templatePreference: "atelier-naya", demoData: true } } }));
+  // Style de boutique choisi (comme à l'onboarding) : Atelier. `isDemo` affiche les
+  // bandeaux « Démonstration » (site et dashboard) : jamais présenté comme réel.
+  await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { isDemo: true, branding: { ...Object.fromEntries(Object.entries(tenant.branding as Record<string, unknown>).filter(([k]) => k !== "primaryColor" && k !== "secondaryColor")), templatePreference: "atelier-naya" } } }));
   // La démonstration montre les fonctions de la formule Business (factures, statistiques).
   await withSuperAdminAccess(async (tx) => {
     const business = await tx.subscriptionPlan.findUniqueOrThrow({ where: { name: "Business" } });
@@ -241,12 +244,12 @@ main()
 /** Deuxième boutique de démonstration, template « Sunu Marché » (maison, déco, high-tech). */
 async function seedSunuMarche() {
   const existing = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: "sunu-marche" } }));
-  if (existing) return;
+  if (existing) return; // démonstration déjà créée, ou entreprise réelle : jamais modifiée ici
   const owner = await createOwnerAccount({ email: "awa@sunu-marche.sn", fullName: "Awa Ndiaye", password: "Demo!2026" });
   const { tenantId } = await provisionTenantForOwner({ ownerUserId: owner.id, name: "Sunu Marché", subdomain: "sunu-marche", subdomainSuffix: process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai", sectorKey: "ecommerce", planName: "Business", templatePreference: "sunu-marche" });
   await withSuperAdminAccess(async (tx) => {
     const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
-    await tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(t.branding as object), demoData: true } } });
+    await tx.tenant.update({ where: { id: tenantId }, data: { isDemo: true, branding: t.branding as object } });
   });
   const SM = "/demo-templates/sunu-marche";
   const cats = [
