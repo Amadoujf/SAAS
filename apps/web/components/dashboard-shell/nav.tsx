@@ -11,7 +11,7 @@ import {
   IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
 } from "@/components/yc/icons";
 
-export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors";
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed";
 
 const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
@@ -30,6 +30,9 @@ const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   ),
   ticket: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z" /><path d="M14 6v12" strokeDasharray="2 2" /></svg>
+  ),
+  bed: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 18V7M21 18v-5a3 3 0 0 0-3-3h-8v5M3 15h18" /><circle cx="7" cy="11.5" r="1.8" /></svg>
   ),
   scissors: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.8" /><circle cx="6" cy="18" r="2.8" /><path d="M8.3 7.7 20 18M8.3 16.3 20 6" /></svg>
@@ -167,8 +170,8 @@ export function DashboardSidebar({
 
   const all = groups.flatMap((g) => g.items);
   // Onglets au pouce : les trois premières sections du secteur (commerce : commandes et
-  // produits ; immobilier : biens et visites ; voyage : réservations et départs ; salon : agenda et rendez-vous), selon les droits du membre.
-  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs", "/dashboard/agenda", "/dashboard/rendez-vous"]
+  // produits ; immobilier : biens et visites ; voyage : réservations et départs ; salon : agenda et rendez-vous ; hôtel : planning et séjours), selon les droits du membre.
+  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs", "/dashboard/agenda", "/dashboard/rendez-vous", "/dashboard/planning", "/dashboard/sejours"]
     .map((h) => all.find((i) => i.href === h))
     .filter((i): i is NavItem => !!i)
     .slice(0, 3);

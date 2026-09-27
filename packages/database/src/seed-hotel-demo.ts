@@ -98,7 +98,7 @@ async function main() {
     for (const [i, { key, rooms: numbers, ...input }] of TYPES.entries()) {
       const t = await createRoomType(tx, tenantId, { ...input, position: i }, owner.id);
       types[key] = t.id;
-      for (const n of numbers) rooms[n] = (await addRoom(tx, tenantId, { listingId: t.id, number: n, floor: /^1/.test(n) ? "1er étage" : /^2/.test(n) ? "2e étage" : /^B/.test(n) ? "Jardin" : "Rez-de-chaussée" })).id;
+      for (const n of numbers) rooms[n] = (await addRoom(tx, tenantId, { listingId: t.id, number: n, floor: /^1\d$/.test(n) ? "1er étage" : /^2\d$/.test(n) ? "2e étage" : /^B/.test(n) ? "Jardin" : "Rez-de-chaussée" })).id;
       await setListingStatus(tx, tenantId, t.id, "published", owner.id);
     }
     // Période de fête dans 3 semaines : tarifs majorés sur l'océan.

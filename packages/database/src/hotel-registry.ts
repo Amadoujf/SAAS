@@ -502,8 +502,24 @@ export async function checkOut(tx: Tx, tenantId: string, reservationId: string, 
   const { stay } = await lockStay(tx, tenantId, reservationId);
   if (!stay.checkedInAt) throw new HotelError("Le client n'est pas encore arrivé.");
   if (stay.checkedOutAt) throw new HotelError("Le départ est déjà enregistré.");
-  await tx.hotelStay.update({ where: { reservationId }, data: { checkedOutAt: new Date() } });
-  await transitionReservationStatus(tx, tenantId, { reservationId, toStatus: "completed", actor, note: "Départ" });
+  // Départ anticipé : les nuits non utilisées sont libérées (la chambre redevient
+  // réservable) ; le montant reste celui du séjour réservé, l'établissement l'ajuste s'il
+  // le souhaite.
+  const tz = await tenantTimezone(tx, tenantId);
+  const today = utcToLocal(new Date(), tz).date;
+  const arrival = iso(stay.arrival);
+  const newDeparture = today < iso(stay.departure) ? (today > arrival ? today : addDays(arrival, 1)) : iso(stay.departure);
+  const early = newDeparture !== iso(stay.departure);
+  await tx.hotelStay.update({
+    where: { reservationId },
+    data: { checkedOutAt: new Date(), ...(early ? { departure: day(newDeparture), nights: nightsBetween(arrival, newDeparture) } : {}) },
+  });
+  if (early) {
+    const r = await tx.reservation.findUniqueOrThrow({ where: { id: reservationId }, select: { startAt: true } });
+    const now = new Date();
+    await tx.reservation.update({ where: { id: reservationId }, data: { endAt: now > r.startAt ? now : new Date(r.startAt.getTime() + 60_000) } });
+  }
+  await transitionReservationStatus(tx, tenantId, { reservationId, toStatus: "completed", actor, note: early ? `Départ anticipé (prévu le ${iso(stay.departure).split("-").reverse().join("/")})` : "Départ" });
   await tx.hotelRoom.update({ where: { id: stay.roomId }, data: { housekeeping: "dirty" } });
   return getStay(tx, tenantId, reservationId);
 }

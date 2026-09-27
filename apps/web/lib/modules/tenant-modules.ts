@@ -22,3 +22,8 @@ export function isTravel(modules: Set<string>) {
 export function isSalon(modules: Set<string>) {
   return modules.has("service_catalog") && modules.has("appointments");
 }
+
+/** Hôtel / location : types de chambres et calendrier de disponibilité. */
+export function isHotel(modules: Set<string>) {
+  return modules.has("listings") && modules.has("availability_calendar");
+}

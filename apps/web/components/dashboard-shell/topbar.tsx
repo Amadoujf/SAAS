@@ -29,6 +29,9 @@ const SECTION_LABELS: [string, string][] = [
   ["/dashboard/rendez-vous", "Rendez-vous"],
   ["/dashboard/prestations", "Prestations"],
   ["/dashboard/horaires", "Équipe et horaires"],
+  ["/dashboard/planning", "Planning"],
+  ["/dashboard/sejours", "Séjours"],
+  ["/dashboard/chambres", "Chambres et ménage"],
 ];
 
 export function sectionLabel(pathname: string) {

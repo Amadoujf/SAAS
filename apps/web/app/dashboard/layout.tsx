@@ -1,11 +1,11 @@
 import { ycFontVariables } from "@/lib/yc-fonts";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { withTenant, countOrdersByQueue } from "@yamacommerce/database";
+import { withTenant, countOrdersByQueue, hotelOverview } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isRealEstate, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isHotel, isRealEstate, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -32,6 +32,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const realEstate = isRealEstate(modules);
   const travel = isTravel(modules);
   const salon = isSalon(modules);
+  const hotel = isHotel(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
@@ -64,6 +65,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       await tx.reservation.count({ where: { tenantId: membership.tenantId, moduleKey: "appointments", status: "requested", startAt: { gte: now } } }),
       await tx.reservation.count({ where: { tenantId: membership.tenantId, moduleKey: "appointments", status: { in: ["requested", "confirmed"] }, startAt: { gte: now, lt: dayEnd } } }),
     ]);
+  }
+  let hotelArrivals = 0;
+  let hotelDirty = 0;
+  let hotelPending = 0;
+  if (membership && hotel) {
+    const o = await withTenant(membership.tenantId, (tx) => hotelOverview(tx, membership.tenantId));
+    hotelArrivals = o.arrivals;
+    hotelDirty = o.dirty;
+    hotelPending = o.pending;
   }
   if (membership) {
     const data = await withTenant(membership.tenantId, async (tx) => ({
@@ -127,6 +137,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
       { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
     );
+  } else if (membership && hotel) {
+    pilot.push(
+      { href: "/dashboard/planning", label: "Planning", icon: "calendar", permission: "reservations.view" },
+      { href: "/dashboard/sejours", label: "Séjours", icon: "ticket", badge: hotelArrivals + hotelPending || undefined, permission: "reservations.view" },
+      { href: "/dashboard/chambres", label: "Chambres et ménage", icon: "bed", badge: hotelDirty || undefined, permission: "listings.view" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
+    );
+    manage.push(
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
+      { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
+    );
   } else if (membership && salon) {
     pilot.push(
       { href: "/dashboard/agenda", label: "Agenda", icon: "calendar", badge: appointmentsToday || undefined, permission: "reservations.view" },
@@ -163,6 +185,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     ? [
         { href: "/dashboard/reservations?file=a-confirmer", label: "Réservations à confirmer", count: bookingsToConfirm },
         { href: "/dashboard/reservations?file=pieces", label: "Pièces de voyageurs à obtenir", count: missingDocuments },
+      ]
+    : hotel
+    ? [
+        { href: "/dashboard/sejours?file=arrivees", label: "Arrivées du jour", count: hotelArrivals },
+        { href: "/dashboard/sejours?file=a-confirmer", label: "Séjours à confirmer", count: hotelPending },
+        { href: "/dashboard/chambres", label: "Chambres à nettoyer", count: hotelDirty },
       ]
     : salon
     ? [
@@ -203,7 +231,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {isDemo && (
           <p className="border-b border-yc-electric/15 bg-[#E8EFFF] px-4 py-2 text-center text-[12px] font-medium text-yc-ink sm:px-6">
             <span className="mr-1.5 font-bold uppercase tracking-[0.12em] text-yc-electric">Démonstration</span>
-            Entreprise fictive : {travel ? "voyages, voyageurs et réservations" : salon ? "prestations, clients et rendez-vous" : realEstate ? "biens, clients et visites" : "produits, clients et commandes"} servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
+            Entreprise fictive : {travel ? "voyages, voyageurs et réservations" : salon ? "prestations, clients et rendez-vous" : hotel ? "chambres, clients et séjours" : realEstate ? "biens, clients et visites" : "produits, clients et commandes"} servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
           </p>
         )}
         <main id="contenu" className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">

@@ -169,6 +169,11 @@ describe.skipIf(!databaseAvailable)("Hôtels (réel, PostgreSQL)", () => {
     expect(longer!.totalAmount).toBe(120_000);
     await expect(withTenant(hotelA, (tx) => setRoomHousekeeping(tx, hotelA, other, "out_of_service"))).rejects.toThrow(/occupe/);
     await withTenant(hotelA, (tx) => checkOut(tx, hotelA, s!.id, staffActor));
+    // Départ anticipé : les nuits restantes sont libérées, le montant est conservé.
+    const after = await withTenant(hotelA, (tx) => tx.hotelStay.findUniqueOrThrow({ where: { reservationId: s!.id } }));
+    expect(after.departure.toISOString().slice(0, 10)).toBe(d(1));
+    const again = await withTenant(hotelA, (tx) => bookStay(tx, hotelA, { listingId: doubleId, roomId: other, arrival: d(1), departure: d(3), adults: 1, customer: client(), actor: staffActor, channel: "dashboard" }));
+    expect(again!.stay!.roomId).toBe(other);
     const room = await withTenant(hotelA, (tx) => tx.hotelRoom.findUniqueOrThrow({ where: { id: other } }));
     expect(room.housekeeping).toBe("dirty");
     const done = await withTenant(hotelA, (tx) => tx.reservation.findUniqueOrThrow({ where: { id: s!.id } }));
