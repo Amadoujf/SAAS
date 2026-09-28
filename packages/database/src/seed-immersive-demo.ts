@@ -1,5 +1,6 @@
 /**
- * Compositions IMMERSIVES de démonstration (Sunu Marché, Almadies Immobilier), déposées
+ * Compositions IMMERSIVES de démonstration (Sunu Marché, Almadies Immobilier, Braise &
+ * Bissap), déposées
  * dans le BROUILLON de l'éditeur de chaque entreprise — la publication reste une action
  * de l'éditeur (bouton « Publier »), jamais faite ici. Script de DÉVELOPPEMENT : le site
  * de l'entreprise doit déjà exister (ouvrez /editeur une fois).
@@ -19,6 +20,8 @@ const L = "/demo-templates/scene-lampe";
 const SM = "/demo-templates/sunu-marche";
 const R = "/demo-templates/residences";
 const C = "/demo-templates/ceramiques";
+const Y = "/demo-templates/scene-yassa";
+const RS = "/demo-templates/restaurant";
 
 /** Collection « Terres émaillées » : produits de DÉMONSTRATION dont le visuel est le rendu
  *  original (scripts/demo-visuals/ceramiques.py) — le visuel montre donc bien le produit.
@@ -186,6 +189,74 @@ function almadies(villaSlug: string | null): SectionInstance[] {
   ];
 }
 
+/** Restaurant : le yassa se compose au défilement (assiette au centre, ingrédients qui
+ *  arrivent chacun de leur côté), la carte en carrousel, puis le plat raconté. Les blocs
+ *  « commander / réserver / horaires » du restaurant s'ajoutent toujours en dessous. */
+function braiseBissap(): SectionInstance[] {
+  return [
+    section("scene-yassa", "immersive_hero", "stage", 0, {
+      eyebrow: "Dibiterie · Ouakam",
+      title: "Le yassa",
+      titleAccent: "se compose.",
+      subtitle: "Citron pressé, oignons fondus, poulet saisi à la braise : chaque ingrédient est préparé à part, puis tout se retrouve dans l'assiette.",
+      primaryCtaLabel: "Commander",
+      primaryCtaHref: "/carte",
+      secondaryCtaLabel: "Réserver une table",
+      secondaryCtaHref: "/reserver-une-table",
+      subjectImage: `${Y}/assiette.webp`,
+      subjectAlt: "Assiette de yassa au poulet, riz blanc",
+      subjectStyle: "cutout",
+      backgroundColor: "#1C1714",
+      lighting: "spotlight",
+      scrollEffect: "assemble",
+      floating: true,
+      intensity: "balanced",
+      layers: [
+        { imageUrl: `${Y}/lueur.webp`, alt: "", depth: 0.05, offsetY: 4, scale: 1.6, arriveFrom: "none" },
+        { imageUrl: `${Y}/poulet.webp`, alt: "Poulet grillé", depth: 0.8, offsetX: 30, offsetY: -30, scale: 0.55, rotate: 12, arriveFrom: "right" },
+        { imageUrl: `${Y}/citron.webp`, alt: "Demi-citron", depth: 0.85, offsetX: -33, offsetY: -28, scale: 0.4, arriveFrom: "left" },
+        { imageUrl: `${Y}/oignons.webp`, alt: "Oignons émincés", depth: 0.7, offsetX: -34, offsetY: 30, scale: 0.42, arriveFrom: "left" },
+        { imageUrl: `${Y}/piment.webp`, alt: "Piment rouge", depth: 0.9, offsetX: 31, offsetY: 34, scale: 0.55, rotate: -18, arriveFrom: "bottom" },
+        { imageUrl: `${Y}/herbes.webp`, alt: "Persil frais", depth: 0.95, offsetX: 38, offsetY: 4, scale: 0.3, rotate: 20, arriveFrom: "right" },
+      ],
+    }),
+    section("carte-carrousel", "immersive_showcase", "depth", 1, {
+      eyebrow: "Ce soir à la braise",
+      title: "Choisissez, on s'occupe du feu.",
+      subtitle: "Prix de la carte, à emporter, livré ou à table.",
+      source: "manual",
+      items: [
+        { title: "Dibi d'agneau", subtitle: "6 500 FCFA · au feu de bois", imageUrl: `${RS}/dibi-agneau.webp`, imageAlt: "Dibi d'agneau", href: "/carte", badge: "Signature" },
+        { title: "Thiéboudienne", subtitle: "4 000 FCFA · riz rouge et poisson", imageUrl: `${RS}/thieboudienne.webp`, imageAlt: "Thiéboudienne", href: "/carte", badge: "Signature" },
+        { title: "Yassa poulet", subtitle: "3 500 FCFA · citron et oignons", imageUrl: `${RS}/yassa-poulet.webp`, imageAlt: "Yassa poulet", href: "/carte" },
+        { title: "Mafé bœuf", subtitle: "3 500 FCFA · sauce arachide", imageUrl: `${RS}/mafe.webp`, imageAlt: "Mafé", href: "/carte" },
+        { title: "Fatayas", subtitle: "2 000 FCFA · les quatre", imageUrl: `${RS}/fataya.webp`, imageAlt: "Fatayas", href: "/carte" },
+        { title: "Bissap glacé", subtitle: "1 000 FCFA · maison", imageUrl: `${RS}/bissap-bouye.webp`, imageAlt: "Bissap glacé", href: "/carte" },
+      ],
+      showPrice: false,
+      ctaLabel: "Voir la carte",
+      autoplay: true,
+      intervalSeconds: 4,
+      backdrop: "dark",
+    }),
+    section("recit-yassa", "scroll_story", "product", 2, {
+      eyebrow: "Le yassa, pas à pas",
+      title: "Quatre gestes, une assiette.",
+      image: `${Y}/assiette.webp`,
+      imageAlt: "Assiette de yassa au poulet",
+      objectStyle: "cutout",
+      steps: [
+        { eyebrow: "Le citron", title: "Pressé le matin", body: "La marinade commence tôt : citron, moutarde, poivre, une nuit de repos pour le poulet.", rotate: -10, objectScale: 0.9, accentColor: "#C9A21E" },
+        { eyebrow: "Les oignons", title: "Fondus lentement", body: "Deux heures à feu doux, jusqu'à ce qu'ils deviennent sauce.", rotate: 6, objectScale: 1.02, accentColor: "#8E5A9B" },
+        { eyebrow: "La braise", title: "Poulet saisi", body: "Juste avant de servir, le poulet passe sur le grill : la peau croustille, la chair reste tendre.", rotate: -4, objectScale: 1.12, accentColor: "#C2461F" },
+        { eyebrow: "L'assiette", title: "Riz ou attiéké", body: "À vous de choisir l'accompagnement, sur place ou à emporter.", rotate: 0, objectScale: 1, accentColor: "#F2A516" },
+      ],
+      ctaLabel: "Commander un yassa",
+      ctaHref: "/carte",
+    }),
+  ];
+}
+
 async function applyDraft(slug: string, blocks: SectionInstance[]) {
   const tenant = await findDemoTenant(slug);
   if (!tenant) return console.info(`« ${slug} » : pas d'entreprise de démonstration — rien à faire.`);
@@ -209,6 +280,7 @@ async function main() {
   const agency = await findDemoTenant("almadies-immobilier");
   const villa = agency ? await withTenant(agency.id, (tx) => tx.listing.findFirst({ where: { tenantId: agency.id, title: "Villa contemporaine face à l'océan" }, select: { slug: true } })) : null;
   await applyDraft("almadies-immobilier", almadies(villa?.slug ?? null));
+  await applyDraft("braise-bissap", braiseBissap());
 }
 
 main()

@@ -546,6 +546,55 @@
    "height": 900,
    "bytes": 73460,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (yassa au poulet, riz blanc)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/assiette.webp",
+   "width": 876,
+   "height": 877,
+   "bytes": 64388,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (assiette de yassa au poulet, riz blanc)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/citron.webp",
+   "width": 358,
+   "height": 358,
+   "bytes": 15996,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (demi-citron)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/herbes.webp",
+   "width": 236,
+   "height": 332,
+   "bytes": 19410,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (brin de persil)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/lueur.webp",
+   "width": 759,
+   "height": 467,
+   "bytes": 45418,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (halo de braise)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/oignons.webp",
+   "width": 271,
+   "height": 324,
+   "bytes": 16756,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (oignons émincés)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/piment.webp",
+   "width": 438,
+   "height": 109,
+   "bytes": 6514,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (piment rouge)."
+  },
+  {
+   "file": "demo-templates/scene-yassa/poulet.webp",
+   "width": 428,
+   "height": 306,
+   "bytes": 12532,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (morceau de poulet grillé)."
   }
  ]
 }

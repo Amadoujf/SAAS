@@ -26,7 +26,7 @@ const input = "mt-1.5 h-11 w-full rounded-xl bg-white px-3 text-sm font-normal r
  * couverture, accroche, coordonnées), les photos des plats, puis logo et couleurs.
  * Aucun réglage technique : le template « Braise » fait le reste.
  */
-export function RestaurantSetup({ home, dishes, siteUrl }: { home: SetupHome; dishes: SetupDish[]; siteUrl: string | null }) {
+export function RestaurantSetup({ home, dishes, siteUrl, editorHome }: { home: SetupHome; dishes: SetupDish[]; siteUrl: string | null; editorHome: boolean }) {
   const a = useRestoAction();
   const photo = useRestoAction();
   const [h, setH] = useState(home);
@@ -41,6 +41,7 @@ export function RestaurantSetup({ home, dishes, siteUrl }: { home: SetupHome; di
           <div className="min-w-0 flex-1">
             <h2 id="vitrine" className="text-[18px] font-bold tracking-[-0.015em]">Votre vitrine</h2>
             <p className="text-sm text-yc-ink-soft">La grande photo et la phrase que vos clients voient en arrivant.</p>
+            {editorHome && <p className="mt-2 rounded-lg bg-[#FFF3DC] px-3 py-2 text-[13px] text-[#6B4300]">Votre accueil est actuellement composé dans l&apos;éditeur (scène, carrousel…) : cette vitrine s&apos;affichera si vous revenez à l&apos;accueil standard. Vos coordonnées, elles, s&apos;appliquent partout.</p>}
           </div>
           {siteUrl && <a href={siteUrl} target="_blank" rel="noreferrer" className="shrink-0 text-sm font-semibold text-yc-electric hover:underline">Voir mon site</a>}
         </div>

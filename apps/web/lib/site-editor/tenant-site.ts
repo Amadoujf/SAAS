@@ -5,6 +5,10 @@ import { DEFAULT_DESIGN_TOKENS, type DesignTokens, type DesignTokensOverrides } 
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { RESIDENCES_TOKENS } from "@/lib/real-estate/estate-templates";
+import { BRAISE_TOKENS } from "@/lib/restaurant/restaurant-templates";
+import { PALMERAIE_TOKENS } from "@/lib/hotel/hotel-templates";
+import { ECRIN_TOKENS } from "@/lib/salon/salon-templates";
+import { HORIZONS_TOKENS } from "@/lib/travel/travel-templates";
 import { isFontPair, isShape } from "@/lib/storefront/brand-kit";
 import { applyBranding, parseHomeContent } from "@/lib/storefront/home-content";
 import { invalidateSiteCache } from "@/lib/publishing/cache";
@@ -28,6 +32,12 @@ function templateFor(slug: string | undefined, sectorKey: string): TemplateEntry
   const store = STORE_TEMPLATES.find((t) => t.slug === slug);
   if (store) return { key: `y-${store.slug}`, name: store.name, sectorKey: slug === "atelier-naya" ? "fashion" : "ecommerce", tokens: store.tokens };
   if (slug === "residences" || sectorKey === "real_estate") return { key: "y-residences", name: "Résidences", sectorKey: "real_estate", tokens: RESIDENCES_TOKENS };
+  // Les pages composées dans l'éditeur reprennent le style du secteur (même habillage
+  // que le reste du site : en-tête, carte, réservation…).
+  if (slug === "braise" || sectorKey === "restaurant") return { key: "y-braise", name: "Braise", sectorKey: "restaurant", tokens: BRAISE_TOKENS };
+  if (slug === "palmeraie" || sectorKey === "hospitality") return { key: "y-palmeraie", name: "Palmeraie", sectorKey: "hospitality", tokens: PALMERAIE_TOKENS };
+  if (slug === "ecrin" || sectorKey === "services") return { key: "y-ecrin", name: "Écrin", sectorKey: "services", tokens: ECRIN_TOKENS };
+  if (slug === "horizons" || sectorKey === "travel_agency") return { key: "y-horizons", name: "Horizons", sectorKey: "travel_agency", tokens: HORIZONS_TOKENS };
   return { key: "y-essentiel", name: "Essentiel", sectorKey: "ecommerce", tokens: DEFAULT_DESIGN_TOKENS };
 }
 

@@ -84,6 +84,7 @@ export default async function MySitePage() {
         <div className="flex flex-col gap-5">
           <RestaurantSetup
             siteUrl={siteUrl}
+            editorHome={data.status.mode === "editor"}
             home={{
               coverUrl: custom ? (slide?.imageUrl ?? null) : null,
               coverDemo: custom ? Boolean(slide?.demo) : false,

@@ -13,6 +13,7 @@ import type { HotelContext } from "@/lib/hotel/hotel-context";
 import { HotelShell } from "@/components/hotel/hotel-shell";
 import type { RestaurantContext } from "@/lib/restaurant/restaurant-context";
 import { RestaurantShell } from "@/components/restaurant/restaurant-shell";
+import { RestaurantEssentials } from "@/components/restaurant/restaurant-essentials";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -34,6 +35,7 @@ export function PublishedSectorHome({ site, store, estate, travel, salon, hotel,
   if (travel) return <TravelShell travel={travel}>{content}</TravelShell>;
   if (salon) return <SalonShell salon={salon}>{content}</SalonShell>;
   if (hotel) return <HotelShell hotel={hotel}>{content}</HotelShell>;
-  if (restaurant) return <RestaurantShell restaurant={restaurant}>{content}</RestaurantShell>;
+  // Restaurant : la page composée (scène, récits…) puis, toujours, commander / réserver.
+  if (restaurant) return <RestaurantShell restaurant={restaurant}>{content}<RestaurantEssentials restaurant={restaurant} /></RestaurantShell>;
   return content;
 }
