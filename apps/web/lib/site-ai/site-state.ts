@@ -5,7 +5,7 @@ import { getOrCreateDraftVersion, updatePageBlocks } from "@yamacommerce/databas
 import { DEFAULT_DESIGN_TOKENS, type DesignTokens } from "@yamacommerce/design-tokens";
 import type { SectionInstance } from "@yamacommerce/templates";
 import { applyBranding } from "@/lib/storefront/home-content";
-import { templateTokens } from "@/lib/storefront/store-templates";
+import { siteStyleTokens } from "./style-tokens";
 import { isFontPair, isShape } from "@/lib/storefront/brand-kit";
 import type { SiteState } from "./operations";
 import type { SiteIdentity, SiteMotion } from "./types";
@@ -48,7 +48,7 @@ export async function liveSettings(tx: Prisma.TransactionClient, tenantId: strin
   const b = (tenant.branding ?? {}) as Record<string, unknown>;
   const style = str(b.templatePreference) ?? "sunu-marche";
   const overrides = (site?.designTokenOverrides ?? {}) as { animation?: { mobile?: string } };
-  const level = (site?.animationLevelOverride ?? site?.template.defaultAnimationLevel ?? templateTokens(style)?.animation.level ?? "dynamic") as SiteMotion["level"];
+  const level = (site?.animationLevelOverride ?? site?.template.defaultAnimationLevel ?? siteStyleTokens(style)?.animation.level ?? "dynamic") as SiteMotion["level"];
   const mobile = (["same", "reduced", "none"].includes(overrides.animation?.mobile ?? "") ? overrides.animation!.mobile : "same") as SiteMotion["mobile"];
   return {
     identity: {
@@ -127,7 +127,7 @@ export function fromSiteState(state: SiteState, logoUrl: string | null): DraftSn
 
 /** Design tokens d'un aperçu : style choisi + couleurs + animations du brouillon. */
 export function previewTokens(settings: DraftSettings): DesignTokens {
-  const base = templateTokens(settings.identity.style) ?? DEFAULT_DESIGN_TOKENS;
+  const base = siteStyleTokens(settings.identity.style) ?? DEFAULT_DESIGN_TOKENS;
   const branded = applyBranding(base, settings.identity);
   return { ...branded, animation: { ...branded.animation, level: settings.motion.level, mobile: settings.motion.mobile } };
 }

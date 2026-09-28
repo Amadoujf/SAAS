@@ -112,6 +112,7 @@ export async function loadStudio() {
       homeStatus,
       audit: auditPhotos(ctx),
       catalog: {
+        mode: ctx.mode ?? "commerce",
         products: ctx.products.length,
         illustrated: ctx.products.filter((p) => p.imageUrl).length,
         categories: ctx.categories.length,
@@ -177,7 +178,7 @@ export async function generateDirections(raw: unknown): Promise<StudioResult<{ j
   if (!parsed.success) return { ok: false, status: 400, error: parsed.error.issues[0]?.message ?? "Description invalide." };
   const brief = parsed.data;
   const ctx = await withTenant(who.tenantId, async (tx) => context(tx, who, await loadDraft(tx, who.tenantId, who.tenantSiteId)));
-  if (!ctx.products.length) return { ok: false, status: 409, error: "Ajoutez d'abord quelques produits à votre catalogue : l'assistant compose le site avec VOS produits." };
+  if (!ctx.products.length) return { ok: false, status: 409, error: ctx.mode === "restaurant" ? "Ajoutez d'abord vos plats à la carte : l'assistant compose le site avec VOTRE carte." : "Ajoutez d'abord quelques produits à votre catalogue : l'assistant compose le site avec VOS produits." };
   const audit = auditPhotos(ctx);
   try {
     const { jobId } = await runJob(
@@ -269,7 +270,7 @@ export async function proposeEdit(raw: unknown): Promise<StudioResult<{ jobId: s
           prompt: editPrompt(request, state, ctx, history, selectedSectionId),
           schema: editOutputSchema,
           effort: improve ? "high" : "medium",
-          simulate: () => (improve ? simulateImprove(state, ctx) : simulateEdit(message, state, selectedSectionId)),
+          simulate: () => (improve ? simulateImprove(state, ctx) : simulateEdit(message, state, selectedSectionId, ctx.mode === "restaurant")),
         }),
       (data) => {
         const result = applyOperations(state, data.operations, ctx);

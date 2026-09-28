@@ -13,6 +13,9 @@ import type { SiteAiContext, SiteBrief } from "./types";
 
 const STYLE_GUIDE = STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${t.layout === "editorial" ? "éditoriale" : "catalogue"})`).join("\n");
 
+/** Restaurant : ce qui change pour le modèle (dans le message, pas dans le texte système mis en cache). */
+const RESTAURANT_NOTE = "Cette entreprise est un RESTAURANT : les « produits » ci-dessous sont les plats de sa carte (catégorie = rubrique de la carte) et les « catégories » ses rubriques. Les boutons mènent à la carte et à la réservation de table. Le style de base est imposé (« braise ») : choisis-en un quelconque, il sera remplacé ; joue sur la structure, la typographie, les formes et la palette. N'annonce ni horaires, ni livraison, ni promotion : ils sont gérés ailleurs. Écris pour donner faim, sans inventer un ingrédient absent des descriptions.";
+
 const QUALITY = `Exigence de qualité Y-COM : des pages sobres et maîtrisées, où chaque bloc a une seule idée ; de grandes images quand elles existent ; une typographie précise ; de l'espace ; des textes courts, concrets et élégants (jamais de superlatifs creux, jamais de points d'exclamation en série) ; des animations fluides au service du produit, jamais gratuites.`;
 
 const HONESTY = `Règles absolues :
@@ -60,6 +63,7 @@ export function directionsPrompt(brief: SiteBrief, context: SiteAiContext, audit
       categories: context.categories.map((c) => ({ id: c.id, nom: c.name, produits: c.productCount })),
       images_mediatheque: context.libraryImages.length,
       produits: context.products.map((p) => ({ id: p.id, nom: p.name, categorie: p.category, prix: p.priceLabel, description: p.description?.slice(0, 300) ?? null, ajoute_le: p.createdAt.slice(0, 10), photo: Boolean(p.imageUrl) })),
+      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : {}),
       consigne: "Propose trois directions artistiques pour la page d'accueil de ce site.",
     },
     null,
@@ -122,6 +126,7 @@ export function editPrompt(message: string, state: SiteState, context: SiteAiCon
   return JSON.stringify(
     {
       entreprise: context.tenantName,
+      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : {}),
       site_actuel: describeState(state),
       produits: context.products.map((p) => ({ id: p.id, nom: p.name, categorie: p.category, ajoute_le: p.createdAt.slice(0, 10), photo: Boolean(p.imageUrl) })),
       conversation_recente: history.slice(-6),

@@ -48,30 +48,35 @@ export async function resolveRestaurant(path: string): Promise<RestaurantResolut
   if (active.status === "not_found") notFound();
   if (active.status === "redirect") permanentRedirect(`https://${active.targetDomain}${path}`);
   if (active.status !== "ok") return active;
-  const data = await withTenant(active.tenantId, async (tx) => {
-    const tenant = await tx.tenant.findUnique({ where: { id: active.tenantId }, select: { branding: true, isDemo: true, timezone: true } });
+  const restaurant = await buildRestaurantContext(active.tenantId, active.tenantName);
+  if (!restaurant) notFound();
+  return { status: "ok", restaurant };
+}
+
+/** Contexte d'un restaurant par son identifiant (aperçu du brouillon, sans résolution d'hôte). */
+export async function buildRestaurantContext(tenantId: string, tenantName: string): Promise<RestaurantContext | null> {
+  const data = await withTenant(tenantId, async (tx) => {
+    const tenant = await tx.tenant.findUnique({ where: { id: tenantId }, select: { branding: true, isDemo: true, timezone: true } });
     return {
-      modules: new Set((await getEnabledModules(tx, active.tenantId)).map((m) => m.moduleKey)),
+      modules: new Set((await getEnabledModules(tx, tenantId)).map((m) => m.moduleKey)),
       branding: (tenant?.branding ?? {}) as Record<string, unknown>,
       isDemo: tenant?.isDemo === true,
       timezone: tenant?.timezone || "Africa/Dakar",
-      content: (await tx.storefrontContent.findUnique({ where: { tenantId: active.tenantId } }))?.content ?? null,
-      payments: await tx.paymentProviderConfig.findMany({ where: { tenantId: active.tenantId, provider: { in: ["wave_direct", "orange_money_direct"] }, isEnabled: true }, select: { provider: true } }),
-      settings: await getRestaurantSettings(tx, active.tenantId),
+      content: (await tx.storefrontContent.findUnique({ where: { tenantId: tenantId } }))?.content ?? null,
+      payments: await tx.paymentProviderConfig.findMany({ where: { tenantId: tenantId, provider: { in: ["wave_direct", "orange_money_direct"] }, isEnabled: true }, select: { provider: true } }),
+      settings: await getRestaurantSettings(tx, tenantId),
     };
   });
-  if (!isRestaurant(data.modules)) notFound();
+  if (!isRestaurant(data.modules)) return null;
   const template = RESTAURANT_TEMPLATES.find((t) => t.slug === data.branding.templatePreference);
   const s = data.settings;
   return {
-    status: "ok",
-    restaurant: {
-      tenantId: active.tenantId,
-      tenantName: active.tenantName,
+      tenantId: tenantId,
+      tenantName: tenantName,
       timezone: data.timezone,
       tokens: applyBranding(template?.tokens ?? BRAISE_TOKENS, data.branding),
       logoUrl: str(data.branding.logoUrl),
-      content: parseHomeContent(data.content, active.tenantName),
+      content: parseHomeContent(data.content, tenantName),
       contact: { phone: str(data.branding.contactPhone), whatsapp: str(data.branding.contactWhatsapp), email: str(data.branding.contactEmail), address: str(data.branding.contactAddress) },
       payWays: [...data.payments.map((p) => (p.provider === "wave_direct" ? "Wave" : "Orange Money")), "espèces"],
       rules: {
@@ -85,10 +90,10 @@ export async function resolveRestaurant(path: string): Promise<RestaurantResolut
         prepMinutes: s.prepMinutes,
         maxPartySize: s.maxPartySize,
       },
-      demoData: data.isDemo,
-    },
+    demoData: data.isDemo,
   };
 }
+
 
 export async function isRestaurantTenant(tenantId: string) {
   const modules = new Set((await withTenant(tenantId, (tx) => getEnabledModules(tx, tenantId))).map((m) => m.moduleKey));

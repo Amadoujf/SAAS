@@ -1,6 +1,6 @@
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { contrastRatio, validateBrandColor } from "@/lib/storefront/home-content";
-import { templateTokens } from "@/lib/storefront/store-templates";
+import { siteStyleTokens } from "./style-tokens";
 import { ARCHETYPE_KEYS, type AiDirection, type ArchetypeKey } from "./schemas";
 import { ARCHETYPES, type Slot } from "./archetypes";
 import type { CatalogProduct, SiteAiContext, SiteIdentity, SiteMotion } from "./types";
@@ -52,7 +52,7 @@ export function safeColor(value: string | null | undefined, kind: "brand" | "bac
     }
     return value.toUpperCase();
   }
-  const text = templateTokens(style)?.colors.textPrimary ?? "#111111";
+  const text = siteStyleTokens(style)?.colors.textPrimary ?? "#111111";
   if (contrastRatio(value, text) < 7) {
     notes.push(`Fond ${value} non retenu : le texte ne serait pas assez lisible.`);
     return null;
@@ -89,7 +89,12 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
 export function compileSlots(direction: AiDirection, context: SiteAiContext, slots: Slot[], reserved: string[] = []): CompiledSite {
   const notes: string[] = [];
   const audit = auditPhotos(context);
-  const style = direction.style;
+  // Restaurant : le style de base est celui du secteur (en-tête, carte, réservation) ;
+  // l'assistant joue sur la structure, la typographie, les formes et les couleurs.
+  const restaurant = context.mode === "restaurant";
+  const style = restaurant ? "braise" : direction.style;
+  const catalogHref = restaurant ? "/carte" : "/catalogue";
+  const itemHref = (p: CatalogProduct) => (restaurant ? "/carte" : `/p/${p.slug}`);
   const identity: SiteIdentity = {
     style,
     primaryColor: safeColor(direction.palette.primary, "brand", style, notes),
@@ -123,7 +128,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   };
 
   const heroTitle = text(copy.heroTitle, "titre") ?? context.tenantName;
-  const cta = text(copy.ctaLabel, "bouton") ?? "Découvrir la boutique";
+  const cta = text(copy.ctaLabel, "bouton") ?? (restaurant ? "Voir la carte" : "Découvrir la boutique");
   const manifesto = text(copy.manifesto, "manifeste");
   const manifestoBody = text(copy.manifestoBody, "texte du manifeste");
   // Univers avec un visuel d'abord ; un univers sans aucune photo n'apparaît que s'il n'y
@@ -131,6 +136,29 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   const withProducts = context.categories.filter((c) => c.productCount > 0);
   const illustratedCategories = withProducts.filter((c) => c.hasVisual);
   const categories = (illustratedCategories.length >= 2 ? illustratedCategories : withProducts).slice(0, 6);
+
+  /** Carrousel de plats photographiés (contenu saisi : nom, prix de la carte, lien). */
+  const dishShowcase = (id: string, variant: string, eyebrow: string | undefined, title: string): RawSection | null => {
+    const items = featured.slice(0, 10);
+    if (items.length < 3) return null;
+    items.forEach((p) => used.add(p.id));
+    return {
+      id,
+      sectionKey: "immersive_showcase",
+      variant,
+      params: {
+        eyebrow,
+        title,
+        source: "manual",
+        items: items.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: "/carte" })),
+        showPrice: false,
+        ctaLabel: "Voir la carte",
+        autoplay: direction.animation !== "discreet",
+        imageStyle: "photo",
+        backdrop: variant === "arc" ? "dark" : "tinted",
+      },
+    };
+  };
 
   const build = (slot: Slot): RawSection | null => {
     switch (slot.kind) {
@@ -149,8 +177,10 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
             titleAccent: text(copy.heroTitleAccent, "titre (suite)"),
             subtitle: text(copy.heroSubtitle, "sous-titre"),
             primaryCtaLabel: cta,
-            primaryCtaHref: "/catalogue",
-            ...(heroProduct && variant !== "architectural" ? { secondaryCtaLabel: heroProduct.name.slice(0, 40), secondaryCtaHref: `/p/${heroProduct.slug}` } : {}),
+            primaryCtaHref: catalogHref,
+            ...(restaurant
+              ? { secondaryCtaLabel: "Réserver une table", secondaryCtaHref: "/reserver-une-table" }
+              : heroProduct && variant !== "architectural" ? { secondaryCtaLabel: heroProduct.name.slice(0, 40), secondaryCtaHref: itemHref(heroProduct) } : {}),
             ...(subject ? { subjectImage: subject.url, subjectAlt: subject.alt, subjectStyle: "framed" } : {}),
             lighting: variant === "architectural" ? "none" : "halo",
             scrollEffect: "zoom",
@@ -174,11 +204,13 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
             subtitle: text(copy.heroSubtitle, "sous-titre"),
             media,
             ctaLabel: cta,
-            ctaHref: "/catalogue",
+            ctaHref: catalogHref,
           },
         };
       }
       case "catalog_search":
+        // Recherche du catalogue : propre à la boutique (le restaurant a sa carte).
+        if (restaurant) return build({ ...slot, kind: "classic_hero", variant: "split" });
         return {
           id: slot.id,
           sectionKey: "catalog_search",
@@ -198,6 +230,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           return null;
         }
         const variant = slot.variant === "arc" && !audit.canShowcase ? "depth" : slot.variant;
+        if (restaurant) return dishShowcase(slot.id, variant, text(copy.heroEyebrow, "surtitre de la vitrine"), text(copy.selectionTitle, "titre de la vitrine") ?? "À la carte");
         return {
           id: slot.id,
           sectionKey: "immersive_showcase",
@@ -245,8 +278,8 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
               rotate: [-6, 5, -3, 0][i],
               objectScale: 1,
             })),
-            ctaLabel: "Tout le catalogue",
-            ctaHref: "/catalogue",
+            ctaLabel: restaurant ? "Voir la carte" : "Tout le catalogue",
+            ctaHref: catalogHref,
           },
         };
       }
@@ -262,7 +295,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         // Sans texte long fourni, le titre reste le nom de l'entreprise et la phrase de
         // manifeste devient le texte : rien n'est inventé pour remplir la section.
         const [title, body] = manifestoBody ? [manifesto, manifestoBody] : [context.tenantName, manifesto];
-        return { id: slot.id, sectionKey: "heritage", variant: slot.variant, params: { eyebrow: "La maison", title, body, media: photo(product), ctaLabel: "Voir les créations", ctaHref: "/catalogue" } };
+        return { id: slot.id, sectionKey: "heritage", variant: slot.variant, params: { eyebrow: "La maison", title, body, media: photo(product), ctaLabel: restaurant ? "Voir la carte" : "Voir les créations", ctaHref: catalogHref } };
       }
       case "signature": {
         if (!signatureProduct) return null;
@@ -272,12 +305,12 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           sectionKey: "signature_product",
           variant: slot.variant,
           params: {
-            eyebrow: "Pièce signature",
+            eyebrow: restaurant ? "Le plat signature" : "Pièce signature",
             title: signatureProduct.name,
             description: excerpt(signatureProduct.description, 260),
             media: photo(signatureProduct),
-            ctaLabel: "Découvrir la pièce",
-            ctaHref: `/p/${signatureProduct.slug}`,
+            ctaLabel: restaurant ? "Le commander" : "Découvrir la pièce",
+            ctaHref: itemHref(signatureProduct),
           },
         };
       }
@@ -298,6 +331,9 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
       }
       case "featured":
         if (!context.products.length) return null;
+        // La sélection du catalogue lit les produits de la boutique : pour un restaurant,
+        // les plats photographiés sont présentés en carrousel (contenu saisi, liens vers la carte).
+        if (restaurant) return featured.length >= 3 ? dishShowcase(slot.id, "stack", undefined, text(copy.selectionTitle, "titre de la sélection") ?? "Nos plats") : null;
         return {
           id: slot.id,
           sectionKey: "featured_products",
@@ -305,15 +341,15 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           params: { title: text(copy.selectionTitle, "titre de la sélection") ?? "La sélection", productIds: featured.slice(0, 10).map((p) => p.id), displayCount: featuredCount(slot.variant, featured.length) },
         };
       case "new_arrivals":
-        if (context.products.length < 2) return null;
+        if (restaurant || context.products.length < 2) return null;
         return { id: slot.id, sectionKey: "new_arrivals", variant: slot.variant, params: { title: "Nouveautés", displayCount: slot.variant === "grid" ? gridCount(context.products.length) : Math.min(8, context.products.length) } };
       case "categories":
-        if (!categories.length) return null;
+        if (restaurant || !categories.length) return null;
         return { id: slot.id, sectionKey: "categories", variant: slot.variant, params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
       case "closing": {
         const title = text(copy.closingTitle, "invitation finale");
         if (!title) return null;
-        return { id: slot.id, sectionKey: "cta", variant: slot.variant, params: { title, description: text(copy.closingText, "texte de l'invitation"), buttonLabel: cta, buttonHref: "/catalogue" } };
+        return { id: slot.id, sectionKey: "cta", variant: slot.variant, params: { title, description: text(copy.closingText, "texte de l'invitation"), buttonLabel: cta, buttonHref: catalogHref } };
       }
     }
   };

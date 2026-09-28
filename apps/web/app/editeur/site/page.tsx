@@ -13,6 +13,7 @@ import { isDraftSettings, loadDraft, previewTokens, type DraftSnapshot } from "@
 import type { CompiledSite } from "@/lib/site-ai/compile";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { PreviewBridge } from "@/components/site-ai/preview-bridge";
+import { buildRestaurantContext } from "@/lib/restaurant/restaurant-context";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -52,14 +53,25 @@ export default async function SiteDraftPreviewPage({ searchParams }: { searchPar
   });
 
   const tokens = previewTokens(snapshot.settings);
-  const base = await loadStoreContext(tenantId, tenantName);
-  const store = { ...base, tokens, logoUrl: snapshot.settings.identity.logoUrl, templateSlug: snapshot.settings.identity.style, layout: templateLayout(snapshot.settings.identity.style) };
   const site = {
     manifest: { pages: [{ slug: "accueil", title: "Accueil", isHome: true, sections: snapshot.blocks }] } as TemplateManifest,
     tokens,
     animationLevel: snapshot.settings.motion.level,
     resolvedContent,
   };
+  // Restaurant : l'aperçu est habillé comme le site du restaurant (en-tête, carte,
+  // réservation), avec les couleurs et la typographie du brouillon.
+  const restaurant = await buildRestaurantContext(tenantId, tenantName);
+  if (restaurant) {
+    return (
+      <>
+        <PublishedSectorHome site={site} restaurant={{ ...restaurant, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? restaurant.logoUrl }} annotate />
+        <PreviewBridge />
+      </>
+    );
+  }
+  const base = await loadStoreContext(tenantId, tenantName);
+  const store = { ...base, tokens, logoUrl: snapshot.settings.identity.logoUrl, templateSlug: snapshot.settings.identity.style, layout: templateLayout(snapshot.settings.identity.style) };
   return (
     <>
       <PublishedSectorHome site={site} store={store} annotate />

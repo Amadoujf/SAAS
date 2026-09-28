@@ -13,9 +13,9 @@ import type { CatalogSummary } from "./studio-creation";
  * aucun faux « terminé ».
  */
 const PHASES = [
-  (c: CatalogSummary) => `Lecture de votre catalogue — ${c.products} produit${c.products > 1 ? "s" : ""}, ${c.illustrated} photo${c.illustrated > 1 ? "s" : ""}`,
+  (c: CatalogSummary) => c.mode === "restaurant" ? `Lecture de votre carte — ${c.products} plat${c.products > 1 ? "s" : ""}, ${c.illustrated} photo${c.illustrated > 1 ? "s" : ""}` : `Lecture de votre catalogue — ${c.products} produit${c.products > 1 ? "s" : ""}, ${c.illustrated} photo${c.illustrated > 1 ? "s" : ""}`,
   () => "Choix de trois structures de page différentes",
-  () => "Composition avec vos produits et vos photos",
+  (c: CatalogSummary) => (c.mode === "restaurant" ? "Composition avec vos plats et vos photos" : "Composition avec vos produits et vos photos"),
   () => "Contrôle des textes, des couleurs et de la lisibilité",
 ];
 
@@ -39,7 +39,7 @@ export function StudioComposing({ catalog }: { catalog: CatalogSummary }) {
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(50%_60%_at_50%_0%,rgb(39_73_232/0.45),transparent_70%)]" />
       <div className="mx-auto max-w-5xl">
         <p className="text-[12px] font-semibold uppercase tracking-[0.18em] text-white/60">Composition en cours</p>
-        <h2 className="mt-3 font-display text-[clamp(1.7rem,3.4vw,2.5rem)] font-semibold leading-tight tracking-[-0.02em]">Trois sites prennent forme avec vos produits.</h2>
+        <h2 className="mt-3 font-display text-[clamp(1.7rem,3.4vw,2.5rem)] font-semibold leading-tight tracking-[-0.02em]">Trois sites prennent forme avec vos {catalog.mode === "restaurant" ? "plats" : "produits"}.</h2>
 
         <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-3" aria-hidden="true">
           {FRAMES.map((frame, f) => (

@@ -75,12 +75,11 @@ export default async function MySitePage() {
 
   if (isRestaurant(modules)) {
     const menu = await withTenant(tenantId, (tx) => getMenu(tx, tenantId));
+    const restoStudio = (await requireTenantPermission(tenantId, "site.edit")) ? await loadStudio() : null;
     const content = parseHomeContent(data.custom.content, data.custom.tenantName);
     const slide = content.hero.slides[0];
     const custom = slide && !(slide.id === "accueil" && slide.ctaHref === "/catalogue");
-    return (
-      <>
-        <PageHeader eyebrow="Gestion" title="Mon site" description="Votre vitrine, les photos de vos plats, votre logo : c'est tout ce qu'il faut. La carte, les commandes et les réservations sont déjà en place." />
+    const simple = (
         <div className="flex flex-col gap-5">
           <RestaurantSetup
             siteUrl={siteUrl}
@@ -103,6 +102,20 @@ export default async function MySitePage() {
           </div>
           <HomeStatusCard status={data.status} siteUrl={siteUrl} />
         </div>
+    );
+    if (restoStudio) {
+      const canPublish = Boolean(await requireTenantPermission(tenantId, "site.publish"));
+      return (
+        <>
+          <PageHeader eyebrow="Gestion" title="Mon site" description="Décrivez votre restaurant : l'assistant compose trois propositions avec VOTRE carte, puis vous ajustez en conversation. Vous publiez quand vous êtes prêt." />
+          <SiteStudio initial={restoStudio} canPublish={canPublish} siteUrl={siteUrl} advanced={simple} />
+        </>
+      );
+    }
+    return (
+      <>
+        <PageHeader eyebrow="Gestion" title="Mon site" description="Votre vitrine, les photos de vos plats, votre logo : c'est tout ce qu'il faut. La carte, les commandes et les réservations sont déjà en place." />
+        {simple}
       </>
     );
   }

@@ -193,3 +193,52 @@ describe("assistant : nouvelles capacités, toujours limitées à la demande", (
     expect((next.blocks.find((b) => b.id === "vitrine")!.params as { title: string }).title).toBe("Nos pièces du moment");
   });
 });
+
+describe("création assistée : restaurant (la carte tient lieu de catalogue)", () => {
+  const dish = (i: number, over: Partial<CatalogProduct> = {}) => product(i, { slug: "", name: `Plat ${i}`, category: i < 3 ? "Grillades" : "Plats du jour", priceLabel: `${3000 + i * 500} FCFA`, ...over });
+  const resto: SiteAiContext = {
+    tenantName: "Braise & Bissap",
+    sectorKey: "restaurant",
+    mode: "restaurant",
+    logoUrl: null,
+    products: [dish(1), dish(2), dish(3), dish(4), dish(5), dish(6, { imageUrl: null, imageAlt: null, imageWidth: null, imageCount: 0 })],
+    categories: [{ id: "s1", name: "Grillades", slug: "s1", productCount: 2, hasVisual: true }, { id: "s2", name: "Plats du jour", slug: "s2", productCount: 4, hasVisual: true }],
+    libraryImages: [],
+  };
+  const restoBrief = { activity: "Dibiterie à Ouakam : grillades au feu de bois et plats du jour.", audience: "Familles et bureaux", styles: ["chaleureux"], likes: "" };
+  const directions = directionsOutputSchema.parse(simulateDirections(restoBrief, resto)).directions;
+  const hrefs = (params: unknown): string[] => JSON.stringify(params).match(/"(?:[a-zA-Z]*Href|href)":"([^"]+)"/g)?.map((m) => m.split(":")[1]!.replace(/"/g, "")) ?? [];
+
+  it("les six archétypes se composent sans section du catalogue boutique, avec le style Braise", () => {
+    for (const archetype of ARCHETYPE_KEYS) {
+      const site = compileDirection({ ...directions[0]!, archetype }, resto);
+      expect(site.blocks.length, archetype).toBeGreaterThanOrEqual(2);
+      expect(site.identity.style).toBe("braise");
+      for (const b of site.blocks) {
+        expect(["featured_products", "new_arrivals", "categories", "catalog_search"], `${archetype} ${b.sectionKey}`).not.toContain(b.sectionKey);
+        for (const h of hrefs(b.params)) expect(["/carte", "/reserver-une-table"], `${archetype} ${b.sectionKey}`).toContain(h);
+        if (b.sectionKey === "immersive_showcase") expect((b.params as { source: string }).source).toBe("manual");
+      }
+    }
+  });
+
+  it("le carrousel reprend le nom et le prix de la carte, sans plat sans photo", () => {
+    const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, resto);
+    const showcase = site.blocks.find((b) => b.sectionKey === "immersive_showcase")!;
+    const items = (showcase.params as { items: { title: string; subtitle: string }[] }).items;
+    expect(items.map((i) => i.title)).not.toContain("Plat 6");
+    expect(items.find((i) => i.title === "Plat 1")?.subtitle).toBe("3500 FCFA · Grillades");
+  });
+
+  it("conversation : le style de base ne change pas, la mise en avant choisit des plats", () => {
+    const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, resto);
+    const state: SiteState = { blocks: site.blocks, identity: site.identity, motion: site.motion };
+    const style = applyOperations(state, [{ op: "set_style", style: "luxury-minimal" }], resto);
+    expect(style.state.identity.style).toBe("braise");
+    expect(style.rejected[0]).toMatch(/Braise/);
+    const showcase = site.blocks.find((b) => b.sectionKey === "immersive_showcase")!;
+    const pick = applyOperations(state, [{ op: "feature_products", sectionId: showcase.id, strategy: "list", productIds: ["p4", "p3", "p2", "p6"] }], resto);
+    const items = (pick.state.blocks.find((b) => b.id === showcase.id)!.params as { items: { title: string }[] }).items;
+    expect(items.map((i) => i.title)).toEqual(["Plat 4", "Plat 3", "Plat 2"]);
+  });
+});

@@ -44,6 +44,9 @@ export const STYLE_WORDS = ["épuré", "chaleureux", "luxueux", "coloré", "arti
 export interface SiteAiContext {
   tenantName: string;
   sectorKey: string;
+  /** « restaurant » : les « produits » sont les plats de la carte ; les liens mènent à la
+   *  carte et à la réservation ; le style de base reste celui du secteur (Braise). */
+  mode?: "commerce" | "restaurant";
   logoUrl: string | null;
   products: CatalogProduct[];
   categories: CatalogCategory[];

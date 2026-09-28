@@ -195,6 +195,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
 
       {mode === "directions" && studio.directions && busy !== "generate" && (
         <StudioDirections
+          restaurant={studio.catalog.mode === "restaurant"}
           jobId={studio.directions.jobId}
           directions={(studio.directions as unknown as { directions: DirectionCard[] }).directions}
           advice={(studio.directions as unknown as { audit?: string[] }).audit ?? []}
@@ -235,6 +236,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           </div>
           <div className="xl:sticky xl:top-[136px] xl:h-[calc(100vh-152px)]">
             <StudioAssistant
+              restaurant={studio.catalog.mode === "restaurant"}
               items={studio.conversation as ConversationItem[]}
               available={studio.ai.available}
               simulated={studio.ai.simulated}

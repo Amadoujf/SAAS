@@ -49,6 +49,13 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
   // Surtitre : l'univers principal du catalogue (donnée réelle), jamais un mot du questionnaire.
   const eyebrow = [...context.categories].sort((a, b) => b.productCount - a.productCount)[0]?.name ?? "Collection";
   const chosen = rankArchetypes(brief, context).slice(0, 3);
+  const restaurant = context.mode === "restaurant";
+  // Restaurant : trois ambiances chaudes nettement différentes (le style de base reste Braise).
+  const RESTO_PALETTES = [
+    { primary: "#1C1714", accent: "#C2461F", background: "#FBF6EE" },
+    { primary: "#3B2416", accent: "#8A5A12", background: "#F7F0E4" },
+    { primary: "#1F3A2E", accent: "#B4552D", background: "#F6F3EA" },
+  ];
   return {
     directions: chosen.map((archetype, index) => {
       const look = ARCHETYPE_LOOK[archetype];
@@ -63,7 +70,7 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
         style: look.style,
         typography: meta.suggested.typography,
         shape: meta.suggested.shape,
-        palette: look.palette,
+        palette: restaurant ? RESTO_PALETTES[index % 3]! : look.palette,
         animation: meta.suggested.animation,
         heroProductId: lead?.id ?? "",
         signatureProductId: premium[0]?.id ?? "",
@@ -73,13 +80,13 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
           heroTitle: context.tenantName,
           heroTitleAccent: "",
           heroSubtitle: activity,
-          ctaLabel: archetype === "vitrine" ? "Voir les nouveautés" : "Découvrir la collection",
+          ctaLabel: restaurant ? "Voir la carte" : archetype === "vitrine" ? "Voir les nouveautés" : "Découvrir la collection",
           manifesto: activity,
           manifestoBody: rest.slice(0, 400),
-          selectionTitle: look.selection,
-          storyTitle: look.story,
-          closingTitle: "Toute la collection en ligne",
-          closingText: "Parcourez l'ensemble des produits et commandez en quelques instants.",
+          selectionTitle: restaurant ? "À la carte" : look.selection,
+          storyTitle: restaurant ? "Nos plats, un à un" : look.story,
+          closingTitle: restaurant ? "Toute la carte en ligne" : "Toute la collection en ligne",
+          closingText: restaurant ? "Commandez à emporter, en livraison, ou réservez votre table." : "Parcourez l'ensemble des produits et commandez en quelques instants.",
         },
         storySteps: newest.slice(0, 3).map((p) => ({ productId: p.id, title: p.name.slice(0, 60), body: firstSentence(p.description, 200) })),
       };
@@ -108,7 +115,7 @@ const VARIANT_WORDS: [RegExp, string[]][] = [
   [/arc/, ["arc"]],
 ];
 
-export function simulateEdit(message: string, state: SiteState, selectedSectionId: string | null): AiEditOutput {
+export function simulateEdit(message: string, state: SiteState, selectedSectionId: string | null, restaurant = false): AiEditOutput {
   const text = message.toLowerCase();
   const ops: AiEditOperation[] = [];
   const replies: string[] = [];
@@ -123,7 +130,7 @@ export function simulateEdit(message: string, state: SiteState, selectedSectionI
     const [, k] = kind;
     const position = selected ? "after" : /en haut|en tête|au début|en premier/.test(text) ? "after" : "last";
     ops.push({ op: "add_section", kind: k, variant: "", position: position === "after" ? "after" : "last", relativeTo: selected?.id ?? (position === "after" ? hero?.id ?? "" : ""), title: quoted ?? "", text: "", productIds: [] });
-    replies.push(`J'ajoute une section « ${kind[0].source.split("|")[0]} » composée avec vos produits${selected ? ", juste après la section sélectionnée" : ""}.`);
+    replies.push(`J'ajoute une section « ${kind[0].source.split("|")[0]} » composée avec vos ${restaurant ? "plats" : "produits"}${selected ? ", juste après la section sélectionnée" : ""}.`);
   }
   // Retirer
   else if (/supprim|retire|enl[eè]ve|enlever/.test(text) && (selected || kind)) {
