@@ -40,3 +40,4 @@ export * from "./travel-registry";
 export * from "./service-slots";
 export * from "./service-registry";
 export * from "./hotel-registry";
+export * from "./restaurant-registry";

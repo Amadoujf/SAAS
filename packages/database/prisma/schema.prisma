@@ -105,6 +105,17 @@ model Tenant {
   roomRates                RoomRate[]
   hotelStays               HotelStay[]
   hotelSettings            HotelSettings?
+  menuSections             MenuSection[]
+  dishes                   Dish[]
+  dishOptionGroups         DishOptionGroup[]
+  dishOptions              DishOption[]
+  diningTables             DiningTable[]
+  restaurantOrders         RestaurantOrder[]
+  restaurantOrderItems     RestaurantOrderItem[]
+  restaurantOrderEvents    RestaurantOrderEvent[]
+  restaurantPayments       RestaurantPayment[]
+  restaurantTableBookings  RestaurantTableBooking[]
+  restaurantSettings       RestaurantSettings?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -970,8 +981,9 @@ model ListingAvailability {
   label         String?
   createdAt     DateTime  @default(now())
 
-  reservations Reservation[]
-  leases       Lease[]
+  reservations     Reservation[]
+  restaurantOrders RestaurantOrder[]
+  leases           Lease[]
 
   @@unique([listingId, startAt])
   @@index([tenantId, startAt])
@@ -1012,11 +1024,12 @@ model Reservation {
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
 
-  history     ReservationStatusHistory[]
-  travelers   ReservationTraveler[]
-  payments    ReservationPayment[]
-  appointment ServiceAppointment?
-  stay        HotelStay?
+  history      ReservationStatusHistory[]
+  travelers    ReservationTraveler[]
+  payments     ReservationPayment[]
+  appointment  ServiceAppointment?
+  stay         HotelStay?
+  tableBooking RestaurantTableBooking?
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -1427,13 +1440,14 @@ model Customer {
   internalNotes String?
   createdAt     DateTime @default(now())
 
-  addresses    CustomerAddress[]
-  orders       Order[]
-  wishlists    Wishlist[]
-  reviews      Review[]
-  carts        Cart[]
-  reservations Reservation[]
-  Lease        Lease[]
+  addresses       CustomerAddress[]
+  orders          Order[]
+  wishlists       Wishlist[]
+  reviews         Review[]
+  carts           Cart[]
+  reservations    Reservation[]
+  Lease           Lease[]
+  RestaurantOrder RestaurantOrder[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -2536,4 +2550,247 @@ model HotelSettings {
   maxAdvanceDays  Int      @default(365)
   maxNights       Int      @default(30)
   updatedAt       DateTime @updatedAt
+}
+
+// ============================================================================
+// RESTAURATION (secteur `restaurant`) — étape 8
+// ============================================================================
+
+/// Rubrique de la carte (Entrées, Plats, Grillades, Boissons…), éventuellement servie
+/// seulement sur une plage horaire (petit déjeuner).
+model MenuSection {
+  id            String  @id @default(uuid())
+  tenantId      String
+  tenant        Tenant  @relation(fields: [tenantId], references: [id])
+  name          String
+  description   String?
+  position      Int     @default(0)
+  isActive      Boolean @default(true)
+  /// Plage de service (minutes, heure locale) ; null = toute la journée d'ouverture.
+  availableFrom Int?
+  availableTo   Int?
+
+  dishes Dish[]
+
+  @@index([tenantId, position])
+}
+
+/// Plat ou boisson de la carte. Prix en FCFA fixé par le restaurant ; « épuisé » se
+/// bascule en un geste (pas de gestion de stock).
+model Dish {
+  id          String      @id @default(uuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  sectionId   String
+  section     MenuSection @relation(fields: [sectionId], references: [id])
+  name        String
+  description String?
+  price       Int
+  imageUrl    String?
+  imageDemo   Boolean     @default(false)
+  /// signature | spicy | vegetarian | new (affichage)
+  badges      String[]    @default([])
+  isAvailable Boolean     @default(true)
+  isActive    Boolean     @default(true)
+  position    Int         @default(0)
+  prepMinutes Int         @default(15)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  optionGroups DishOptionGroup[]
+  orderItems   RestaurantOrderItem[]
+
+  @@index([tenantId, sectionId, position])
+}
+
+/// Groupe d'options d'un plat : « Accompagnement » (1 choix obligatoire), « Suppléments »
+/// (0 à 3)… Les bornes sont vérifiées par le serveur à la commande.
+model DishOptionGroup {
+  id         String @id @default(uuid())
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  dishId     String
+  dish       Dish   @relation(fields: [dishId], references: [id])
+  name       String
+  minChoices Int    @default(0)
+  maxChoices Int    @default(1)
+  position   Int    @default(0)
+
+  options DishOption[]
+
+  @@index([tenantId, dishId])
+}
+
+model DishOption {
+  id          String          @id @default(uuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  groupId     String
+  group       DishOptionGroup @relation(fields: [groupId], references: [id])
+  name        String
+  /// Supplément (FCFA) ajouté au prix du plat ; 0 = inclus.
+  priceDelta  Int             @default(0)
+  isAvailable Boolean         @default(true)
+  position    Int             @default(0)
+
+  @@index([tenantId, groupId])
+}
+
+/// Table de la salle. Son QR code mène à la carte en mode « sur place » pour CETTE
+/// table (jeton opaque, régénérable).
+model DiningTable {
+  id       String  @id @default(uuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  label    String
+  seats    Int
+  zone     String?
+  qrToken  String  @unique @default(uuid())
+  isActive Boolean @default(true)
+  position Int     @default(0)
+
+  orders   RestaurantOrder[]
+  bookings RestaurantTableBooking[]
+
+  @@unique([tenantId, label])
+}
+
+/// Commande : sur place (table), à emporter (heure de retrait) ou en livraison. Montants
+/// recalculés par le serveur depuis la carte ; statut changé uniquement par le registre,
+/// historisé dans `RestaurantOrderEvent` (immuable).
+model RestaurantOrder {
+  id              String       @id @default(uuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  number          String
+  /// dine_in | takeaway | delivery (CHECK en base)
+  mode            String
+  tableId         String?
+  table           DiningTable? @relation(fields: [tableId], references: [id])
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  customerName    String
+  customerPhone   String?
+  /// new | accepted | preparing | ready | completed | canceled (CHECK en base)
+  status          String       @default("new")
+  /// Heure de retrait / livraison souhaitée (null = dès que possible).
+  requestedFor    DateTime?    @db.Timestamptz(3)
+  deliveryAddress String?
+  note            String?
+  subtotal        Int
+  deliveryFee     Int          @default(0)
+  total           Int
+  channel         String       @default("web")
+  accessToken     String       @unique @default(uuid())
+  acceptedAt      DateTime?    @db.Timestamptz(3)
+  readyAt         DateTime?    @db.Timestamptz(3)
+  completedAt     DateTime?    @db.Timestamptz(3)
+  canceledAt      DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt
+
+  items                 RestaurantOrderItem[]
+  events                RestaurantOrderEvent[]
+  payments              RestaurantPayment[]
+  ListingAvailability   ListingAvailability?   @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, createdAt])
+}
+
+model RestaurantOrderItem {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  orderId      String
+  order        RestaurantOrder @relation(fields: [orderId], references: [id])
+  dishId       String
+  dish         Dish            @relation(fields: [dishId], references: [id])
+  nameSnapshot String
+  /// Prix unitaire = prix du plat + suppléments choisis (au moment de la commande).
+  unitPrice    Int
+  quantity     Int
+  /// [{ group, option, priceDelta }] — instantané des options choisies.
+  options      Json            @default("[]")
+  note         String?
+  total        Int
+
+  @@index([tenantId, orderId])
+}
+
+/// Historique IMMUABLE des changements de statut d'une commande (REVOKE UPDATE/DELETE).
+model RestaurantOrderEvent {
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  orderId       String
+  order         RestaurantOrder @relation(fields: [orderId], references: [id])
+  fromStatus    String?
+  toStatus      String
+  changedBy     String?
+  changedByType String
+  note          String?
+  createdAt     DateTime        @default(now())
+
+  @@index([tenantId, orderId])
+}
+
+/// Encaissement RÉEL d'une commande (espèces, Wave, Orange Money, carte…). Jamais simulé,
+/// jamais Chariow. Immuable : une erreur s'annule avec un motif.
+model RestaurantPayment {
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  orderId       String
+  order         RestaurantOrder @relation(fields: [orderId], references: [id])
+  receiptNumber String
+  amount        Int
+  method        String
+  reference     String?
+  paidAt        DateTime        @default(now()) @db.Timestamptz(3)
+  recordedBy    String?
+  voidedAt      DateTime?       @db.Timestamptz(3)
+  voidReason    String?
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId, orderId])
+}
+
+/// Réservation de table : la réservation commune + le nombre de couverts et, une fois
+/// placés, la table. La capacité en couverts par créneau est vérifiée sous verrou.
+model RestaurantTableBooking {
+  reservationId String       @id
+  reservation   Reservation  @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  partySize     Int
+  tableId       String?
+  table         DiningTable? @relation(fields: [tableId], references: [id])
+  occasion      String?
+
+  @@index([tenantId])
+}
+
+/// Réglages du restaurant : horaires de service, commandes, réservations.
+model RestaurantSettings {
+  tenantId           String   @id
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  /// [{ weekday, startMinute, endMinute }] — plages d'ouverture (heure locale).
+  openingHours       Json     @default("[]")
+  acceptTakeaway     Boolean  @default(true)
+  acceptDelivery     Boolean  @default(true)
+  acceptDineInQr     Boolean  @default(true)
+  deliveryFee        Int      @default(1000)
+  minDeliveryOrder   Int      @default(5000)
+  /// Temps de préparation annoncé (minutes) pour le premier créneau de retrait.
+  prepMinutes        Int      @default(25)
+  acceptBookings     Boolean  @default(true)
+  /// Couverts servis au plus par créneau de réservation.
+  maxCoversPerSlot   Int      @default(30)
+  bookingSlotMinutes Int      @default(30)
+  /// Durée d'occupation d'une table réservée (minutes).
+  bookingDuration    Int      @default(90)
+  maxPartySize       Int      @default(10)
+  updatedAt          DateTime @updatedAt
 }
