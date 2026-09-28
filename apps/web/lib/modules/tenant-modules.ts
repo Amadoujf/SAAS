@@ -27,3 +27,8 @@ export function isSalon(modules: Set<string>) {
 export function isHotel(modules: Set<string>) {
   return modules.has("listings") && modules.has("availability_calendar");
 }
+
+/** Restaurant : commande par QR code et réservation de table (carte propre, pas le catalogue). */
+export function isRestaurant(modules: Set<string>) {
+  return modules.has("qr_ordering") && modules.has("table_reservations");
+}

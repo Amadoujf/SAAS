@@ -16,6 +16,8 @@ import { isSalonTenant, resolveSalon } from "@/lib/salon/salon-context";
 import { SalonHome } from "@/components/salon/salon-home";
 import { isHotelTenant, resolveHotel } from "@/lib/hotel/hotel-context";
 import { HotelHome } from "@/components/hotel/hotel-home";
+import { isRestaurantTenant, resolveRestaurant } from "@/lib/restaurant/restaurant-context";
+import { RestaurantHome } from "@/components/restaurant/restaurant-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -50,7 +52,11 @@ export default async function HomePage() {
     }
     if (resolution.status === "ok") {
       // Site publié depuis l'éditeur : son contenu, dans l'habillage de son secteur.
-      if (await isCatalogModuleEnabled(tenant.id)) {
+      // Le restaurant passe AVANT le catalogue (sa carte n'est pas une boutique).
+      if (await isRestaurantTenant(tenant.id)) {
+        const restaurant = await resolveRestaurant("/");
+        if (restaurant.status === "ok") return <PublishedSectorHome site={resolution.site} restaurant={restaurant.restaurant} />;
+      } else if (await isCatalogModuleEnabled(tenant.id)) {
         const store = await resolveStore("/");
         if (store.status === "ok") return <PublishedSectorHome site={resolution.site} store={store.store} />;
       } else if (await isEstateTenant(tenant.id)) {
@@ -67,6 +73,11 @@ export default async function HomePage() {
         if (hotel.status === "ok") return <PublishedSectorHome site={resolution.site} hotel={hotel.hotel} />;
       }
       return <PublicSitePage tenantName={resolution.tenantName} site={resolution.site} />;
+    }
+    // Restaurant : accueil de son template (« Braise » par défaut), avant le catalogue.
+    if (await isRestaurantTenant(tenant.id)) {
+      const restaurant = await resolveRestaurant("/");
+      if (restaurant.status === "ok") return <RestaurantHome restaurant={restaurant.restaurant} />;
     }
     // "not_published" : aucun site publié depuis l'éditeur. Une boutique (module
     // catalogue actif) affiche l'accueil de SON template avec ses contenus mis en

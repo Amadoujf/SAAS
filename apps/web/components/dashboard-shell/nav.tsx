@@ -11,7 +11,7 @@ import {
   IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
 } from "@/components/yc/icons";
 
-export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed";
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed" | "flame" | "menu" | "table";
 
 const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
@@ -33,6 +33,15 @@ const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   ),
   bed: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 18V7M21 18v-5a3 3 0 0 0-3-3h-8v5M3 15h18" /><circle cx="7" cy="11.5" r="1.8" /></svg>
+  ),
+  flame: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3c.5 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5.5.2 2 .9 3 1.7 3.5C11 8 11.2 5.5 12 3Z" /><path d="M5 21h14" /></svg>
+  ),
+  menu: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h4" /></svg>
+  ),
+  table: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1" /><rect x="13.5" y="3.5" width="7" height="7" rx="1" /><rect x="3.5" y="13.5" width="7" height="7" rx="1" /><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 20.5h1M20.5 14v1" /></svg>
   ),
   scissors: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.8" /><circle cx="6" cy="18" r="2.8" /><path d="M8.3 7.7 20 18M8.3 16.3 20 6" /></svg>
@@ -170,8 +179,8 @@ export function DashboardSidebar({
 
   const all = groups.flatMap((g) => g.items);
   // Onglets au pouce : les trois premières sections du secteur (commerce : commandes et
-  // produits ; immobilier : biens et visites ; voyage : réservations et départs ; salon : agenda et rendez-vous ; hôtel : planning et séjours), selon les droits du membre.
-  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs", "/dashboard/agenda", "/dashboard/rendez-vous", "/dashboard/planning", "/dashboard/sejours"]
+  // produits ; immobilier : biens et visites ; voyage : réservations et départs ; salon : agenda et rendez-vous ; hôtel : planning et séjours ; restaurant : cuisine et commandes), selon les droits du membre.
+  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs", "/dashboard/agenda", "/dashboard/rendez-vous", "/dashboard/planning", "/dashboard/sejours", "/dashboard/cuisine", "/dashboard/ventes"]
     .map((h) => all.find((i) => i.href === h))
     .filter((i): i is NavItem => !!i)
     .slice(0, 3);

@@ -11,6 +11,8 @@ import type { SalonContext } from "@/lib/salon/salon-context";
 import { SalonShell } from "@/components/salon/salon-shell";
 import type { HotelContext } from "@/lib/hotel/hotel-context";
 import { HotelShell } from "@/components/hotel/hotel-shell";
+import type { RestaurantContext } from "@/lib/restaurant/restaurant-context";
+import { RestaurantShell } from "@/components/restaurant/restaurant-shell";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -19,7 +21,7 @@ import { HotelShell } from "@/components/hotel/hotel-shell";
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; annotate?: boolean }) {
+export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
@@ -32,5 +34,6 @@ export function PublishedSectorHome({ site, store, estate, travel, salon, hotel,
   if (travel) return <TravelShell travel={travel}>{content}</TravelShell>;
   if (salon) return <SalonShell salon={salon}>{content}</SalonShell>;
   if (hotel) return <HotelShell hotel={hotel}>{content}</HotelShell>;
+  if (restaurant) return <RestaurantShell restaurant={restaurant}>{content}</RestaurantShell>;
   return content;
 }

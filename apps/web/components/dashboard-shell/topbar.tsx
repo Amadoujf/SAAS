@@ -32,6 +32,12 @@ const SECTION_LABELS: [string, string][] = [
   ["/dashboard/planning", "Planning"],
   ["/dashboard/sejours", "Séjours"],
   ["/dashboard/chambres", "Chambres et ménage"],
+  ["/dashboard/cuisine", "Cuisine"],
+  ["/dashboard/ventes", "Commandes"],
+  ["/dashboard/salle", "Réservations"],
+  ["/dashboard/carte", "La carte"],
+  ["/dashboard/tables", "Tables et QR codes"],
+  ["/dashboard/ouverture", "Horaires et règles"],
 ];
 
 export function sectionLabel(pathname: string) {

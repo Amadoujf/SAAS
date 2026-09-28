@@ -9,6 +9,7 @@ const TEXT = {
   voyage: "Agence fictive : voyages, prix et réservations ne sont pas réels.",
   salon: "Salon fictif : prestations, prix et rendez-vous ne sont pas réels.",
   hotel: "Établissement fictif : chambres, prix et réservations ne sont pas réels.",
+  restaurant: "Restaurant fictif : carte, prix, commandes et réservations ne sont pas réels.",
 } as const;
 
 export function DemoBanner({ kind }: { kind: keyof typeof TEXT }) {
