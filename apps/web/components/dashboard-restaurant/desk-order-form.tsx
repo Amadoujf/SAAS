@@ -73,7 +73,7 @@ export function DeskOrderForm({ sections, tables, defaultTableId }: { sections: 
                   {open === d.id && (
                     <div className="grid gap-3 border-t border-yc-ink/[0.06] bg-yc-ivory-50 px-3.5 py-3">
                       {d.groups.map((g) => (
-                        <fieldset key={g.id}>
+                        <fieldset key={g.id} className="min-w-0">
                           <legend className="text-[13px] font-semibold">{g.name} <span className="font-normal text-yc-ink-soft">{g.min ? `(${g.min === g.max ? g.min : `${g.min} à ${g.max}`})` : `(facultatif, ${g.max} max)`}</span></legend>
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {g.options.map((o) => {

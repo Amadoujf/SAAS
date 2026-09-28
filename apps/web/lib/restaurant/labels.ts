@@ -67,7 +67,8 @@ export const dateIn = (d: Date | string, tz: string) => new Intl.DateTimeFormat(
 export function hoursByDay(hours: { weekday: number; startMinute: number; endMinute: number }[]) {
   return [1, 2, 3, 4, 5, 6, 0].map((d) => {
     const r = hours.filter((h) => h.weekday === d).sort((a, b) => a.startMinute - b.startMinute);
-    return { day: WEEKDAYS[d]!, text: r.length ? r.map((x) => `${clockLabel(x.startMinute)} – ${clockLabel(x.endMinute)}`).join(", ") : "Fermé" };
+    const at = (m: number) => (m === 0 || m === 1440 ? "minuit" : clockLabel(m));
+    return { day: WEEKDAYS[d]!, text: r.length ? r.map((x) => `${at(x.startMinute)} – ${at(x.endMinute)}`).join(", ") : "Fermé" };
   });
 }
 

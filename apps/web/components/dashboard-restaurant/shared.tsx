@@ -50,7 +50,7 @@ export function LiveRefresh({ seconds = 15 }: { seconds?: number }) {
     }, seconds * 1000);
     return () => window.clearInterval(t);
   }, [router, seconds]);
-  return <span className="text-xs text-yc-ink-soft">Mise à jour automatique · {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>;
+  return <span suppressHydrationWarning className="text-xs text-yc-ink-soft">Mise à jour automatique · {at.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" })}</span>;
 }
 
 /** Minutes écoulées depuis un instant, mises à jour chaque minute. */
@@ -61,5 +61,5 @@ export function Elapsed({ since, warnAfter = 20 }: { since: string; warnAfter?: 
     return () => window.clearInterval(t);
   }, []);
   const min = Math.max(0, Math.floor((now - new Date(since).getTime()) / 60_000));
-  return <span className={`yc-num font-bold ${min >= warnAfter ? "text-[#C2410C]" : "text-yc-ink-soft"}`}>{min < 1 ? "à l'instant" : `${min} min`}</span>;
+  return <span suppressHydrationWarning className={`yc-num font-bold ${min >= warnAfter ? "text-[#C2410C]" : "text-yc-ink-soft"}`}>{min < 1 ? "à l'instant" : `${min} min`}</span>;
 }

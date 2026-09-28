@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/yc/button";
 import { BADGE_LABELS, clockLabel, formatXof } from "@/lib/restaurant/labels";
 import { Feedback, section, useRestoAction } from "./shared";
@@ -58,6 +58,12 @@ function SectionForm({ initial, sectionId, onDone }: { initial: Omit<ManagedSect
 export function MenuManager({ sections, canEdit, canToggle }: { sections: ManagedSection[]; canEdit: boolean; canToggle: boolean }) {
   const a = useRestoAction();
   const [editing, setEditing] = useState<string | null>(null);
+  // Bascule immédiate à l'écran ; annulée si le serveur refuse.
+  const [optimistic, setOptimistic] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (a.error) setOptimistic({});
+  }, [a.error]);
+  useEffect(() => setOptimistic({}), [sections]);
   return (
     <div className="grid gap-5">
       <Feedback error={a.error} notice={a.notice} />
@@ -98,10 +104,27 @@ export function MenuManager({ sections, canEdit, canToggle }: { sections: Manage
                     )}
                   </span>
                   <span className="yc-num w-24 text-right text-sm font-semibold">{formatXof(d.price)}</span>
-                  <label className={`flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold ring-1 ring-inset ${d.isAvailable ? "bg-[#E8F6EF] text-[#0F4D31] ring-[#3FA176]/40" : "bg-[#FDECEC] text-[#7A1717] ring-[#D65A5A]/40"}`}>
-                    <input type="checkbox" role="switch" checked={d.isAvailable} disabled={!canToggle || a.pending} onChange={(e) => a.run({ action: "dish_available", dishId: d.id, isAvailable: e.target.checked }, e.target.checked ? `${d.name} : de nouveau disponible.` : `${d.name} : épuisé.`)} className="h-4 w-4 accent-[#0F4D31]" aria-label={`${d.name} disponible`} />
-                    {d.isAvailable ? "Disponible" : "Épuisé"}
-                  </label>
+                  {(() => {
+                    const on = optimistic[d.id] ?? d.isAvailable;
+                    return (
+                      <label className={`flex h-9 items-center gap-2 rounded-full px-3 text-[13px] font-semibold ring-1 ring-inset ${on ? "bg-[#E8F6EF] text-[#0F4D31] ring-[#3FA176]/40" : "bg-[#FDECEC] text-[#7A1717] ring-[#D65A5A]/40"}`}>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={on}
+                          disabled={!canToggle || a.pending}
+                          onChange={(e) => {
+                            const next = e.target.checked;
+                            setOptimistic((o) => ({ ...o, [d.id]: next }));
+                            a.run({ action: "dish_available", dishId: d.id, isAvailable: next }, next ? `${d.name} : de nouveau disponible.` : `${d.name} : épuisé.`);
+                          }}
+                          className="h-4 w-4 accent-[#0F4D31]"
+                          aria-label={`${d.name} disponible`}
+                        />
+                        {on ? "Disponible" : "Épuisé"}
+                      </label>
+                    );
+                  })()}
                 </li>
               ))}
             </ul>

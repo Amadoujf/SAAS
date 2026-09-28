@@ -10,7 +10,7 @@ describe("libellés du restaurant", () => {
     ]);
     expect(h[0]).toEqual({ day: "Lundi", text: "11 h30 – 15 h, 18 h – 23 h" });
     expect(h[1]).toEqual({ day: "Mardi", text: "Fermé" });
-    expect(h[6]).toEqual({ day: "Dimanche", text: "12 h – 0 h" });
+    expect(h[6]).toEqual({ day: "Dimanche", text: "12 h – minuit" });
   });
 
   it("options d'une ligne : suppléments visibles, inclus sans prix", () => {

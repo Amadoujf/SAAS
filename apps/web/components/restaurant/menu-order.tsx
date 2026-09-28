@@ -276,7 +276,7 @@ function DishSheet({ dish, onClose, onAdd }: { dish: MenuDish; onClose: () => vo
             const single = g.max === 1;
             const cur = picked[g.id] ?? [];
             return (
-              <fieldset key={g.id} className="mt-6">
+              <fieldset key={g.id} className="mt-6 min-w-0">
                 <legend className="flex w-full items-baseline justify-between gap-3">
                   <span className="text-[16px] font-bold">{g.name}</span>
                   <span className={`text-[12px] font-semibold ${cur.length < g.min ? "text-[var(--color-accent-secondary)]" : "text-[var(--color-text-muted)]"}`}>{g.min > 0 ? (single ? "Obligatoire" : `${g.min} à ${g.max} choix`) : `Facultatif · ${g.max} au plus`}</span>

@@ -114,7 +114,7 @@ export function DishEditor({ dishId, initial, sections }: { dishId: string | nul
           <Button type="button" variant="secondary" size="sm" disabled={d.groups.length >= 10} onClick={() => set({ groups: [...d.groups, { name: "", minChoices: 1, maxChoices: 1, options: [{ name: "", priceDelta: "0", isAvailable: true }] }] })}><IconPlus size={16} /> Groupe</Button>
         </div>
         {d.groups.map((g, gi) => (
-          <fieldset key={gi} className="mt-4 rounded-lg p-4 ring-1 ring-yc-ink/[0.08]">
+          <fieldset key={gi} className="mt-4 min-w-0 rounded-lg p-4 ring-1 ring-yc-ink/[0.08]">
             <legend className="sr-only">Groupe {gi + 1}</legend>
             <div className="grid gap-3 sm:grid-cols-[1.5fr_0.7fr_0.7fr_auto] sm:items-end">
               <Field label="Nom du groupe">{(p) => <Input {...p} required maxLength={80} value={g.name} onChange={(e) => setGroup(gi, { name: e.target.value })} placeholder="Accompagnement" />}</Field>

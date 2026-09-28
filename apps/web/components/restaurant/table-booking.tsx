@@ -57,7 +57,7 @@ export function TableBooking({ today, maxParty, phone }: { today: string; maxPar
 
   return (
     <form className="grid gap-8" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="text-[13px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">1 · Le jour</legend>
         <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:px-0">
           {days.map((d, i) => (
@@ -70,7 +70,7 @@ export function TableBooking({ today, maxParty, phone }: { today: string; maxPar
         </div>
       </fieldset>
 
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="text-[13px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">2 · Combien serez-vous ?</legend>
         <div className="mt-3 flex flex-wrap gap-2">
           {Array.from({ length: Math.min(maxParty, 8) }, (_, i) => i + 1).map((n) => (
@@ -80,7 +80,7 @@ export function TableBooking({ today, maxParty, phone }: { today: string; maxPar
         <p className="mt-2 text-[13px] text-[var(--color-text-muted)]">Au-delà de {Math.min(maxParty, 8)} personnes, {phone ? `appelez-nous au ${phone}` : "appelez le restaurant"}.</p>
       </fieldset>
 
-      <fieldset>
+      <fieldset className="min-w-0">
         <legend className="text-[13px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">3 · L&apos;heure</legend>
         <div className="mt-3 min-h-[52px]" aria-busy={loading}>
           {loading && !slots ? (
@@ -101,7 +101,7 @@ export function TableBooking({ today, maxParty, phone }: { today: string; maxPar
         </div>
       </fieldset>
 
-      <fieldset className={minute == null ? "opacity-50" : ""} disabled={minute == null}>
+      <fieldset className={`min-w-0 ${minute == null ? "opacity-50" : ""}`} disabled={minute == null}>
         <legend className="text-[13px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">4 · Vos coordonnées</legend>
         <div className="mt-3 grid gap-4 sm:grid-cols-2">
           <label className="block text-[14px] font-semibold">Prénom<input required maxLength={80} autoComplete="given-name" value={f.firstName} onChange={(e) => setF({ ...f, firstName: e.target.value })} className={field} /></label>

@@ -25,7 +25,7 @@ export async function RestaurantHome({ restaurant }: { restaurant: RestaurantCon
           <div className="relative z-10 px-4 pb-12 pt-10 sm:px-8 lg:py-24">
             <ServicePill service={service} dark />
             <p className="mt-6 text-[13px] font-bold uppercase tracking-[0.2em] text-[var(--color-accent-primary)]">{(custom && slide?.eyebrow) || restaurant.contact.address || "Commande en direct"}</p>
-            <h1 className="mt-3 font-[family-name:var(--font-heading)] text-[56px] uppercase leading-[0.88] tracking-[-0.03em] sm:text-[88px] lg:text-[104px]">{(custom && slide?.title) || restaurant.tenantName}</h1>
+            <h1 className="mt-3 break-words font-[family-name:var(--font-heading)] text-[52px] uppercase leading-[0.88] tracking-[-0.03em] sm:text-[88px] lg:text-[104px]">{(custom && slide?.title) || restaurant.tenantName}</h1>
             <p className="mt-6 max-w-md text-[17px] leading-relaxed text-white/75">{(custom && slide?.subtitle) || "Commandez en ligne à emporter ou en livraison, ou réservez votre table."}</p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/carte" className="inline-flex h-14 items-center rounded-full bg-[var(--color-accent-primary)] px-8 text-[16px] font-bold text-[var(--color-primary)] transition-transform hover:-translate-y-0.5">{service.open ? "Commander" : "Voir la carte"}</Link>
@@ -69,7 +69,7 @@ export async function RestaurantHome({ restaurant }: { restaurant: RestaurantCon
 
       {signature.length > 0 && (
         <section aria-labelledby="incontournables" className="mx-auto mt-24 max-w-[var(--content-max-width,1240px)] px-4 sm:px-8">
-          <h2 id="incontournables" className="font-[family-name:var(--font-heading)] text-[44px] uppercase leading-[0.9] tracking-[-0.02em] sm:text-[64px]">Les incontournables</h2>
+          <h2 id="incontournables" className="break-words font-[family-name:var(--font-heading)] text-[34px] uppercase leading-[0.9] tracking-[-0.02em] sm:text-[64px]">Les incontournables</h2>
           <Reveal as="ul" className="mt-8 grid gap-5 md:grid-cols-3">
             {signature.map((d, i) => (
               <li key={d.id} className={`overflow-hidden rounded-[var(--radius-lg)] bg-white ring-1 ring-[var(--color-border)] ${i === 1 ? "md:translate-y-8" : ""}`}>

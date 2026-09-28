@@ -2708,6 +2708,8 @@ model RestaurantOrderItem {
   dishId       String
   dish         Dish            @relation(fields: [dishId], references: [id])
   nameSnapshot String
+  /// Ordre de saisie (la cuisine lit les lignes dans l'ordre de la commande).
+  position     Int             @default(0)
   /// Prix unitaire = prix du plat + suppléments choisis (au moment de la commande).
   unitPrice    Int
   quantity     Int

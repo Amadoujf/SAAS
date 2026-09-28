@@ -539,7 +539,7 @@ export async function placeOrder(tx: Tx, tenantId: string, input: PlaceOrderInpu
     },
   });
   await tx.restaurantOrderItem.createMany({
-    data: lines.map(({ prepMinutes: _p, options, ...l }) => ({ ...l, tenantId, orderId: order.id, options: options as unknown as Prisma.InputJsonValue })),
+    data: lines.map(({ prepMinutes: _p, options, ...l }, position) => ({ ...l, position, tenantId, orderId: order.id, options: options as unknown as Prisma.InputJsonValue })),
   });
   await tx.restaurantOrderEvent.create({ data: { tenantId, orderId: order.id, fromStatus: null, toStatus: "new", changedBy: input.actor.userId, changedByType: input.actor.type } });
   return (await getOrder(tx, tenantId, order.id))!;
@@ -616,7 +616,7 @@ export async function voidOrderPayment(tx: Tx, tenantId: string, paymentId: stri
 // ── Lectures ───────────────────────────────────────────────────────────────
 
 const orderInclude = {
-  items: { orderBy: { id: "asc" as const } },
+  items: { orderBy: { position: "asc" as const } },
   table: { select: { id: true, label: true, zone: true } },
   payments: { orderBy: { paidAt: "asc" as const } },
   events: { orderBy: { createdAt: "asc" as const } },

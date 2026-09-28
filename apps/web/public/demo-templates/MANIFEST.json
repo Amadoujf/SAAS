@@ -483,6 +483,69 @@
    "height": 800,
    "bytes": 28976,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/hotel.py) — aucune photographie ni ressource tierce. Illustration de démonstration (terrasse en bois face à l'océan au couchant) — recadrage mobile."
+  },
+  {
+   "file": "demo-templates/restaurant/bissap-bouye.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 65198,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (deux verres de bissap glacé)."
+  },
+  {
+   "file": "demo-templates/restaurant/braise-brochettes-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 30944,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (brochettes sur la braise)."
+  },
+  {
+   "file": "demo-templates/restaurant/braise-brochettes.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 136668,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (brochettes sur la braise)."
+  },
+  {
+   "file": "demo-templates/restaurant/dibi-agneau.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 74098,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (dibi d'agneau sur papier, oignons, moutarde)."
+  },
+  {
+   "file": "demo-templates/restaurant/fataya.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 64336,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (fatayas et sauce pimentée)."
+  },
+  {
+   "file": "demo-templates/restaurant/mafe.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 75104,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (mafé, sauce arachide et riz)."
+  },
+  {
+   "file": "demo-templates/restaurant/thiakry.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 76244,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (thiakry, dessert au lait caillé)."
+  },
+  {
+   "file": "demo-templates/restaurant/thieboudienne.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 95312,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (thiéboudienne, riz rouge et poisson)."
+  },
+  {
+   "file": "demo-templates/restaurant/yassa-poulet.webp",
+   "width": 1200,
+   "height": 900,
+   "bytes": 73460,
+   "source": "Création originale : rendu procédural (scripts/demo-visuals/restaurant.py) — aucune photographie ni ressource tierce. Illustration de démonstration (yassa au poulet, riz blanc)."
   }
  ]
 }
