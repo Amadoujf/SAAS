@@ -116,6 +116,14 @@ model Tenant {
   restaurantPayments       RestaurantPayment[]
   restaurantTableBookings  RestaurantTableBooking[]
   restaurantSettings       RestaurantSettings?
+  vehicleDetails           VehicleDetails[]
+  vehicleTestDrives        VehicleTestDrive[]
+  vehicleSales             VehicleSale[]
+  leads                    Lead[]
+  leadEvents               LeadEvent[]
+  vehicleImports           VehicleImport[]
+  vehicleImportEvents      VehicleImportEvent[]
+  autoSettings             AutoSettings?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -940,6 +948,11 @@ model Listing {
   travel         TravelPackageDetails?
   service        ServiceDetails?
   roomType       RoomTypeDetails?
+  vehicle        VehicleDetails?
+  testDrives     VehicleTestDrive[]
+  vehicleSales   VehicleSale[]
+  leads          Lead[]
+  imports        VehicleImport[]
   leases         Lease[]
 
   @@unique([tenantId, slug])
@@ -983,6 +996,8 @@ model ListingAvailability {
 
   reservations     Reservation[]
   restaurantOrders RestaurantOrder[]
+  leads            Lead[]
+  vehicleImports   VehicleImport[]
   leases           Lease[]
 
   @@unique([listingId, startAt])
@@ -1030,6 +1045,8 @@ model Reservation {
   appointment  ServiceAppointment?
   stay         HotelStay?
   tableBooking RestaurantTableBooking?
+  testDrive    VehicleTestDrive?
+  vehicleSale  VehicleSale?
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -1448,6 +1465,8 @@ model Customer {
   reservations    Reservation[]
   Lease           Lease[]
   RestaurantOrder RestaurantOrder[]
+  Lead            Lead[]
+  VehicleImport   VehicleImport[]
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -2795,4 +2814,190 @@ model RestaurantSettings {
   bookingDuration    Int      @default(90)
   maxPartySize       Int      @default(10)
   updatedAt          DateTime @updatedAt
+}
+
+// ============================================================================
+// AUTOMOBILE (secteur `automobile`) — étape 9
+// ============================================================================
+
+/// Fiche technique d'un véhicule : un véhicule EST une fiche commune (`Listing`,
+/// type « vehicle ») + ces caractéristiques. Le prix reste celui de la fiche.
+model VehicleDetails {
+  listingId    String   @id
+  listing      Listing  @relation(fields: [listingId], references: [id])
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  make         String
+  model        String
+  version      String?
+  year         Int
+  mileageKm    Int      @default(0)
+  /// essence | diesel | hybride | electrique | gpl (CHECK en base)
+  fuel         String
+  /// manuelle | automatique (CHECK en base)
+  transmission String
+  /// citadine | berline | break | suv | 4x4 | pickup | monospace | coupe | utilitaire
+  bodyType     String
+  color        String?
+  engine       String?
+  seats        Int?
+  /// new | used | imported_used (« venant », déjà roulé à l'étranger) — CHECK en base
+  condition    String
+  /// incoming (en arrivage) | available | reserved | sold — changé par le registre
+  stockStatus  String   @default("available")
+  features     String[] @default([])
+  negotiable   Boolean  @default(false)
+  /// Informations internes, jamais affichées sur le site.
+  vin          String?
+  plate        String?
+  position     Int      @default(0)
+
+  @@index([tenantId, stockStatus])
+}
+
+/// Essai d'un véhicule : une réservation commune + le créneau ; jamais deux essais
+/// actifs qui se chevauchent pour un même véhicule (contrainte d'exclusion).
+model VehicleTestDrive {
+  reservationId    String      @id
+  reservation      Reservation @relation(fields: [reservationId], references: [id])
+  tenantId         String
+  tenant           Tenant      @relation(fields: [tenantId], references: [id])
+  listingId        String
+  listing          Listing     @relation(fields: [listingId], references: [id])
+  startAt          DateTime    @db.Timestamptz(3)
+  endAt            DateTime    @db.Timestamptz(3)
+  active           Boolean     @default(true)
+  /// Le client déclare avoir un permis valide (vérifié au showroom).
+  licenseConfirmed Boolean     @default(false)
+
+  @@index([tenantId, startAt])
+}
+
+/// Dossier de vente : une réservation commune (montant = prix convenu − reprise) ; les
+/// encaissements (acompte, solde) passent par le service commun des réservations.
+/// Un seul dossier actif par véhicule.
+model VehicleSale {
+  reservationId      String      @id
+  reservation        Reservation @relation(fields: [reservationId], references: [id])
+  tenantId           String
+  tenant             Tenant      @relation(fields: [tenantId], references: [id])
+  listingId          String
+  listing            Listing     @relation(fields: [listingId], references: [id])
+  leadId             String?
+  lead               Lead?       @relation(fields: [leadId], references: [id])
+  agreedPrice        Int
+  tradeInValue       Int         @default(0)
+  tradeInDescription String?
+  active             Boolean     @default(true)
+  deliveredAt        DateTime?   @db.Timestamptz(3)
+
+  @@index([tenantId, listingId])
+}
+
+/// Prospect : une demande (achat, essai, reprise, financement, importation) suivie
+/// jusqu'à la vente ou l'abandon. Historique immuable dans `LeadEvent`.
+model Lead {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  listingId    String?
+  listing      Listing?  @relation(fields: [listingId], references: [id])
+  /// web | phone | whatsapp | walk_in (CHECK en base)
+  source       String    @default("web")
+  /// purchase | test_drive | trade_in | financing | import_request (CHECK en base)
+  interest     String    @default("purchase")
+  /// new | contacted | test_drive | negotiation | won | lost (CHECK en base)
+  status       String    @default("new")
+  message      String?
+  budget       Int?
+  lostReason   String?
+  assignedTo   String?
+  nextActionAt DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt
+
+  events                LeadEvent[]
+  sales                 VehicleSale[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@index([tenantId, status, createdAt])
+}
+
+model LeadEvent {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id])
+  /// created | status | note | request (CHECK en base)
+  kind          String
+  fromStatus    String?
+  toStatus      String?
+  body          String?
+  createdBy     String?
+  createdByType String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, leadId])
+}
+
+/// Importation d'un véhicule (achat à l'étranger jusqu'à la disponibilité au Sénégal),
+/// suivie par étapes ; le client qui l'a commandé la suit avec son lien (jeton).
+model VehicleImport {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  reference    String
+  listingId    String
+  listing      Listing   @relation(fields: [listingId], references: [id])
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  origin       String
+  /// purchased | shipped | at_port | customs | ready | canceled (CHECK en base)
+  stage        String    @default("purchased")
+  eta          DateTime? @db.Date
+  vessel       String?
+  containerRef String?
+  note         String?
+  accessToken  String    @unique @default(uuid())
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt
+
+  events                VehicleImportEvent[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, stage])
+}
+
+model VehicleImportEvent {
+  id        String        @id @default(uuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  importId  String
+  import    VehicleImport @relation(fields: [importId], references: [id])
+  fromStage String?
+  toStage   String
+  note      String?
+  createdBy String?
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, importId])
+}
+
+/// Réglages du showroom : horaires, essais, acompte.
+model AutoSettings {
+  tenantId         String   @id
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  openingHours     Json     @default("[]")
+  testDriveMinutes Int      @default(45)
+  slotStepMinutes  Int      @default(30)
+  maxAdvanceDays   Int      @default(30)
+  /// Acompte conseillé pour réserver un véhicule (pourcentage du prix).
+  depositPercent   Int      @default(10)
+  updatedAt        DateTime @updatedAt
 }
