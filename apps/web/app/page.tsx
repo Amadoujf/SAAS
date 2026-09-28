@@ -18,6 +18,8 @@ import { isHotelTenant, resolveHotel } from "@/lib/hotel/hotel-context";
 import { HotelHome } from "@/components/hotel/hotel-home";
 import { isRestaurantTenant, resolveRestaurant } from "@/lib/restaurant/restaurant-context";
 import { RestaurantHome } from "@/components/restaurant/restaurant-home";
+import { isAutoTenant, resolveAuto } from "@/lib/auto/auto-context";
+import { AutoHome } from "@/components/auto/auto-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -56,6 +58,9 @@ export default async function HomePage() {
       if (await isRestaurantTenant(tenant.id)) {
         const restaurant = await resolveRestaurant("/");
         if (restaurant.status === "ok") return <PublishedSectorHome site={resolution.site} restaurant={restaurant.restaurant} />;
+      } else if (await isAutoTenant(tenant.id)) {
+        const auto = await resolveAuto("/");
+        if (auto.status === "ok") return <PublishedSectorHome site={resolution.site} auto={auto.auto} />;
       } else if (await isCatalogModuleEnabled(tenant.id)) {
         const store = await resolveStore("/");
         if (store.status === "ok") return <PublishedSectorHome site={resolution.site} store={store.store} />;
@@ -78,6 +83,11 @@ export default async function HomePage() {
     if (await isRestaurantTenant(tenant.id)) {
       const restaurant = await resolveRestaurant("/");
       if (restaurant.status === "ok") return <RestaurantHome restaurant={restaurant.restaurant} />;
+    }
+    // Concession automobile : accueil de son template (« Piste » par défaut), avant le catalogue.
+    if (await isAutoTenant(tenant.id)) {
+      const auto = await resolveAuto("/");
+      if (auto.status === "ok") return <AutoHome auto={auto.auto} />;
     }
     // "not_published" : aucun site publié depuis l'éditeur. Une boutique (module
     // catalogue actif) affiche l'accueil de SON template avec ses contenus mis en

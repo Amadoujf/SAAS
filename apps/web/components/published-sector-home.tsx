@@ -14,6 +14,9 @@ import { HotelShell } from "@/components/hotel/hotel-shell";
 import type { RestaurantContext } from "@/lib/restaurant/restaurant-context";
 import { RestaurantShell } from "@/components/restaurant/restaurant-shell";
 import { RestaurantEssentials } from "@/components/restaurant/restaurant-essentials";
+import type { AutoContext } from "@/lib/auto/auto-context";
+import { AutoShell } from "@/components/auto/auto-shell";
+import { AutoEssentials } from "@/components/auto/auto-essentials";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -22,7 +25,7 @@ import { RestaurantEssentials } from "@/components/restaurant/restaurant-essenti
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; annotate?: boolean }) {
+export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, auto, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; auto?: AutoContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
@@ -37,5 +40,7 @@ export function PublishedSectorHome({ site, store, estate, travel, salon, hotel,
   if (hotel) return <HotelShell hotel={hotel}>{content}</HotelShell>;
   // Restaurant : la page composée (scène, récits…) puis, toujours, commander / réserver.
   if (restaurant) return <RestaurantShell restaurant={restaurant}>{content}<RestaurantEssentials restaurant={restaurant} /></RestaurantShell>;
+  // Concession : la page composée puis, toujours, le stock et les services.
+  if (auto) return <AutoShell auto={auto}>{content}<AutoEssentials auto={auto} /></AutoShell>;
   return content;
 }

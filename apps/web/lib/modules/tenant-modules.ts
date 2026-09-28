@@ -32,3 +32,8 @@ export function isHotel(modules: Set<string>) {
 export function isRestaurant(modules: Set<string>) {
   return modules.has("qr_ordering") && modules.has("table_reservations");
 }
+
+/** Automobile : le stock (module "listings") et les essais sur rendez-vous. */
+export function isAutomobile(modules: Set<string>) {
+  return modules.has("listings") && modules.has("test_drive_appointments");
+}

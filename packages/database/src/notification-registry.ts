@@ -28,6 +28,11 @@ export const ORDER_NOTIFICATION_EVENTS = {
   restaurant_order_canceled: "Commande annulée",
   table_booking_confirmed: "Table réservée",
   table_booking_canceled: "Réservation de table annulée",
+  // Automobile (essais, demandes, importations).
+  test_drive_confirmed: "Essai réservé",
+  test_drive_canceled: "Essai annulé",
+  vehicle_lead_received: "Nouvelle demande client",
+  vehicle_import_update: "Votre véhicule avance",
 } as const;
 
 export type OrderNotificationEvent = keyof typeof ORDER_NOTIFICATION_EVENTS;

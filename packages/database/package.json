@@ -24,7 +24,8 @@
     "seed:travel-demo": "dotenv -e ../../.env -- tsx src/seed-travel-demo.ts",
     "seed:salon-demo": "dotenv -e ../../.env -- tsx src/seed-salon-demo.ts",
     "seed:hotel-demo": "dotenv -e ../../.env -- tsx src/seed-hotel-demo.ts",
-    "seed:restaurant-demo": "dotenv -e ../../.env -- tsx src/seed-restaurant-demo.ts"
+    "seed:restaurant-demo": "dotenv -e ../../.env -- tsx src/seed-restaurant-demo.ts",
+    "seed:auto-demo": "dotenv -e ../../.env -- tsx src/seed-auto-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

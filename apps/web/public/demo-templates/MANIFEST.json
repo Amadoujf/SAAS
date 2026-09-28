@@ -595,6 +595,230 @@
    "height": 306,
    "bytes": 12532,
    "source": "Création originale : rendu procédural (scripts/demo-visuals/scene-yassa.py), élément détouré de la scène immersive — aucune photographie ni ressource tierce. Illustration de démonstration (morceau de poulet grillé)."
+  },
+  {
+   "file": "demo-templates/automobile/508-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 25214,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/508-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 28834,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/508-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 27722,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/corolla-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 31512,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/corolla-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 31898,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/corolla-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32868,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/hilux-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 26958,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/hilux-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 28212,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/hilux-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 27468,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/l200-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 30694,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/l200-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 31472,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/l200-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 33966,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/picanto-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 33560,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/picanto-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 36586,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/picanto-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32350,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/prado-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 25766,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/prado-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 29990,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/prado-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 25538,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/rav4-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32626,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/rav4-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32460,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/rav4-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 31986,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/santafe-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 29596,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/santafe-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32866,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/santafe-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 29070,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/showroom-mobile.webp",
+   "width": 640,
+   "height": 800,
+   "bytes": 9178,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/showroom.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 35104,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/swift-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 34128,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/swift-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 34582,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/swift-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 32594,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/tucson-1.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 29734,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/tucson-2.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 34062,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/automobile/tucson-3.webp",
+   "width": 1440,
+   "height": 900,
+   "bytes": 29456,
+   "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
   }
  ]
 }

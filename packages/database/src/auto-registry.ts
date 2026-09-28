@@ -205,7 +205,7 @@ export interface VehicleFilters {
 export function listVehicles(tx: Tx, tenantId: string, q: VehicleFilters = {}) {
   const search = q.search?.trim();
   const vehicleWhere: Prisma.VehicleDetailsWhereInput = {
-    ...(q.publicOnly ? { stockStatus: { in: ["incoming", "available", "reserved"] } } : q.stock ? { stockStatus: { in: q.stock } } : {}),
+    ...(q.publicOnly ? { stockStatus: { in: (q.stock ?? ["incoming", "available", "reserved"]).filter((s) => s !== "sold") } } : q.stock ? { stockStatus: { in: q.stock } } : {}),
     ...(q.make ? { make: { equals: q.make, mode: "insensitive" } } : {}),
     ...(q.fuel ? { fuel: q.fuel } : {}),
     ...(q.bodyType ? { bodyType: q.bodyType } : {}),
