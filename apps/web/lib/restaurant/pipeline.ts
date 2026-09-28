@@ -33,6 +33,8 @@ import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { checkImage } from "@/lib/media/image-refs";
 import { getTenantModuleKeys, isRestaurant } from "@/lib/modules/tenant-modules";
+import { dispatchRestaurantNotifications, planRestaurantNotifications } from "./notify";
+import type { PlannedNotification } from "@/lib/orders/notify";
 
 /**
  * Actions restaurant du tableau de bord. Chaque action revérifie côté serveur la
@@ -81,6 +83,15 @@ const run = async <T>(permission: Permission, fn: (ctx: Ctx, tx: Tx) => Promise<
   }
 };
 const actorOf = (ctx: Ctx) => ({ userId: ctx.userId, type: ctx.actorType });
+
+/** Action suivie de notifications : planifiées dans la transaction, mises en file après. */
+const runNotified = async (permission: Permission, fn: (ctx: Ctx, tx: Tx) => Promise<PlannedNotification[]>): Promise<ActionResult<null>> => {
+  const ctx = await context(permission);
+  const r = await run(permission, fn);
+  if (!r.ok) return r;
+  if (ctx) await dispatchRestaurantNotifications(ctx.tenantId, r.data);
+  return { ok: true, data: null };
+};
 
 // --- Carte ------------------------------------------------------------------------------
 
@@ -184,7 +195,12 @@ export const saveRestaurantSettings = (raw: unknown) => {
 
 export const moveOrder = (orderId: string, to: string, note?: string) => {
   if (!(KITCHEN_STATUSES as readonly string[]).includes(to)) return Promise.resolve({ ok: false as const, status: 400, error: "Étape inconnue." });
-  return run(to === "canceled" ? "orders.cancel" : "orders.update_status", (ctx, tx) => advanceOrder(tx, ctx.tenantId, orderId, to as (typeof KITCHEN_STATUSES)[number], actorOf(ctx), note).then(() => null));
+  return runNotified(to === "canceled" ? "orders.cancel" : "orders.update_status", async (ctx, tx) => {
+    await advanceOrder(tx, ctx.tenantId, orderId, to as (typeof KITCHEN_STATUSES)[number], actorOf(ctx), note);
+    if (to === "ready") return planRestaurantNotifications(tx, ctx.tenantId, { orderId }, "restaurant_order_ready");
+    if (to === "canceled") return planRestaurantNotifications(tx, ctx.tenantId, { orderId }, "restaurant_order_canceled");
+    return [];
+  });
 };
 
 const deskOrderSchema = z.object({
@@ -267,8 +283,8 @@ export const placeBooking = (reservationId: string, tableId: string | null) =>
   });
 
 export const bookingOutcome = (reservationId: string, outcome: "arrived" | "no_show" | "canceled", note?: string) =>
-  run(outcome === "canceled" ? "reservations.cancel" : "reservations.update_status", async (ctx, tx) => {
+  runNotified(outcome === "canceled" ? "reservations.cancel" : "reservations.update_status", async (ctx, tx) => {
     await assertBooking(tx, ctx.tenantId, reservationId);
     await setBookingOutcome(tx, ctx.tenantId, reservationId, outcome, actorOf(ctx), note);
-    return null;
+    return outcome === "canceled" ? planRestaurantNotifications(tx, ctx.tenantId, { reservationId }, "table_booking_canceled") : [];
   });

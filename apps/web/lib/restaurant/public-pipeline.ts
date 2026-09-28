@@ -16,6 +16,7 @@ import {
   RestaurantError,
 } from "@yamacommerce/database";
 import { RedisRateLimiter, redisConnection } from "@yamacommerce/queue";
+import { dispatchRestaurantNotifications, planRestaurantNotifications } from "./notify";
 
 const limiter = new RedisRateLimiter(redisConnection);
 const TOKEN_RE = /^[0-9a-f-]{36}$/;
@@ -77,9 +78,13 @@ export async function submitRestaurantOrder(tenantId: string, clientKey: string,
         note: i.note || null,
         actor: { userId: null, type: "customer" },
       });
-      return { number: o.number, accessToken: o.accessToken };
+      const planned = await planRestaurantNotifications(tx, tenantId, { orderId: o.id }, "restaurant_order_received");
+      return { number: o.number, accessToken: o.accessToken, planned };
     }),
-  );
+  ).then(async (r) => {
+    await dispatchRestaurantNotifications(tenantId, r.planned);
+    return r;
+  });
 }
 
 export function getOrderForGuest(tenantId: string, token: string) {
@@ -89,7 +94,13 @@ export function getOrderForGuest(tenantId: string, token: string) {
 
 export async function cancelRestaurantOrderAsGuest(tenantId: string, token: string) {
   if (!TOKEN_RE.test(token)) throw new RestaurantPublicError("Commande introuvable.", 404);
-  await wrap(() => withTenant(tenantId, (tx) => cancelOrderAsGuest(tx, tenantId, token)));
+  const planned = await wrap(() =>
+    withTenant(tenantId, async (tx) => {
+      const o = await cancelOrderAsGuest(tx, tenantId, token);
+      return planRestaurantNotifications(tx, tenantId, { orderId: o.id }, "restaurant_order_canceled");
+    }),
+  );
+  await dispatchRestaurantNotifications(tenantId, planned);
 }
 
 // ── Réservations de table ─────────────────────────────────────────────────
@@ -131,9 +142,13 @@ export async function submitTableBooking(tenantId: string, clientKey: string, ra
         channel: "web",
         actor: { userId: null, type: "customer" },
       });
-      return { reference: r.reference, accessToken: r.accessToken };
+      const planned = await planRestaurantNotifications(tx, tenantId, { reservationId: r.id }, "table_booking_confirmed");
+      return { reference: r.reference, accessToken: r.accessToken, planned };
     }),
-  );
+  ).then(async (r) => {
+    await dispatchRestaurantNotifications(tenantId, r.planned);
+    return r;
+  });
 }
 
 export function getBookingForGuest(tenantId: string, token: string) {
@@ -143,7 +158,13 @@ export function getBookingForGuest(tenantId: string, token: string) {
 
 export async function cancelTableBookingAsGuest(tenantId: string, token: string) {
   if (!TOKEN_RE.test(token)) throw new RestaurantPublicError("Réservation introuvable.", 404);
-  await wrap(() => withTenant(tenantId, (tx) => cancelBookingAsGuest(tx, tenantId, token)));
+  const planned = await wrap(() =>
+    withTenant(tenantId, async (tx) => {
+      const { reservation } = await cancelBookingAsGuest(tx, tenantId, token);
+      return planRestaurantNotifications(tx, tenantId, { reservationId: reservation.id }, "table_booking_canceled");
+    }),
+  );
+  await dispatchRestaurantNotifications(tenantId, planned);
 }
 
 /** Table d'un QR code (active), ou `null`. */

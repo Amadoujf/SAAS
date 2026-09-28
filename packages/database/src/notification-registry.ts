@@ -22,6 +22,12 @@ export const ORDER_NOTIFICATION_EVENTS = {
   order_canceled: "Commande annulée",
   order_refunded: "Remboursement enregistré",
   invoice_available: "Facture disponible",
+  // Restauration (commandes de la carte et réservations de table).
+  restaurant_order_received: "Commande reçue par le restaurant",
+  restaurant_order_ready: "Votre commande est prête",
+  restaurant_order_canceled: "Commande annulée",
+  table_booking_confirmed: "Table réservée",
+  table_booking_canceled: "Réservation de table annulée",
 } as const;
 
 export type OrderNotificationEvent = keyof typeof ORDER_NOTIFICATION_EVENTS;

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { withTenant, getOrder, paymentSummary } from "@yamacommerce/database";
+import { withTenant, getOrder, listNotificationsForOrder, paymentSummary, ORDER_NOTIFICATION_EVENTS } from "@yamacommerce/database";
 import { hasPermission } from "@yamacommerce/auth";
 import { requireRestaurantPage } from "@/lib/restaurant/guard";
 import { KITCHEN_LABELS, MODE_LABELS, formatXof, optionsText, timeIn } from "@/lib/restaurant/labels";
@@ -11,6 +11,7 @@ import { OrderActions, PaymentsPanel } from "@/components/dashboard-restaurant/o
 export const metadata: Metadata = { title: "Commande — Y-COM", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
+const NOTIF_STATUS: Record<string, string> = { queued: "En file d'attente", sent: "Envoyée", failed: "Échec d'envoi", not_sent_no_provider: "Non envoyée : aucun fournisseur configuré" };
 const CHANNELS: Record<string, string> = { web: "Site", qr: "QR code de table", dashboard: "Salle", phone: "Téléphone", whatsapp: "WhatsApp" };
 
 export default async function RestaurantOrderPage({ params }: { params: { id: string } }) {
@@ -18,6 +19,7 @@ export default async function RestaurantOrderPage({ params }: { params: { id: st
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const data = await withTenant(membership.tenantId, async (tx) => ({
     o: await getOrder(tx, membership.tenantId, params.id),
+    notifications: await listNotificationsForOrder(tx, membership.tenantId, params.id),
     tz: (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar",
   }));
   const o = data.o;
@@ -70,6 +72,21 @@ export default async function RestaurantOrderPage({ params }: { params: { id: st
             <p className="mt-2 text-sm">{o.customerName}{o.customerPhone ? <> · <a href={`tel:${o.customerPhone}`} className="font-semibold text-yc-electric">{o.customerPhone}</a></> : null}</p>
             {o.deliveryAddress && <p className="mt-1 text-sm"><strong>Adresse :</strong> {o.deliveryAddress}</p>}
             {o.note && <p className="mt-1 text-sm"><strong>Note :</strong> {o.note}</p>}
+          </Panel>
+          <Panel className="p-5">
+            <h2 className="text-[16px] font-bold">Notifications au client</h2>
+            {data.notifications.filter((n) => n.channel !== "internal").length === 0 ? (
+              <p className="mt-2 text-sm text-yc-ink-soft">Aucune (pas de téléphone ni d&apos;e-mail pour ce client).</p>
+            ) : (
+              <ul className="mt-3 grid gap-1.5 text-sm">
+                {data.notifications.filter((n) => n.channel !== "internal").map((n) => (
+                  <li key={n.id} className="flex flex-wrap justify-between gap-2">
+                    <span>{ORDER_NOTIFICATION_EVENTS[n.event as keyof typeof ORDER_NOTIFICATION_EVENTS] ?? n.event} · {n.channel === "whatsapp" ? "WhatsApp" : n.channel === "email" ? "E-mail" : "SMS"}</span>
+                    <span className={n.status === "sent" ? "font-semibold text-[rgb(4_120_87)]" : "text-yc-ink-soft"}>{NOTIF_STATUS[n.status] ?? n.status}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
           <Panel className="p-5">
             <h2 className="text-[16px] font-bold">Historique</h2>
