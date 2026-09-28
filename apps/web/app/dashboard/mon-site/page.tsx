@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { withTenant, getStorefrontCustomization, listCategories, listProducts } from "@yamacommerce/database";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireAnyTenantPermission, requireTenantPermission } from "@/lib/tenant-permissions";
-import { getTenantModuleKeys } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isRestaurant } from "@/lib/modules/tenant-modules";
+import { RestaurantSetup } from "@/components/dashboard-restaurant/restaurant-setup";
+import { getMenu } from "@yamacommerce/database";
 import { getHomeStatus } from "@/lib/site-editor/home-status";
 import { PageHeader } from "@/components/yc/panel";
 import { SiteEditor } from "@/components/dashboard-site/site-editor";
@@ -67,6 +69,39 @@ export default async function MySitePage() {
       <>
         <PageHeader eyebrow="Gestion" title="Mon site" description="Décrivez ce que vous voulez : l'assistant compose et ajuste votre boutique. Vous publiez quand vous êtes prêt." />
         <SiteStudio initial={studio} canPublish={canPublish} siteUrl={siteUrl} advanced={advanced} />
+      </>
+    );
+  }
+
+  if (isRestaurant(modules)) {
+    const menu = await withTenant(tenantId, (tx) => getMenu(tx, tenantId));
+    const content = parseHomeContent(data.custom.content, data.custom.tenantName);
+    const slide = content.hero.slides[0];
+    const custom = slide && !(slide.id === "accueil" && slide.ctaHref === "/catalogue");
+    return (
+      <>
+        <PageHeader eyebrow="Gestion" title="Mon site" description="Votre vitrine, les photos de vos plats, votre logo : c'est tout ce qu'il faut. La carte, les commandes et les réservations sont déjà en place." />
+        <div className="flex flex-col gap-5">
+          <RestaurantSetup
+            siteUrl={siteUrl}
+            home={{
+              coverUrl: custom ? (slide?.imageUrl ?? null) : null,
+              coverDemo: custom ? Boolean(slide?.demo) : false,
+              eyebrow: custom ? (slide?.eyebrow ?? "") : "",
+              title: custom ? (slide?.title ?? data.custom.tenantName) : data.custom.tenantName,
+              subtitle: custom ? (slide?.subtitle ?? "") : "",
+              contactPhone: str(b.contactPhone) ?? "",
+              contactWhatsapp: str(b.contactWhatsapp) ?? "",
+              contactAddress: str(b.contactAddress) ?? "",
+            }}
+            dishes={menu.flatMap((sec) => sec.dishes.filter((d) => d.isActive).map((d) => ({ id: d.id, name: d.name, section: sec.name, price: d.price, imageUrl: d.imageUrl, imageDemo: d.imageDemo })))}
+          />
+          <div>
+            <p className="mb-2 flex items-center gap-2 text-sm font-semibold"><span className="grid h-7 w-7 place-items-center rounded-full bg-yc-night-900 text-[13px] font-bold text-white">3</span> Logo et couleurs</p>
+            {advanced}
+          </div>
+          <HomeStatusCard status={data.status} siteUrl={siteUrl} />
+        </div>
       </>
     );
   }

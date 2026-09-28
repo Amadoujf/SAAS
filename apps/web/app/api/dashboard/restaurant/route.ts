@@ -13,7 +13,9 @@ import {
   recordPayment,
   saveDish,
   saveRestaurantSettings,
+  saveRestaurantHome,
   saveSection,
+  setDishPhoto,
   toggleDish,
   toggleOption,
   voidPayment,
@@ -35,6 +37,8 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("void_payment"), paymentId: id, reason: z.string().max(300) }),
   z.object({ action: z.literal("desk_booking"), booking: z.unknown() }),
   z.object({ action: z.literal("booking_table"), reservationId: id, tableId: id.nullable() }),
+  z.object({ action: z.literal("save_home"), home: z.unknown() }),
+  z.object({ action: z.literal("dish_photo"), dishId: id, imageUrl: z.string().max(300).nullable() }),
   z.object({ action: z.literal("booking_outcome"), reservationId: id, outcome: z.enum(["arrived", "no_show", "canceled"]), note: z.string().max(300).optional() }),
 ]);
 
@@ -59,6 +63,8 @@ export async function POST(request: NextRequest) {
     : b.action === "void_payment" ? await voidPayment(b.paymentId, b.reason)
     : b.action === "desk_booking" ? await deskBooking(b.booking)
     : b.action === "booking_table" ? await placeBooking(b.reservationId, b.tableId)
+    : b.action === "save_home" ? await saveRestaurantHome(b.home)
+    : b.action === "dish_photo" ? await setDishPhoto(b.dishId, b.imageUrl)
     : await bookingOutcome(b.reservationId, b.outcome, b.note);
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ data: result.data });

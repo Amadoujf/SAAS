@@ -3,6 +3,9 @@ import { z } from "zod";
 import {
   withTenant,
   advanceOrder,
+  getStorefrontCustomization,
+  saveStorefrontContent,
+  updateTenantBranding,
   assignBookingTable,
   bookTable,
   createDish,
@@ -29,9 +32,11 @@ import {
   TABLE_BOOKING_MODULE,
 } from "@yamacommerce/database";
 import type { Permission } from "@yamacommerce/auth";
+import type { Prisma } from "@yamacommerce/database";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { checkImage } from "@/lib/media/image-refs";
+import { parseHomeContent } from "@/lib/storefront/home-content";
 import { getTenantModuleKeys, isRestaurant } from "@/lib/modules/tenant-modules";
 import { dispatchRestaurantNotifications, planRestaurantNotifications } from "./notify";
 import type { PlannedNotification } from "@/lib/orders/notify";
@@ -287,4 +292,68 @@ export const bookingOutcome = (reservationId: string, outcome: "arrived" | "no_s
     await assertBooking(tx, ctx.tenantId, reservationId);
     await setBookingOutcome(tx, ctx.tenantId, reservationId, outcome, actorOf(ctx), note);
     return outcome === "canceled" ? planRestaurantNotifications(tx, ctx.tenantId, { reservationId }, "table_booking_canceled") : [];
+  });
+
+// --- Vitrine en une minute (« Mon site ») ---------------------------------------------
+
+async function ownImage(tx: Tx, tenantId: string, url: string | null) {
+  if (!url) return;
+  const ids = new Set<string>();
+  const problem = checkImage(url, ids);
+  if (problem) throw new Error(problem.startsWith("Image") ? problem : `Image : ${problem}`);
+  if (ids.size && (await tx.mediaAsset.count({ where: { tenantId, id: { in: [...ids] }, status: "READY" } })) !== ids.size) throw new Error("Image introuvable dans votre médiathèque.");
+  for (const id of ids) await setMediaAssetPublic(tx, tenantId, id, true);
+}
+
+/** Couverture, accroche et coordonnées affichées sur l'accueil du restaurant. */
+export const saveRestaurantHome = (raw: unknown) => {
+  const p = z
+    .object({
+      coverUrl: z.string().trim().max(300).nullable(),
+      eyebrow: z.string().trim().max(60),
+      title: z.string().trim().min(1, "Donnez un titre.").max(80),
+      subtitle: z.string().trim().max(220),
+      contactPhone: optionalText(30),
+      contactWhatsapp: optionalText(30),
+      contactAddress: optionalText(160),
+    })
+    .safeParse(raw);
+  if (!p.success) return bad(p.error);
+  const i = p.data;
+  return run("settings.branding", async (ctx, tx) => {
+    await ownImage(tx, ctx.tenantId, i.coverUrl);
+    const current = await getStorefrontCustomization(tx, ctx.tenantId);
+    const content = parseHomeContent(current.content, current.tenantName);
+    const prev = content.hero.slides[0];
+    // Une illustration de démonstration garde sa mention tant qu'on ne la remplace pas.
+    const keepDemo = !!prev?.demo && prev.imageUrl === i.coverUrl;
+    content.hero.slides = [
+      {
+        id: "restaurant",
+        imageUrl: i.coverUrl,
+        mobileImageUrl: keepDemo ? prev!.mobileImageUrl : null,
+        imageAlt: i.title,
+        demo: keepDemo,
+        productId: null,
+        eyebrow: i.eyebrow,
+        title: i.title,
+        subtitle: i.subtitle,
+        ctaLabel: "Commander",
+        ctaHref: "/carte",
+        theme: "dark",
+      },
+    ];
+    await saveStorefrontContent(tx, ctx.tenantId, content as unknown as Prisma.InputJsonValue, ctx.userId);
+    await updateTenantBranding(tx, ctx.tenantId, { contactPhone: i.contactPhone, contactWhatsapp: i.contactWhatsapp, contactAddress: i.contactAddress });
+    return null;
+  });
+};
+
+/** Photo d'un plat en un geste (depuis « Mon site »). */
+export const setDishPhoto = (dishId: string, imageUrl: string | null) =>
+  run("products.edit", async (ctx, tx) => {
+    await ownImage(tx, ctx.tenantId, imageUrl);
+    const { count } = await tx.dish.updateMany({ where: { id: dishId, tenantId: ctx.tenantId }, data: { imageUrl, imageDemo: false } });
+    if (!count) throw new RestaurantError("Plat introuvable.");
+    return null;
   });
