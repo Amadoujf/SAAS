@@ -13,6 +13,7 @@ import {
   newSale,
   removeVehicle,
   salePayment,
+  saveAutoHome,
   saveShowroomSettings,
   saveVehicle,
   setArrival,
@@ -39,6 +40,7 @@ const bodySchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("deliver"), reservationId: id }),
   z.object({ action: z.literal("cancel_sale"), reservationId: id, reason: z.string().max(300) }),
   z.object({ action: z.literal("new_import"), import: z.unknown() }),
+  z.object({ action: z.literal("save_home"), home: z.unknown() }),
   z.object({ action: z.literal("import_stage"), importId: id, to: z.string().max(20), eta: z.string().max(10).nullable().optional(), note: z.string().max(300).optional() }),
 ]);
 
@@ -65,6 +67,7 @@ export async function POST(request: NextRequest) {
     : b.action === "deliver" ? await deliver(b.reservationId)
     : b.action === "cancel_sale" ? await cancelSaleFile(b.reservationId, b.reason)
     : b.action === "new_import" ? await newImport(b.import)
+    : b.action === "save_home" ? await saveAutoHome(b.home)
     : await importStage(b.importId, b.to, { eta: b.eta, note: b.note ?? null });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   return NextResponse.json({ data: result.data });

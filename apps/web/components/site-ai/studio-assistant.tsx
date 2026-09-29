@@ -1,5 +1,6 @@
 "use client";
 
+import { vocabularyOf, type StudioMode } from "@/lib/site-ai/vocabulary";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/yc/button";
 import { IconCheck, IconSparkles, IconX } from "@/components/yc/icons";
@@ -24,26 +25,6 @@ export interface SelectedSection {
   images: { field: string; label: string; url: string | null }[];
 }
 
-const SUGGESTIONS = [
-  "Mets mes nouveautés en premier.",
-  "Fais une version plus luxueuse.",
-  "Ajoute une galerie de mes produits.",
-  "Ajoute un récit qui présente mes pièces.",
-  "Une typographie plus moderne.",
-  "Des formes plus arrondies.",
-  "Plus d'espace entre les sections.",
-  "Réduis les animations sur téléphone.",
-];
-const RESTAURANT_SUGGESTIONS = [
-  "Mets mes plats signature en avant.",
-  "Une ambiance plus chaleureuse.",
-  "Ajoute une galerie de mes plats.",
-  "Ajoute un récit qui présente mes plats.",
-  "Une typographie plus moderne.",
-  "Des formes plus arrondies.",
-  "Plus d'espace entre les sections.",
-  "Réduis les animations sur téléphone.",
-];
 const SELECTED_SUGGESTIONS = ["Remplace ce fond par une couleur crème.", "Centre le texte de cette section.", "Présente-la en carrousel.", "Retire cette section."];
 
 /**
@@ -67,9 +48,9 @@ export function StudioAssistant({
   onApply,
   onClearSelection,
   onReplaceImage,
-  restaurant = false,
+  mode = "commerce",
 }: {
-  restaurant?: boolean;
+  mode?: StudioMode;
   items: ConversationItem[];
   available: boolean;
   simulated: boolean;
@@ -202,7 +183,7 @@ export function StudioAssistant({
         {quotaReached && <p className="mb-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">Quota IA du mois atteint. Vous pouvez toujours modifier le site à la main (réglages avancés, éditeur).</p>}
         <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           <button type="button" disabled={disabled} onClick={onImprove} className="shrink-0 whitespace-nowrap rounded-full bg-yc-electric/10 px-3 py-2 text-[13px] font-semibold text-yc-electric hover:bg-yc-electric/15 disabled:opacity-40">Améliorer mon site avec l&apos;IA</button>
-          {(selected ? SELECTED_SUGGESTIONS : restaurant ? RESTAURANT_SUGGESTIONS : SUGGESTIONS).map((s) => (
+          {(selected ? SELECTED_SUGGESTIONS : vocabularyOf(mode).suggestions).map((s) => (
             <button key={s} type="button" disabled={disabled} onClick={() => send(s)} className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-2 text-[13px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">{s}</button>
           ))}
         </div>

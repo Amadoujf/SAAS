@@ -2,6 +2,9 @@ import "server-only";
 import { z } from "zod";
 import {
   withTenant,
+  getStorefrontCustomization,
+  saveStorefrontContent,
+  updateTenantBranding,
   addLeadNote,
   advanceImport,
   bookTestDrive,
@@ -40,6 +43,8 @@ import {
   VEHICLE_FEATURES,
 } from "@yamacommerce/database";
 import type { Permission } from "@yamacommerce/auth";
+import type { Prisma } from "@yamacommerce/database";
+import { parseHomeContent } from "@/lib/storefront/home-content";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { checkImage } from "@/lib/media/image-refs";
@@ -322,5 +327,38 @@ export const importStage = (importId: string, to: string, patch: { eta?: string 
     await advanceImport(tx, ctx.tenantId, importId, to, ctx.userId, patch);
     // Le client rattaché est prévenu à chaque étape réelle (jamais « envoyé » sans fournisseur).
     return { data: null, planned: await planAutoNotifications(tx, ctx.tenantId, { importId }, "vehicle_import_update") };
+  });
+};
+
+// --- Vitrine (« Mon site ») ---------------------------------------------------------------
+
+/** Photo d'accueil, accroche et coordonnées de la concession. */
+export const saveAutoHome = (raw: unknown) => {
+  const p = z
+    .object({
+      coverUrl: z.string().trim().max(300).nullable(),
+      eyebrow: z.string().trim().max(60),
+      title: z.string().trim().min(1, "Donnez un titre.").max(80),
+      subtitle: z.string().trim().max(220),
+      contactPhone: optionalText(30),
+      contactWhatsapp: optionalText(30),
+      contactAddress: optionalText(160),
+    })
+    .safeParse(raw);
+  if (!p.success) return bad(p.error);
+  const i = p.data;
+  return run("settings.branding", async (ctx, tx) => {
+    if (i.coverUrl) await ownImages(tx, ctx.tenantId, [i.coverUrl]);
+    const current = await getStorefrontCustomization(tx, ctx.tenantId);
+    const content = parseHomeContent(current.content, current.tenantName);
+    const prev = content.hero.slides[0];
+    // Une illustration de démonstration garde sa mention tant qu'on ne la remplace pas.
+    const keepDemo = !!prev?.demo && prev.imageUrl === i.coverUrl;
+    content.hero.slides = [
+      { id: "piste", imageUrl: i.coverUrl, mobileImageUrl: keepDemo ? prev!.mobileImageUrl : null, imageAlt: i.title, demo: keepDemo, productId: null, eyebrow: i.eyebrow, title: i.title, subtitle: i.subtitle, ctaLabel: "Voir les véhicules", ctaHref: "/vehicules", theme: "dark" },
+    ];
+    await saveStorefrontContent(tx, ctx.tenantId, content as unknown as Prisma.InputJsonValue, ctx.userId);
+    await updateTenantBranding(tx, ctx.tenantId, { contactPhone: i.contactPhone, contactWhatsapp: i.contactWhatsapp, contactAddress: i.contactAddress });
+    return null;
   });
 };

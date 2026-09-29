@@ -46,7 +46,7 @@ export interface SiteAiContext {
   sectorKey: string;
   /** « restaurant » : les « produits » sont les plats de la carte ; les liens mènent à la
    *  carte et à la réservation ; le style de base reste celui du secteur (Braise). */
-  mode?: "commerce" | "restaurant";
+  mode?: "commerce" | "restaurant" | "automobile";
   logoUrl: string | null;
   products: CatalogProduct[];
   categories: CatalogCategory[];

@@ -189,17 +189,17 @@ export function applyOperations(input: SiteState, operations: AiEditOperation[],
           rejected.push(`${sectionLabel(block!)} : pas assez de produits photographiés pour cette sélection.`);
           break;
         }
-        if (context.mode === "restaurant") {
-          // Restaurant : carrousel de plats saisi (nom, prix de la carte, lien vers la carte).
+        if (context.mode === "restaurant" || context.mode === "automobile") {
+          // Restaurant / concession : carrousel saisi (nom, prix réel, lien vers la carte ou la fiche).
           if (block!.sectionKey !== "immersive_showcase") {
-            rejected.push(`${sectionLabel(block!)} : présentez vos plats dans un carrousel.`);
+            rejected.push(`${sectionLabel(block!)} : présentez vos ${context.mode === "automobile" ? "véhicules" : "plats"} dans un carrousel.`);
             break;
           }
           const dishes = ids.map((id) => context.products.find((p) => p.id === id)!).filter((p) => p.imageUrl);
           update(
             index,
-            (b) => ({ ...b, params: { ...(b.params as object), source: "manual", showPrice: false, items: dishes.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: "/carte" })) } }),
-            `${sectionLabel(block!)} : ${op.strategy === "newest" ? "les derniers plats ajoutés en premier" : `${dishes.length} plat(s) choisis`}`,
+            (b) => ({ ...b, params: { ...(b.params as object), source: "manual", showPrice: false, items: dishes.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: context.mode === "automobile" ? `/vehicules/${p.slug}` : "/carte" })) } }),
+            `${sectionLabel(block!)} : ${op.strategy === "newest" ? `les derniers ${context.mode === "automobile" ? "véhicules" : "plats"} ajoutés en premier` : `${dishes.length} ${context.mode === "automobile" ? "véhicule(s)" : "plat(s)"} choisis`}`,
           );
           break;
         }
@@ -248,8 +248,8 @@ export function applyOperations(input: SiteState, operations: AiEditOperation[],
         break;
       }
       case "set_style": {
-        if (context.mode === "restaurant") {
-          rejected.push("Le style de base d'un restaurant reste « Braise » (carte, commande, réservation) : je peux changer les couleurs, la typographie, les formes ou les sections.");
+        if (context.mode === "restaurant" || context.mode === "automobile") {
+          rejected.push(context.mode === "restaurant" ? "Le style de base d'un restaurant reste « Braise » (carte, commande, réservation) : je peux changer les couleurs, la typographie, les formes ou les sections." : "Le style de base d'une concession reste « Piste » (stock, fiches, essais) : je peux changer les couleurs, la typographie, les formes ou les sections.");
           break;
         }
         if (op.style !== identity.style) {

@@ -14,6 +14,7 @@ import type { CompiledSite } from "@/lib/site-ai/compile";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { PreviewBridge } from "@/components/site-ai/preview-bridge";
 import { buildRestaurantContext } from "@/lib/restaurant/restaurant-context";
+import { buildAutoContext } from "@/lib/auto/auto-context";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -66,6 +67,16 @@ export default async function SiteDraftPreviewPage({ searchParams }: { searchPar
     return (
       <>
         <PublishedSectorHome site={site} restaurant={{ ...restaurant, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? restaurant.logoUrl }} annotate />
+        <PreviewBridge />
+      </>
+    );
+  }
+  // Concession : même principe (en-tête, stock, services de la concession).
+  const auto = await buildAutoContext(tenantId, tenantName);
+  if (auto) {
+    return (
+      <>
+        <PublishedSectorHome site={site} auto={{ ...auto, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? auto.logoUrl }} annotate />
         <PreviewBridge />
       </>
     );

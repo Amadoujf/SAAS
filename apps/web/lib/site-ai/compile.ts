@@ -84,6 +84,12 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
   return compileSlots(direction, context, ARCHETYPES[direction.archetype].slots);
 }
 
+/** Secteurs hors boutique : style de base imposé, liens et libellés propres au métier. */
+const SECTOR = {
+  restaurant: { style: "braise", home: "/carte", item: (_p: CatalogProduct) => "/carte", cta: "Voir la carte", all: "Voir la carte", secondary: { label: "Réserver une table", href: "/reserver-une-table" }, signature: "Le plat signature", signatureCta: "Le commander", showcaseTitle: "À la carte", featuredTitle: "Nos plats" },
+  automobile: { style: "piste", home: "/vehicules", item: (p: CatalogProduct) => `/vehicules/${p.slug}`, cta: "Voir les véhicules", all: "Tout le stock", secondary: { label: "Nos arrivages", href: "/vehicules?stock=arrivage" }, signature: "Le véhicule vedette", signatureCta: "Voir la fiche", showcaseTitle: "En stock", featuredTitle: "Notre stock" },
+} as const;
+
 /** Compose une suite d'emplacements (un archétype entier, ou une section ajoutée par
  *  l'assistant) avec les données de l'entreprise. */
 export function compileSlots(direction: AiDirection, context: SiteAiContext, slots: Slot[], reserved: string[] = []): CompiledSite {
@@ -91,10 +97,12 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   const audit = auditPhotos(context);
   // Restaurant : le style de base est celui du secteur (en-tête, carte, réservation) ;
   // l'assistant joue sur la structure, la typographie, les formes et les couleurs.
-  const restaurant = context.mode === "restaurant";
-  const style = restaurant ? "braise" : direction.style;
-  const catalogHref = restaurant ? "/carte" : "/catalogue";
-  const itemHref = (p: CatalogProduct) => (restaurant ? "/carte" : `/p/${p.slug}`);
+  // Même principe pour une concession (style « Piste », stock et fiches véhicules).
+  const sector = context.mode === "restaurant" || context.mode === "automobile" ? SECTOR[context.mode] : null;
+  const outsideStore = sector !== null;
+  const style = sector ? sector.style : direction.style;
+  const catalogHref = sector ? sector.home : "/catalogue";
+  const itemHref = (p: CatalogProduct) => (sector ? sector.item(p) : `/p/${p.slug}`);
   const identity: SiteIdentity = {
     style,
     primaryColor: safeColor(direction.palette.primary, "brand", style, notes),
@@ -128,7 +136,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   };
 
   const heroTitle = text(copy.heroTitle, "titre") ?? context.tenantName;
-  const cta = text(copy.ctaLabel, "bouton") ?? (restaurant ? "Voir la carte" : "Découvrir la boutique");
+  const cta = text(copy.ctaLabel, "bouton") ?? (sector ? sector.cta : "Découvrir la boutique");
   const manifesto = text(copy.manifesto, "manifeste");
   const manifestoBody = text(copy.manifestoBody, "texte du manifeste");
   // Univers avec un visuel d'abord ; un univers sans aucune photo n'apparaît que s'il n'y
@@ -150,9 +158,9 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         eyebrow,
         title,
         source: "manual",
-        items: items.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: "/carte" })),
+        items: items.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: itemHref(p) })),
         showPrice: false,
-        ctaLabel: "Voir la carte",
+        ctaLabel: sector!.cta,
         autoplay: direction.animation !== "discreet",
         imageStyle: "photo",
         backdrop: variant === "arc" ? "dark" : "tinted",
@@ -178,8 +186,8 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
             subtitle: text(copy.heroSubtitle, "sous-titre"),
             primaryCtaLabel: cta,
             primaryCtaHref: catalogHref,
-            ...(restaurant
-              ? { secondaryCtaLabel: "Réserver une table", secondaryCtaHref: "/reserver-une-table" }
+            ...(outsideStore
+              ? { secondaryCtaLabel: sector!.secondary.label, secondaryCtaHref: sector!.secondary.href }
               : heroProduct && variant !== "architectural" ? { secondaryCtaLabel: heroProduct.name.slice(0, 40), secondaryCtaHref: itemHref(heroProduct) } : {}),
             ...(subject ? { subjectImage: subject.url, subjectAlt: subject.alt, subjectStyle: "framed" } : {}),
             lighting: variant === "architectural" ? "none" : "halo",
@@ -209,8 +217,8 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         };
       }
       case "catalog_search":
-        // Recherche du catalogue : propre à la boutique (le restaurant a sa carte).
-        if (restaurant) return build({ ...slot, kind: "classic_hero", variant: "split" });
+        // Recherche du catalogue : propre à la boutique (restaurant et concession ont leurs pages).
+        if (outsideStore) return build({ ...slot, kind: "classic_hero", variant: "split" });
         return {
           id: slot.id,
           sectionKey: "catalog_search",
@@ -230,7 +238,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           return null;
         }
         const variant = slot.variant === "arc" && !audit.canShowcase ? "depth" : slot.variant;
-        if (restaurant) return dishShowcase(slot.id, variant, text(copy.heroEyebrow, "surtitre de la vitrine"), text(copy.selectionTitle, "titre de la vitrine") ?? "À la carte");
+        if (outsideStore) return dishShowcase(slot.id, variant, text(copy.heroEyebrow, "surtitre de la vitrine"), text(copy.selectionTitle, "titre de la vitrine") ?? sector!.showcaseTitle);
         return {
           id: slot.id,
           sectionKey: "immersive_showcase",
@@ -278,7 +286,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
               rotate: [-6, 5, -3, 0][i],
               objectScale: 1,
             })),
-            ctaLabel: restaurant ? "Voir la carte" : "Tout le catalogue",
+            ctaLabel: sector ? sector.all : "Tout le catalogue",
             ctaHref: catalogHref,
           },
         };
@@ -295,7 +303,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         // Sans texte long fourni, le titre reste le nom de l'entreprise et la phrase de
         // manifeste devient le texte : rien n'est inventé pour remplir la section.
         const [title, body] = manifestoBody ? [manifesto, manifestoBody] : [context.tenantName, manifesto];
-        return { id: slot.id, sectionKey: "heritage", variant: slot.variant, params: { eyebrow: "La maison", title, body, media: photo(product), ctaLabel: restaurant ? "Voir la carte" : "Voir les créations", ctaHref: catalogHref } };
+        return { id: slot.id, sectionKey: "heritage", variant: slot.variant, params: { eyebrow: "La maison", title, body, media: photo(product), ctaLabel: sector ? sector.all : "Voir les créations", ctaHref: catalogHref } };
       }
       case "signature": {
         if (!signatureProduct) return null;
@@ -305,11 +313,11 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           sectionKey: "signature_product",
           variant: slot.variant,
           params: {
-            eyebrow: restaurant ? "Le plat signature" : "Pièce signature",
+            eyebrow: sector ? sector.signature : "Pièce signature",
             title: signatureProduct.name,
             description: excerpt(signatureProduct.description, 260),
             media: photo(signatureProduct),
-            ctaLabel: restaurant ? "Le commander" : "Découvrir la pièce",
+            ctaLabel: sector ? sector.signatureCta : "Découvrir la pièce",
             ctaHref: itemHref(signatureProduct),
           },
         };
@@ -331,9 +339,9 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
       }
       case "featured":
         if (!context.products.length) return null;
-        // La sélection du catalogue lit les produits de la boutique : pour un restaurant,
+        // La sélection du catalogue lit les produits de la boutique : pour un restaurant ou une concession,
         // les plats photographiés sont présentés en carrousel (contenu saisi, liens vers la carte).
-        if (restaurant) return featured.length >= 3 ? dishShowcase(slot.id, "stack", undefined, text(copy.selectionTitle, "titre de la sélection") ?? "Nos plats") : null;
+        if (outsideStore) return featured.length >= 3 ? dishShowcase(slot.id, "stack", undefined, text(copy.selectionTitle, "titre de la sélection") ?? sector!.featuredTitle) : null;
         return {
           id: slot.id,
           sectionKey: "featured_products",
@@ -341,10 +349,10 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
           params: { title: text(copy.selectionTitle, "titre de la sélection") ?? "La sélection", productIds: featured.slice(0, 10).map((p) => p.id), displayCount: featuredCount(slot.variant, featured.length) },
         };
       case "new_arrivals":
-        if (restaurant || context.products.length < 2) return null;
+        if (outsideStore || context.products.length < 2) return null;
         return { id: slot.id, sectionKey: "new_arrivals", variant: slot.variant, params: { title: "Nouveautés", displayCount: slot.variant === "grid" ? gridCount(context.products.length) : Math.min(8, context.products.length) } };
       case "categories":
-        if (restaurant || !categories.length) return null;
+        if (outsideStore || !categories.length) return null;
         return { id: slot.id, sectionKey: "categories", variant: slot.variant, params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
       case "closing": {
         const title = text(copy.closingTitle, "invitation finale");

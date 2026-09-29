@@ -7,10 +7,11 @@ import { Button } from "@/components/yc/button";
 import { IconArrowLeft, IconArrowRight, IconCheck, IconSparkles, IconUpload } from "@/components/yc/icons";
 import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import { STYLE_WORDS, type SiteBrief } from "@/lib/site-ai/types";
+import { vocabularyOf } from "@/lib/site-ai/vocabulary";
 
 export interface CatalogSummary {
-  /** « restaurant » : les produits sont les plats de la carte (vocabulaire adapté). */
-  mode?: "commerce" | "restaurant";
+  /** Métier : « restaurant » (plats de la carte), « automobile » (véhicules du stock) — vocabulaire adapté. */
+  mode?: "commerce" | "restaurant" | "automobile";
   products: number;
   illustrated: number;
   categories: number;
@@ -63,6 +64,7 @@ export function StudioCreation({
 }) {
   const reduced = usePrefersReducedMotion();
   const [stepIndex, setStepIndex] = useState(initial ? 1 : 0);
+  const vocab = vocabularyOf(catalog.mode);
   const [direction, setDirection] = useState(1);
   const [brief, setBrief] = useState<SiteBrief>(initial ?? { activity: "", audience: "", styles: [], likes: "" });
   const step: Step = STEPS[stepIndex]!;
@@ -137,18 +139,13 @@ export function StudioCreation({
                       <span className="text-white/55">Composons votre site ensemble.</span>
                     </h2>
                     <p className="max-w-md text-[16px] leading-relaxed text-white/70">
-                      {catalog.mode === "restaurant" ? (
-                        <>J&apos;ai lu votre carte : {catalog.products} plat{catalog.products > 1 ? "s" : ""}, {catalog.illustrated} en photo{catalog.categoryNames.length ? `, en ${catalog.categoryNames.slice(0, 3).join(", ")}` : ""}. Quatre questions, puis je vous propose trois sites complets, construits avec vos plats.</>
-                      ) : (
-                        <>J&apos;ai lu votre catalogue : {catalog.products} produit{catalog.products > 1 ? "s" : ""}, {catalog.illustrated} photographié{catalog.illustrated > 1 ? "s" : ""}
-                      {catalog.categoryNames.length ? `, en ${catalog.categoryNames.slice(0, 3).join(", ")}` : ""}. Quatre questions, puis je vous propose trois sites complets, construits avec vos produits.</>
-                      )}
+                      <>J&apos;ai lu votre {vocab.catalog} : {catalog.products} {vocab.item}{catalog.products > 1 ? "s" : ""}, {catalog.illustrated} {vocab.illustrated(catalog.illustrated)}{catalog.categoryNames.length ? `, en ${catalog.categoryNames.slice(0, 3).join(", ")}` : ""}. Quatre questions, puis je vous propose trois sites complets, construits avec vos {vocab.items}.</>
                     </p>
                   </>
                 )}
                 {step === "activite" && (
                   <label className="grid gap-5">
-                    <span id="creation-titre" className={questionClass}>{catalog.mode === "restaurant" ? <>Que servez-vous, et qu&apos;est-ce qui rend votre cuisine différente ?</> : <>Que vendez-vous, et qu&apos;est-ce qui vous rend différent ?</>}</span>
+                    <span id="creation-titre" className={questionClass}>{vocab.question}</span>
                     <textarea
                       ref={(el) => {
                         field.current = el;
@@ -160,7 +157,7 @@ export function StudioCreation({
                       onKeyDown={(e) => {
                         if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) next();
                       }}
-                      placeholder={catalog.mode === "restaurant" ? "Ex. : dibiterie à Ouakam, agneau grillé au feu de bois, thiéboudienne le vendredi, ouvert tard." : "Ex. : céramiques tournées à la main dans notre atelier de Ngor, émaux inspirés de l'océan."}
+                      placeholder={vocab.activityPlaceholder}
                       className={`${inputClass} resize-none`}
                     />
                     <span className="text-[13px] text-white/45">Vos mots servent de base aux textes du site. Rien n&apos;est inventé à votre place.</span>
@@ -176,7 +173,7 @@ export function StudioCreation({
                       value={brief.audience}
                       maxLength={200}
                       onChange={(e) => setBrief({ ...brief, audience: e.target.value })}
-                      placeholder={catalog.mode === "restaurant" ? "Ex. : familles le week-end, bureaux du quartier à midi" : "Ex. : amateurs de décoration, cadeaux de mariage"}
+                      placeholder={vocab.audiencePlaceholder}
                       className={inputClass}
                     />
                     <span className="text-[13px] text-white/45">Facultatif. Cela oriente le ton et la mise en avant.</span>
@@ -221,8 +218,8 @@ export function StudioCreation({
                     <h2 id="creation-titre" className={questionClass}>Vos éléments</h2>
                     <div className="grid gap-2.5">
                       <Row ok={Boolean(logoUrl)} title="Logo" detail={logoUrl ? "Ajouté" : "Facultatif, mais il donne tout de suite une identité."} action={<Button type="button" size="sm" variant="secondary" onClick={onChooseLogo}><IconUpload size={14} /> {logoUrl ? "Changer" : "Ajouter"}</Button>} />
-                      <Row ok={catalog.products > 0} title={catalog.mode === "restaurant" ? "Carte" : "Catalogue"} detail={catalog.mode === "restaurant" ? `${catalog.products} plat${catalog.products > 1 ? "s" : ""}, ${catalog.categories} rubrique${catalog.categories > 1 ? "s" : ""}` : `${catalog.products} produit${catalog.products > 1 ? "s" : ""}, ${catalog.categories} catégorie${catalog.categories > 1 ? "s" : ""}`} action={<Link href={catalog.mode === "restaurant" ? "/dashboard/carte" : "/dashboard/produits"} className="text-[13px] font-semibold text-[#9DB0FF] hover:underline">Gérer</Link>} />
-                      <Row ok={catalog.illustrated >= 4} title="Photos" detail={`${catalog.illustrated} ${catalog.mode === "restaurant" ? "plat" : "produit"}${catalog.illustrated > 1 ? "s" : ""} photographié${catalog.illustrated > 1 ? "s" : ""} sur ${catalog.products}`} action={<Link href="/dashboard/mediatheque" className="text-[13px] font-semibold text-[#9DB0FF] hover:underline">Médiathèque</Link>} />
+                      <Row ok={catalog.products > 0} title={vocab.catalog[0]!.toUpperCase() + vocab.catalog.slice(1)} detail={`${catalog.products} ${vocab.item}${catalog.products > 1 ? "s" : ""}, ${catalog.categories} ${vocab.groups}${catalog.categories > 1 ? "s" : ""}`} action={<Link href={vocab.manageHref} className="text-[13px] font-semibold text-[#9DB0FF] hover:underline">Gérer</Link>} />
+                      <Row ok={catalog.illustrated >= 4} title="Photos" detail={`${catalog.illustrated} ${vocab.item}${catalog.illustrated > 1 ? "s" : ""} photographié${catalog.illustrated > 1 ? "s" : ""} sur ${catalog.products}`} action={<Link href="/dashboard/mediatheque" className="text-[13px] font-semibold text-[#9DB0FF] hover:underline">Médiathèque</Link>} />
                     </div>
                     {advice.length > 0 && (
                       <ul className="grid gap-1.5 rounded-2xl bg-white/[0.05] p-4 text-[13px] leading-relaxed text-white/65 ring-1 ring-inset ring-white/10">
@@ -331,7 +328,7 @@ function LiveCanvas({
             )}
           </AnimatePresence>
           <motion.span className="mt-5 inline-flex rounded-full px-4 py-2 text-[12px] font-semibold text-white" animate={{ backgroundColor: mood.ink === "#FFFFFF" || mood.ink === "#F3EBDD" ? mood.accent : mood.ink }} transition={t}>
-            {catalog.mode === "restaurant" ? "Voir la carte" : "Découvrir la collection"}
+            {vocabularyOf(catalog.mode).cta}
           </motion.span>
         </div>
         <div className="grid grid-cols-3 gap-2 px-6 pb-6">
@@ -350,7 +347,7 @@ function LiveCanvas({
           ))}
         </div>
       </motion.div>
-      <p className="mt-4 text-center text-[12px] text-white/45">Aperçu d&apos;ambiance, avec vos {catalog.mode === "restaurant" ? "plats" : "produits"}. Les trois sites complets arrivent ensuite.</p>
+      <p className="mt-4 text-center text-[12px] text-white/45">Aperçu d&apos;ambiance, avec vos {vocabularyOf(catalog.mode).items}. Les trois sites complets arrivent ensuite.</p>
     </div>
   );
 }

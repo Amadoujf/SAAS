@@ -6,6 +6,7 @@ import { validateSectionInstance, type SectionInstance } from "@yamacommerce/tem
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
 import { RESIDENCES_TOKENS } from "@/lib/real-estate/estate-templates";
 import { BRAISE_TOKENS } from "@/lib/restaurant/restaurant-templates";
+import { PISTE_TOKENS } from "@/lib/auto/auto-templates";
 import { PALMERAIE_TOKENS } from "@/lib/hotel/hotel-templates";
 import { ECRIN_TOKENS } from "@/lib/salon/salon-templates";
 import { HORIZONS_TOKENS } from "@/lib/travel/travel-templates";
@@ -35,6 +36,7 @@ function templateFor(slug: string | undefined, sectorKey: string): TemplateEntry
   // Les pages composées dans l'éditeur reprennent le style du secteur (même habillage
   // que le reste du site : en-tête, carte, réservation…).
   if (slug === "braise" || sectorKey === "restaurant") return { key: "y-braise", name: "Braise", sectorKey: "restaurant", tokens: BRAISE_TOKENS };
+  if (slug === "piste" || sectorKey === "automobile") return { key: "y-piste", name: "Piste", sectorKey: "automobile", tokens: PISTE_TOKENS };
   if (slug === "palmeraie" || sectorKey === "hospitality") return { key: "y-palmeraie", name: "Palmeraie", sectorKey: "hospitality", tokens: PALMERAIE_TOKENS };
   if (slug === "ecrin" || sectorKey === "services") return { key: "y-ecrin", name: "Écrin", sectorKey: "services", tokens: ECRIN_TOKENS };
   if (slug === "horizons" || sectorKey === "travel_agency") return { key: "y-horizons", name: "Horizons", sectorKey: "travel_agency", tokens: HORIZONS_TOKENS };

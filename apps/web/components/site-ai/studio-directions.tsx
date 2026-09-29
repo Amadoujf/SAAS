@@ -1,5 +1,6 @@
 "use client";
 
+import { vocabularyOf, type StudioMode } from "@/lib/site-ai/vocabulary";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -36,9 +37,9 @@ export function StudioDirections({
   onChoose,
   onRegenerate,
   onBack,
-  restaurant = false,
+  mode = "commerce",
 }: {
-  restaurant?: boolean;
+  mode?: StudioMode;
   jobId: string;
   directions: DirectionCard[];
   advice: string[];
@@ -63,7 +64,7 @@ export function StudioDirections({
           <h2 id="directions" className="mt-3 font-display text-[clamp(1.8rem,3.6vw,2.7rem)] font-semibold leading-[1.05] tracking-[-0.025em]">
             Choisissez celui qui vous ressemble.
           </h2>
-          <p className="mt-3 text-[15px] leading-relaxed text-white/65">Trois structures, trois typographies, trois ambiances — toutes avec vos {restaurant ? "plats" : "produits"}. Vous ajusterez ensuite en conversation.</p>
+          <p className="mt-3 text-[15px] leading-relaxed text-white/65">Trois structures, trois typographies, trois ambiances — toutes avec vos {vocabularyOf(mode).items}. Vous ajusterez ensuite en conversation.</p>
           {simulated && <p className="mt-3 inline-flex rounded-full bg-[#FFB020]/15 px-3 py-1 text-[12px] font-semibold text-[#FFD27A]">Simulation locale — propositions produites par des règles de développement, pas par l&apos;IA</p>}
           {unavailableReason && <p className="mt-3 rounded-xl bg-[#FFB020]/15 px-3 py-2 text-[13px] text-[#FFE2A8]">{unavailableReason} Vous pouvez choisir une direction déjà proposée ou modifier le site à la main.</p>}
         </div>

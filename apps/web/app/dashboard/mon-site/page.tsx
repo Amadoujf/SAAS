@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { withTenant, getStorefrontCustomization, listCategories, listProducts } from "@yamacommerce/database";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireAnyTenantPermission, requireTenantPermission } from "@/lib/tenant-permissions";
-import { getTenantModuleKeys, isRestaurant } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isRestaurant } from "@/lib/modules/tenant-modules";
+import { AutoSetup } from "@/components/dashboard-auto/auto-setup";
 import { RestaurantSetup } from "@/components/dashboard-restaurant/restaurant-setup";
 import { getMenu } from "@yamacommerce/database";
 import { getHomeStatus } from "@/lib/site-editor/home-status";
@@ -115,6 +116,48 @@ export default async function MySitePage() {
     return (
       <>
         <PageHeader eyebrow="Gestion" title="Mon site" description="Votre vitrine, les photos de vos plats, votre logo : c'est tout ce qu'il faut. La carte, les commandes et les réservations sont déjà en place." />
+        {simple}
+      </>
+    );
+  }
+
+  if (isAutomobile(modules)) {
+    const content = parseHomeContent(data.custom.content, data.custom.tenantName);
+    const slide = content.hero.slides[0];
+    const custom = slide && !(slide.id === "accueil" && slide.ctaHref === "/catalogue");
+    const simple = (
+      <div className="flex flex-col gap-5">
+        <AutoSetup
+          siteUrl={siteUrl}
+          editorHome={data.status.mode === "editor"}
+          home={{
+            coverUrl: custom ? (slide?.imageUrl ?? null) : null,
+            coverDemo: custom ? Boolean(slide?.demo) : false,
+            eyebrow: custom ? (slide?.eyebrow ?? "") : "",
+            title: custom ? (slide?.title ?? data.custom.tenantName) : data.custom.tenantName,
+            subtitle: custom ? (slide?.subtitle ?? "") : "",
+            contactPhone: str(b.contactPhone) ?? "",
+            contactWhatsapp: str(b.contactWhatsapp) ?? "",
+            contactAddress: str(b.contactAddress) ?? "",
+          }}
+        />
+        <div><p className="mb-2 text-sm font-semibold">Logo et couleurs</p>{advanced}</div>
+        <HomeStatusCard status={data.status} siteUrl={siteUrl} />
+      </div>
+    );
+    const autoStudio = (await requireTenantPermission(tenantId, "site.edit")) ? await loadStudio() : null;
+    if (autoStudio) {
+      const canPublish = Boolean(await requireTenantPermission(tenantId, "site.publish"));
+      return (
+        <>
+          <PageHeader eyebrow="Gestion" title="Mon site" description="Décrivez votre concession : l'assistant compose trois propositions avec VOS véhicules, puis vous ajustez en conversation. Vous publiez quand vous êtes prêt." />
+          <SiteStudio initial={autoStudio} canPublish={canPublish} siteUrl={siteUrl} advanced={simple} />
+        </>
+      );
+    }
+    return (
+      <>
+        <PageHeader eyebrow="Gestion" title="Mon site" description="Votre vitrine, votre logo et vos couleurs. Le stock, les essais et les demandes sont déjà en place." />
         {simple}
       </>
     );

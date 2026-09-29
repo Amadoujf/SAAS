@@ -242,3 +242,52 @@ describe("création assistée : restaurant (la carte tient lieu de catalogue)", 
     expect(items.map((i) => i.title)).toEqual(["Plat 4", "Plat 3", "Plat 2"]);
   });
 });
+
+describe("création assistée : concession automobile (le stock tient lieu de catalogue)", () => {
+  const car = (i: number, over: Partial<CatalogProduct> = {}) => product(i, { slug: `vehicule-${i}`, name: `Véhicule ${i}`, category: i < 3 ? "SUV" : "Berlines", priceLabel: `${10_000_000 + i} FCFA`, ...over });
+  const auto: SiteAiContext = {
+    tenantName: "Baobab Motors",
+    sectorKey: "automobile",
+    mode: "automobile",
+    logoUrl: null,
+    products: [car(1), car(2), car(3), car(4), car(5), car(6, { imageUrl: null, imageAlt: null, imageWidth: null, imageCount: 0 })],
+    categories: [{ id: "suv", name: "SUV", slug: "suv", productCount: 2, hasVisual: true }, { id: "berline", name: "Berlines", slug: "berline", productCount: 4, hasVisual: true }],
+    libraryImages: [],
+  };
+  const brief = { activity: "Concession à Dakar : occasions contrôlées et importation sur commande.", audience: "Familles et entreprises", styles: ["sobre"], likes: "" };
+  const directions = directionsOutputSchema.parse(simulateDirections(brief, auto)).directions;
+  const hrefs = (params: unknown): string[] => JSON.stringify(params).match(/"(?:[a-zA-Z]*Href|href)":"([^"]+)"/g)?.map((m) => m.split(":")[1]!.replace(/"/g, "")) ?? [];
+
+  it("les six archétypes se composent avec le style Piste et des liens vers le stock ou les fiches", () => {
+    for (const archetype of ARCHETYPE_KEYS) {
+      const site = compileDirection({ ...directions[0]!, archetype }, auto);
+      expect(site.blocks.length, archetype).toBeGreaterThanOrEqual(2);
+      expect(site.identity.style).toBe("piste");
+      for (const b of site.blocks) {
+        expect(["featured_products", "new_arrivals", "categories", "catalog_search"], `${archetype} ${b.sectionKey}`).not.toContain(b.sectionKey);
+        for (const h of hrefs(b.params)) expect(h === "/vehicules" || h === "/vehicules?stock=arrivage" || /^\/vehicules\/vehicule-\d$/.test(h), `${archetype} ${b.sectionKey} ${h}`).toBe(true);
+      }
+    }
+  });
+
+  it("le carrousel mène à la fiche du véhicule et garde le prix réel", () => {
+    const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, auto);
+    const items = (site.blocks.find((b) => b.sectionKey === "immersive_showcase")!.params as { items: { title: string; subtitle: string; href: string }[] }).items;
+    expect(items.map((i) => i.title)).not.toContain("Véhicule 6");
+    const first = items.find((i) => i.title === "Véhicule 1")!;
+    expect(first.href).toBe("/vehicules/vehicule-1");
+    expect(first.subtitle).toBe("10000001 FCFA · SUV");
+  });
+
+  it("conversation : le style Piste est conservé, la mise en avant garde les fiches", () => {
+    const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, auto);
+    const state: SiteState = { blocks: site.blocks, identity: site.identity, motion: site.motion };
+    const style = applyOperations(state, [{ op: "set_style", style: "luxury-minimal" }], auto);
+    expect(style.state.identity.style).toBe("piste");
+    expect(style.rejected[0]).toMatch(/Piste/);
+    const showcase = site.blocks.find((b) => b.sectionKey === "immersive_showcase")!;
+    const pick = applyOperations(state, [{ op: "feature_products", sectionId: showcase.id, strategy: "list", productIds: ["p4", "p3", "p2"] }], auto);
+    const items = (pick.state.blocks.find((b) => b.id === showcase.id)!.params as { items: { href: string }[] }).items;
+    expect(items.map((i) => i.href)).toEqual(["/vehicules/vehicule-4", "/vehicules/vehicule-3", "/vehicules/vehicule-2"]);
+  });
+});
