@@ -4,12 +4,13 @@ import { withTenant, getDashboardInsights, isDashboardPeriod, planHasFeature, ty
 import { auth } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { RealEstateOverview } from "@/components/dashboard-real-estate/overview";
 import { TravelOverview } from "@/components/dashboard-travel/overview";
 import { SalonOverview } from "@/components/dashboard-salon/overview";
 import { HotelOverview } from "@/components/dashboard-hotel/overview";
 import { RestaurantOverview } from "@/components/dashboard-restaurant/overview";
+import { AutoOverview } from "@/components/dashboard-auto/overview";
 import { formatAmount, formatRelative } from "@/lib/format";
 import { Panel } from "@/components/yc/panel";
 import { ButtonLink } from "@/components/yc/button";
@@ -149,6 +150,9 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
   }
   if (moduleKeys && isRestaurant(moduleKeys)) {
     return <RestaurantOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
+  }
+  if (moduleKeys && isAutomobile(moduleKeys)) {
+    return <AutoOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
   }
   if (moduleKeys && isHotel(moduleKeys)) {
     return <HotelOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;

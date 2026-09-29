@@ -11,7 +11,7 @@ import {
   IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
 } from "@/components/yc/icons";
 
-export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed" | "flame" | "menu" | "table";
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed" | "flame" | "menu" | "table" | "car" | "ship" | "folder";
 
 const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
@@ -48,6 +48,15 @@ const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
   ),
   media: (p: { size?: number }) => (
     <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m21 16-5-5-9 9" /></svg>
+  ),
+  car: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 16v-3.5l2-5A2 2 0 0 1 6.9 6h10.2a2 2 0 0 1 1.9 1.5l2 5V16" /><path d="M3 12.5h18" /><circle cx="7.5" cy="16.5" r="2" /><circle cx="16.5" cy="16.5" r="2" /></svg>
+  ),
+  ship: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17c1.5 1.3 3 1.3 4.5 0s3-1.3 4.5 0 3 1.3 4.5 0 3-1.3 4.5 0" /><path d="M5 14 4 10h16l-1 4" /><path d="M8 10V6h8v4" /><path d="M12 3v3" /></svg>
+  ),
+  folder: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /><path d="M8 13h8" /></svg>
   ),
 };
 

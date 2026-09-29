@@ -1,11 +1,11 @@
 import { ycFontVariables } from "@/lib/yc-fonts";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { withTenant, countOrdersByQueue, hotelOverview, restaurantOverview } from "@yamacommerce/database";
+import { withTenant, autoOverview, countOrdersByQueue, hotelOverview, restaurantOverview } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -34,6 +34,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const salon = isSalon(modules);
   const hotel = isHotel(modules);
   const restaurant = isRestaurant(modules);
+  const automobile = isAutomobile(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
@@ -86,6 +87,17 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     restoReady = o.ready;
     restoBookings = o.bookingsToday;
     restoSoldOut = o.soldOut;
+  }
+  let autoDrives = 0;
+  let autoNewLeads = 0;
+  let autoSales = 0;
+  let autoImports = 0;
+  if (membership && automobile) {
+    const o = await withTenant(membership.tenantId, (tx) => autoOverview(tx, membership.tenantId));
+    autoDrives = o.drivesToday;
+    autoNewLeads = o.newLeads;
+    autoSales = o.salesOpen;
+    autoImports = o.importsInProgress;
   }
   if (membership) {
     const data = await withTenant(membership.tenantId, async (tx) => ({
@@ -164,6 +176,21 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
     );
+  } else if (membership && automobile) {
+    pilot.push(
+      { href: "/dashboard/vehicules", label: "Stock", icon: "car", permission: "listings.view" },
+      { href: "/dashboard/essais", label: "Essais", icon: "calendar", badge: autoDrives || undefined, permission: "reservations.view" },
+      { href: "/dashboard/prospects", label: "Prospects", icon: "customers", badge: autoNewLeads || undefined, permission: "customers.view" },
+      { href: "/dashboard/dossiers", label: "Dossiers de vente", icon: "folder", badge: autoSales || undefined, permission: "reservations.view" },
+    );
+    manage.push(
+      { href: "/dashboard/arrivages", label: "Arrivages", icon: "ship", badge: autoImports || undefined, permission: "listings.view" },
+      { href: "/dashboard/showroom", label: "Horaires et règles", icon: "key", permission: "listings.manage_availability" },
+      { href: "/dashboard/clients", label: "Clients", icon: "customers", permission: "customers.view" },
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
+      { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
+    );
   } else if (membership && hotel) {
     pilot.push(
       { href: "/dashboard/planning", label: "Planning", icon: "calendar", permission: "reservations.view" },
@@ -219,6 +246,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: "/dashboard/ventes?file=en-cours", label: "Commandes prêtes à remettre", count: restoReady },
         { href: "/dashboard/carte", label: "Plats épuisés", count: restoSoldOut },
       ]
+    : automobile
+    ? [
+        { href: "/dashboard/prospects", label: "Nouvelles demandes", count: autoNewLeads },
+        { href: "/dashboard/essais", label: "Essais aujourd'hui", count: autoDrives },
+        { href: "/dashboard/arrivages", label: "Importations en cours", count: autoImports },
+      ]
     : hotel
     ? [
         { href: "/dashboard/sejours?file=arrivees", label: "Arrivées du jour", count: hotelArrivals },
@@ -264,7 +297,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         {isDemo && (
           <p className="border-b border-yc-electric/15 bg-[#E8EFFF] px-4 py-2 text-center text-[12px] font-medium text-yc-ink sm:px-6">
             <span className="mr-1.5 font-bold uppercase tracking-[0.12em] text-yc-electric">Démonstration</span>
-            Entreprise fictive : {restaurant ? "carte, commandes et réservations" : travel ? "voyages, voyageurs et réservations" : salon ? "prestations, clients et rendez-vous" : hotel ? "chambres, clients et séjours" : realEstate ? "biens, clients et visites" : "produits, clients et commandes"} servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
+            Entreprise fictive : {automobile ? "véhicules, prospects, essais et ventes" : restaurant ? "carte, commandes et réservations" : travel ? "voyages, voyageurs et réservations" : salon ? "prestations, clients et rendez-vous" : hotel ? "chambres, clients et séjours" : realEstate ? "biens, clients et visites" : "produits, clients et commandes"} servent à découvrir Y-COM, aucune donnée n&apos;est réelle.
           </p>
         )}
         <main id="contenu" className="px-4 pb-28 pt-5 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">
