@@ -45,3 +45,4 @@ export * from "./auto-registry";
 export * from "./site-links";
 export * from "./payment-ledger";
 export * from "./education-registry";
+export * from "./courier-registry";

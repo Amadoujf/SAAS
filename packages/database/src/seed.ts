@@ -430,7 +430,7 @@ async function seedSectorAndModuleRegistry() {
 
   // Secteurs livrés et testés de bout en bout — les seuls proposés à la création
   // d'entreprise (les autres sont affichés « À venir »). Tenu à jour à chaque secteur livré.
-  const OPERATIONAL_SECTOR_KEYS: string[] = ["ecommerce", "fashion", "real_estate", "travel_agency", "services", "hospitality", "restaurant", "automobile", "education"];
+  const OPERATIONAL_SECTOR_KEYS: string[] = ["ecommerce", "fashion", "real_estate", "travel_agency", "services", "hospitality", "restaurant", "automobile", "education", "delivery"];
   for (const sectorDef of SECTORS) {
     await prisma.sector.upsert({
       where: { key: sectorDef.key },

@@ -133,6 +133,11 @@ model Tenant {
   assessments              Assessment[]
   grades                   Grade[]
   educationSettings        EducationSettings?
+  courierJobs              CourierJob[]
+  courierJobEvents         CourierJobEvent[]
+  courierRemittances       CourierRemittance[]
+  courierSettlements       CourierSettlement[]
+  courierSettings          CourierSettings?
   autoSettings             AutoSettings?
   roles                    Role[]
   shops                    Shop[]
@@ -1470,18 +1475,20 @@ model Customer {
   internalNotes String?
   createdAt     DateTime @default(now())
 
-  addresses       CustomerAddress[]
-  orders          Order[]
-  wishlists       Wishlist[]
-  reviews         Review[]
-  carts           Cart[]
-  reservations    Reservation[]
-  Lease           Lease[]
-  RestaurantOrder RestaurantOrder[]
-  Lead            Lead[]
-  VehicleImport   VehicleImport[]
-  students        Student[]
-  familyAccess    FamilyAccess?
+  addresses          CustomerAddress[]
+  orders             Order[]
+  wishlists          Wishlist[]
+  reviews            Review[]
+  carts              Cart[]
+  reservations       Reservation[]
+  Lease              Lease[]
+  RestaurantOrder    RestaurantOrder[]
+  Lead               Lead[]
+  VehicleImport      VehicleImport[]
+  students           Student[]
+  familyAccess       FamilyAccess?
+  courierJobs        CourierJob[]        @relation("CourierSender")
+  courierSettlements CourierSettlement[] @relation("CourierSettlementSender")
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -1983,6 +1990,10 @@ model DeliveryZone {
   /// article `Product.isBulky` — voir étape 2.
   bulkySurcharge      Int      @default(0)
   estimatedDays       Int?
+
+  courierJobs CourierJob[]
+
+  @@unique([id, tenantId])
 }
 
 model Deliverer {
@@ -1990,11 +2001,19 @@ model Deliverer {
   tenantId    String
   tenant      Tenant  @relation(fields: [tenantId], references: [id])
   userId      String?
+  /// Nom affiché (secteur livraison) ; les livreurs de boutique n'en ont pas toujours.
+  name        String?
   phone       String
   vehicleType String?
   isActive    Boolean @default(true)
+  /// Lien personnel de l'espace livreur (révocable) — ses courses uniquement.
+  accessToken String  @unique @default(uuid())
 
-  deliveries Delivery[]
+  deliveries  Delivery[]
+  courierJobs CourierJob[]
+  remittances CourierRemittance[]
+
+  @@unique([id, tenantId])
 }
 
 model Delivery {
@@ -3235,4 +3254,157 @@ model EducationSettings {
   /// Les inscriptions en ligne sont-elles ouvertes ?
   onlineEnrollment Boolean  @default(true)
   updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// SECTEUR LIVRAISON (sociétés de coursiers) — courses pour le compte de clients
+// ============================================================================
+
+/// Une course : un colis à prendre chez l'expéditeur (client de la société) et à remettre
+/// au destinataire, avec éventuellement une somme à encaisser à la livraison.
+model CourierJob {
+  id                 String             @id @default(uuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  /// LIV-AAAA-NNNNNN
+  reference          String
+  /// pending | assigned | picked_up | in_transit | delivered | failed | returning | returned | canceled (CHECK)
+  status             String             @default("pending")
+  senderId           String
+  sender             Customer           @relation("CourierSender", fields: [senderId], references: [id])
+  pickupName         String
+  pickupPhone        String
+  pickupAddress      String
+  pickupCommune      String?
+  recipientName      String
+  recipientPhone     String
+  dropoffAddress     String
+  dropoffCommune     String?
+  instructions       String?
+  zoneId             String?
+  zone               DeliveryZone?      @relation(fields: [zoneId], references: [id])
+  packageDescription String
+  /// small | medium | large (CHECK)
+  size               String             @default("small")
+  /// Tarif calculé par le serveur (zone + format), jamais saisi par le client.
+  fee                Int
+  /// sender | recipient (CHECK) : qui règle le tarif de la course.
+  feePaidBy          String             @default("sender")
+  /// Somme à encaisser auprès du destinataire pour le compte de l'expéditeur.
+  codAmount          Int                @default(0)
+  delivererId        String?
+  deliverer          Deliverer?         @relation(fields: [delivererId], references: [id])
+  attempts           Int                @default(0)
+  scheduledDate      DateTime?          @db.Date
+  senderToken        String             @unique @default(uuid())
+  recipientToken     String             @unique @default(uuid())
+  /// Code à 4 chiffres remis au destinataire : preuve de remise.
+  deliveryCode       String
+  /// code | name (CHECK) — code vérifié, ou nom du réceptionnaire (preuve plus faible).
+  proofType          String?
+  proofName          String?
+  /// Espèces réellement encaissées à la livraison (= somme attendue, sinon échec).
+  collectedAmount    Int?
+  collectedAt        DateTime?          @db.Timestamptz(3)
+  remittanceId       String?
+  remittance         CourierRemittance? @relation(fields: [remittanceId], references: [id])
+  settlementId       String?
+  settlement         CourierSettlement? @relation(fields: [settlementId], references: [id])
+  failureReason      String?
+  cancelReason       String?
+  deliveredAt        DateTime?          @db.Timestamptz(3)
+  /// web | dashboard | phone | whatsapp
+  channel            String             @default("dashboard")
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+
+  events CourierJobEvent[]
+
+  @@unique([tenantId, reference])
+  @@unique([id, tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, delivererId, status])
+  @@index([tenantId, senderId])
+}
+
+/// Historique d'une course (lecture seule pour l'application).
+model CourierJobEvent {
+  id         String     @id @default(uuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  jobId      String
+  job        CourierJob @relation(fields: [jobId], references: [id])
+  fromStatus String?
+  toStatus   String
+  note       String?
+  /// staff | deliverer | customer | system
+  actorType  String
+  actorId    String?
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, jobId])
+}
+
+/// Versement des espèces d'un livreur au bureau : couvre des courses précises.
+model CourierRemittance {
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  delivererId     String
+  deliverer       Deliverer @relation(fields: [delivererId], references: [id])
+  /// VER-AAAA-NNNNNN
+  receiptNumber   String
+  expectedAmount  Int
+  receivedAmount  Int
+  /// Écart (manquant ou excédent) : toujours motivé.
+  discrepancyNote String?
+  receivedBy      String?
+  receivedAt      DateTime  @default(now()) @db.Timestamptz(3)
+
+  jobs CourierJob[]
+
+  @@unique([tenantId, receiptNumber])
+  @@unique([id, tenantId])
+  @@index([tenantId, delivererId])
+}
+
+/// Reversement à un expéditeur : sommes encaissées pour lui − tarifs à sa charge.
+model CourierSettlement {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  senderId      String
+  sender        Customer @relation("CourierSettlementSender", fields: [senderId], references: [id])
+  /// REV-AAAA-NNNNNN
+  receiptNumber String
+  codTotal      Int
+  feesDeducted  Int
+  /// codTotal − feesDeducted (négatif : l'expéditeur doit la différence).
+  amount        Int
+  /// cash | wave | orange_money | free_money | bank_transfer | other (CHECK)
+  method        String
+  reference     String?
+  settledBy     String?
+  settledAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  jobs CourierJob[]
+
+  @@unique([tenantId, receiptNumber])
+  @@unique([id, tenantId])
+  @@index([tenantId, senderId])
+}
+
+model CourierSettings {
+  tenantId        String   @id
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  /// Suppléments par format de colis (FCFA)
+  mediumSurcharge Int      @default(500)
+  largeSurcharge  Int      @default(1500)
+  /// Plafond d'encaissement à la livraison par course (sécurité des livreurs)
+  maxCod          Int      @default(500000)
+  /// Tentatives avant retour obligatoire à l'expéditeur
+  maxAttempts     Int      @default(3)
+  /// Demandes de course depuis le site public
+  publicRequests  Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
 }
