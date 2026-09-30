@@ -1,5 +1,6 @@
 /** Libellés et formats de l'automobile — partagés par le tableau de bord et le site public
  *  (utilisables côté navigateur : aucun accès base). */
+import { MANUAL_METHOD_LABELS } from "@/lib/payments/labels";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 
@@ -76,7 +77,8 @@ export const IMPORT_LABELS: Record<string, { label: string; guest: string; tone:
   canceled: { label: "Annulée", guest: "Importation annulée", tone: "neutral" },
 };
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = { cash: "Espèces", wave: "Wave", orange_money: "Orange Money", bank_transfer: "Virement", card_terminal: "Carte (terminal)" };
+/** Moyens d'encaissement : libellés communs à tous les secteurs. */
+export const PAYMENT_METHOD_LABELS = MANUAL_METHOD_LABELS;
 
 const nf = new Intl.NumberFormat("fr-FR");
 export const formatXof = (n: number | null | undefined) => (n == null ? "Prix sur demande" : `${nf.format(n)} FCFA`);

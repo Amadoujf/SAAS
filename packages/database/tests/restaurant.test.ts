@@ -251,7 +251,7 @@ describe.skipIf(!databaseAvailable)("Restauration (réel, PostgreSQL)", () => {
     expect(paymentSummary(o.total, o.payments).state).toBe("unpaid");
     await expect(withTenant(restoA, (tx) => recordOrderPayment(tx, restoA, { orderId: o.id, amount: 9000, method: "cash", actorUserId: null }))).rejects.toThrow(/Il reste 8/);
     const p1 = await withTenant(restoA, (tx) => recordOrderPayment(tx, restoA, { orderId: o.id, amount: 5000, method: "wave", reference: "WV-1", actorUserId: null }));
-    expect(p1.receiptNumber).toMatch(/^TK-\d{4}-\d{6}$/);
+    expect(p1.receiptNumber).toMatch(/^REC-\d{4}-\d{6}$/);
     await expect(withTenant(restoA, (tx) => recordOrderPayment(tx, restoA, { orderId: o.id, amount: 3000, method: "chariow", actorUserId: null }))).rejects.toThrow(/Moyen de paiement/);
     await withTenant(restoA, (tx) => recordOrderPayment(tx, restoA, { orderId: o.id, amount: 3000, method: "cash", actorUserId: null }));
     let fresh = await withTenant(restoA, (tx) => getOrderByToken(tx, restoA, o.accessToken));

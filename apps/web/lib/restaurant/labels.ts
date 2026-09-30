@@ -1,5 +1,6 @@
 /** Libellés et formats du restaurant — partagés par le tableau de bord et le site public
  *  (utilisables côté navigateur : aucun accès base). */
+import { MANUAL_METHOD_LABELS } from "@/lib/payments/labels";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 
@@ -34,15 +35,8 @@ export const BOOKING_LABELS: Record<string, { label: string; tone: Tone; guest: 
 
 export const BADGE_LABELS: Record<string, string> = { signature: "Signature", spicy: "Pimenté", vegetarian: "Végétarien", new: "Nouveau" };
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: "Espèces",
-  wave: "Wave",
-  orange_money: "Orange Money",
-  free_money: "Free Money",
-  card: "Carte bancaire",
-  bank_transfer: "Virement",
-  other: "Autre",
-};
+/** Moyens d'encaissement : libellés communs à tous les secteurs. */
+export const PAYMENT_METHOD_LABELS = MANUAL_METHOD_LABELS;
 
 export const WEEKDAYS = ["Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"];
 

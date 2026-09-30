@@ -1,3 +1,4 @@
+import { MANUAL_PAYMENT_METHODS, nextReceiptNumber } from "./payment-ledger";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { nextCounterValue } from "./counters";
@@ -31,7 +32,8 @@ export type OrderMode = (typeof ORDER_MODES)[number];
 export const KITCHEN_STATUSES = ["new", "accepted", "preparing", "ready", "completed", "canceled"] as const;
 export type KitchenStatus = (typeof KITCHEN_STATUSES)[number];
 export const DISH_BADGES = ["signature", "spicy", "vegetarian", "new"] as const;
-export const RESTAURANT_PAYMENT_METHODS = ["cash", "wave", "orange_money", "free_money", "card", "bank_transfer", "other"] as const;
+/** Moyens d'encaissement : liste COMMUNE à tous les secteurs (voir payment-ledger). */
+export const RESTAURANT_PAYMENT_METHODS = MANUAL_PAYMENT_METHODS;
 
 export const KITCHEN_TRANSITIONS: Record<KitchenStatus, KitchenStatus[]> = {
   new: ["accepted", "canceled"],
@@ -597,8 +599,8 @@ export async function recordOrderPayment(tx: Tx, tenantId: string, input: { orde
   const payments = await tx.restaurantPayment.findMany({ where: { tenantId, orderId: input.orderId }, select: { amount: true, voidedAt: true } });
   const { due } = paymentSummary(locked[0].total, payments);
   if (input.amount > due) throw new RestaurantError(due ? `Il reste ${due.toLocaleString("fr-FR")} FCFA à encaisser.` : "Cette commande est déjà réglée.");
-  const year = new Date().getFullYear();
-  const receiptNumber = `TK-${year}-${String(await nextCounterValue(tx, tenantId, `resto-receipt-${year}`)).padStart(6, "0")}`;
+  // Série de reçus COMMUNE à l'entreprise (les anciens reçus « TK- » restent valables).
+  const receiptNumber = await nextReceiptNumber(tx, tenantId);
   return tx.restaurantPayment.create({
     data: { tenantId, orderId: input.orderId, receiptNumber, amount: input.amount, method: input.method, reference: opt(input.reference, 80), recordedBy: input.actorUserId },
   });

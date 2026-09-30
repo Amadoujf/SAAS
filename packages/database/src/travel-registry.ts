@@ -1,3 +1,4 @@
+import { MANUAL_PAYMENT_METHODS, nextReceiptNumber, type ManualPaymentMethod } from "./payment-ledger";
 import type { Prisma } from "@prisma/client";
 import { nextCounterValue } from "./counters";
 import type { CustomerInput } from "./customer-registry";
@@ -27,8 +28,9 @@ export const TRAVEL_DOCUMENTS = ["passport", "id_card", "visa", "yellow_fever", 
 export type TravelDocumentKind = (typeof TRAVEL_DOCUMENTS)[number];
 export const DOCUMENT_STATUSES = ["missing", "received", "submitted", "approved", "refused"] as const;
 export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
-export const TRAVEL_PAYMENT_METHODS = ["cash", "wave", "orange_money", "bank_transfer", "card_terminal"] as const;
-export type TravelPaymentMethod = (typeof TRAVEL_PAYMENT_METHODS)[number];
+/** Moyens d'encaissement : liste COMMUNE à tous les secteurs (voir payment-ledger). */
+export const TRAVEL_PAYMENT_METHODS = MANUAL_PAYMENT_METHODS;
+export type TravelPaymentMethod = ManualPaymentMethod;
 
 export const TRAVEL_MODULE = "listings";
 export const DEPARTURES_MODULE = "departures";
@@ -392,10 +394,6 @@ export function summarizePayments(totalAmount: number | null, depositPercent: nu
   return { total: totalAmount, depositDue, paid, remaining, state };
 }
 
-export function formatReceiptNumber(year: number, value: number) {
-  return `REC-${year}-${String(value).padStart(6, "0")}`;
-}
-
 export interface RecordPaymentInput {
   reservationId: string;
   amount: number;
@@ -428,8 +426,7 @@ export async function recordReservationPayment(tx: Prisma.TransactionClient, ten
   if (paid + input.amount > row.totalAmount) {
     throw new TravelError(`Montant supérieur au reste à payer (${row.totalAmount - paid} FCFA).`);
   }
-  const year = paidAt.getFullYear();
-  const receiptNumber = formatReceiptNumber(year, await nextCounterValue(tx, tenantId, `receipt-${year}`));
+  const receiptNumber = await nextReceiptNumber(tx, tenantId, paidAt);
   return tx.reservationPayment.create({
     data: {
       tenantId,

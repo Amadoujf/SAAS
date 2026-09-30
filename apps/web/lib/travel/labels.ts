@@ -1,4 +1,5 @@
 /** Libellés français du voyage — partagés par le tableau de bord et le site public. */
+import { MANUAL_METHOD_LABELS } from "@/lib/payments/labels";
 
 type Tone = "neutral" | "info" | "success" | "warning" | "danger";
 
@@ -60,13 +61,8 @@ export const PAYMENT_STATE_LABELS: Record<string, { label: string; tone: Tone }>
   paid: { label: "Réglé", tone: "success" },
 };
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: "Espèces à l'agence",
-  wave: "Wave",
-  orange_money: "Orange Money",
-  bank_transfer: "Virement",
-  card_terminal: "Carte (terminal de l'agence)",
-};
+/** Moyens d'encaissement : libellés communs à tous les secteurs. */
+export const PAYMENT_METHOD_LABELS = MANUAL_METHOD_LABELS;
 
 export const PAYMENT_KIND_LABELS: Record<string, string> = { deposit: "Acompte", balance: "Solde", other: "Paiement" };
 
