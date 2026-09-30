@@ -11,13 +11,17 @@ import type { SiteAiContext, SiteBrief } from "./types";
  * fournisseur) ; tout ce qui varie (entreprise, catalogue, demande) est dans le message.
  */
 
-const STYLE_GUIDE = STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${t.layout === "editorial" ? "éditoriale" : "catalogue"})`).join("\n");
+const STYLE_GUIDE = [
+  ...STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${t.layout === "editorial" ? "éditoriale" : "catalogue"})`),
+  "- braise : Braise — style métier de la restauration (RÉSERVÉ aux restaurants)",
+  "- piste : Piste — style métier de l'automobile (RÉSERVÉ aux concessions)",
+].join("\n");
 
 /** Restaurant : ce qui change pour le modèle (dans le message, pas dans le texte système mis en cache). */
-const RESTAURANT_NOTE = "Cette entreprise est un RESTAURANT : les « produits » ci-dessous sont les plats de sa carte (catégorie = rubrique de la carte) et les « catégories » ses rubriques. Les boutons mènent à la carte et à la réservation de table. Le style de base est imposé (« braise ») : choisis-en un quelconque, il sera remplacé ; joue sur la structure, la typographie, les formes et la palette. N'annonce ni horaires, ni livraison, ni promotion : ils sont gérés ailleurs. Écris pour donner faim, sans inventer un ingrédient absent des descriptions.";
+const RESTAURANT_NOTE = "Cette entreprise est un RESTAURANT : les « produits » ci-dessous sont les plats de sa carte (catégorie = rubrique de la carte) et les « catégories » ses rubriques. Les boutons mènent à la carte et à la réservation de table. Le style « braise » (conçu pour la restauration) est la proposition métier : utilise-le pour UNE des trois directions et choisis pour les deux autres des styles de la liste qui correspondent réellement aux goûts exprimés ; les liens restent ceux de la carte et de la réservation quel que soit le style. N'annonce ni horaires, ni livraison, ni promotion : ils sont gérés ailleurs. Écris pour donner faim, sans inventer un ingrédient absent des descriptions.";
 
 /** Concession automobile : même principe. */
-const AUTO_NOTE = "Cette entreprise est une CONCESSION AUTOMOBILE : les « produits » ci-dessous sont les véhicules publiés de son stock (catégorie = type de carrosserie). Les boutons mènent au stock et aux fiches véhicules (essai sur rendez-vous). Le style de base est imposé (« piste ») : choisis-en un quelconque, il sera remplacé ; joue sur la structure, la typographie, les formes et la palette. N'invente ni caractéristique technique, ni garantie, ni financement, ni promotion : seuls les éléments fournis existent. Écris sobrement, avec précision.";
+const AUTO_NOTE = "Cette entreprise est une CONCESSION AUTOMOBILE : les « produits » ci-dessous sont les véhicules publiés de son stock (catégorie = type de carrosserie). Les boutons mènent au stock et aux fiches véhicules (essai sur rendez-vous). Le style « piste » (conçu pour l'automobile) est la proposition métier : utilise-le pour UNE des trois directions et choisis pour les deux autres des styles de la liste qui correspondent réellement aux goûts exprimés ; les liens restent ceux du stock et des fiches quel que soit le style. N'invente ni caractéristique technique, ni garantie, ni financement, ni promotion : seuls les éléments fournis existent. Écris sobrement, avec précision.";
 
 const QUALITY = `Exigence de qualité Y-COM : des pages sobres et maîtrisées, où chaque bloc a une seule idée ; de grandes images quand elles existent ; une typographie précise ; de l'espace ; des textes courts, concrets et élégants (jamais de superlatifs creux, jamais de points d'exclamation en série) ; des animations fluides au service du produit, jamais gratuites.`;
 

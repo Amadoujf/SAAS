@@ -4,6 +4,7 @@ import { siteStyleTokens } from "./style-tokens";
 import { ARCHETYPE_KEYS, type AiDirection, type ArchetypeKey } from "./schemas";
 import { ARCHETYPES, type Slot } from "./archetypes";
 import type { CatalogProduct, SiteAiContext, SiteIdentity, SiteMotion } from "./types";
+import { allowedStyles } from "./schemas";
 import { auditPhotos, pickIllustrated } from "./photo-audit";
 
 /**
@@ -100,7 +101,10 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   // Même principe pour une concession (style « Piste », stock et fiches véhicules).
   const sector = context.mode === "restaurant" || context.mode === "automobile" ? SECTOR[context.mode] : null;
   const outsideStore = sector !== null;
-  const style = sector ? sector.style : direction.style;
+  // Le style du métier (Braise, Piste) est une PROPOSITION parmi d'autres : la direction
+  // choisit ; un style réservé à un autre métier est remplacé par celui du métier.
+  const allowed = allowedStyles(context.mode);
+  const style = allowed.includes(direction.style) ? direction.style : sector ? sector.style : "sunu-marche";
   const catalogHref = sector ? sector.home : "/catalogue";
   const itemHref = (p: CatalogProduct) => (sector ? sector.item(p) : `/p/${p.slug}`);
   const identity: SiteIdentity = {

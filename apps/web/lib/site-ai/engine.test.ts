@@ -209,7 +209,7 @@ describe("création assistée : restaurant (la carte tient lieu de catalogue)", 
   const directions = directionsOutputSchema.parse(simulateDirections(restoBrief, resto)).directions;
   const hrefs = (params: unknown): string[] => JSON.stringify(params).match(/"(?:[a-zA-Z]*Href|href)":"([^"]+)"/g)?.map((m) => m.split(":")[1]!.replace(/"/g, "")) ?? [];
 
-  it("les six archétypes se composent sans section du catalogue boutique, avec le style Braise", () => {
+  it("les six archétypes se composent sans section du catalogue boutique (proposition métier : style Braise)", () => {
     for (const archetype of ARCHETYPE_KEYS) {
       const site = compileDirection({ ...directions[0]!, archetype }, resto);
       expect(site.blocks.length, archetype).toBeGreaterThanOrEqual(2);
@@ -230,12 +230,21 @@ describe("création assistée : restaurant (la carte tient lieu de catalogue)", 
     expect(items.find((i) => i.title === "Plat 1")?.subtitle).toBe("3500 FCFA · Grillades");
   });
 
-  it("conversation : le style de base ne change pas, la mise en avant choisit des plats", () => {
+  it("trois propositions de styles différents, dont le style métier Braise", () => {
+    const styles = directions.map((d) => compileDirection(d, resto).identity.style);
+    expect(new Set(styles).size).toBe(3);
+    expect(styles).toContain("braise");
+    expect(styles).not.toContain("piste");
+  });
+
+  it("conversation : le client peut changer de style (sauf celui d'un autre métier), la mise en avant choisit des plats", () => {
     const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, resto);
     const state: SiteState = { blocks: site.blocks, identity: site.identity, motion: site.motion };
     const style = applyOperations(state, [{ op: "set_style", style: "luxury-minimal" }], resto);
-    expect(style.state.identity.style).toBe("braise");
-    expect(style.rejected[0]).toMatch(/Braise/);
+    expect(style.state.identity.style).toBe("luxury-minimal");
+    const other = applyOperations(state, [{ op: "set_style", style: "piste" }], resto);
+    expect(other.state.identity.style).toBe("braise");
+    expect(other.rejected[0]).toMatch(/autre métier/);
     const showcase = site.blocks.find((b) => b.sectionKey === "immersive_showcase")!;
     const pick = applyOperations(state, [{ op: "feature_products", sectionId: showcase.id, strategy: "list", productIds: ["p4", "p3", "p2", "p6"] }], resto);
     const items = (pick.state.blocks.find((b) => b.id === showcase.id)!.params as { items: { title: string }[] }).items;
@@ -258,7 +267,7 @@ describe("création assistée : concession automobile (le stock tient lieu de ca
   const directions = directionsOutputSchema.parse(simulateDirections(brief, auto)).directions;
   const hrefs = (params: unknown): string[] => JSON.stringify(params).match(/"(?:[a-zA-Z]*Href|href)":"([^"]+)"/g)?.map((m) => m.split(":")[1]!.replace(/"/g, "")) ?? [];
 
-  it("les six archétypes se composent avec le style Piste et des liens vers le stock ou les fiches", () => {
+  it("les six archétypes se composent (proposition métier : style Piste) avec des liens vers le stock ou les fiches", () => {
     for (const archetype of ARCHETYPE_KEYS) {
       const site = compileDirection({ ...directions[0]!, archetype }, auto);
       expect(site.blocks.length, archetype).toBeGreaterThanOrEqual(2);
@@ -279,12 +288,19 @@ describe("création assistée : concession automobile (le stock tient lieu de ca
     expect(first.subtitle).toBe("10000001 FCFA · SUV");
   });
 
-  it("conversation : le style Piste est conservé, la mise en avant garde les fiches", () => {
+  it("trois propositions de styles différents, dont le style métier Piste ; un style d'un autre métier est remplacé", () => {
+    const styles = directions.map((d) => compileDirection(d, auto).identity.style);
+    expect(new Set(styles).size).toBe(3);
+    expect(styles).toContain("piste");
+    expect(compileDirection({ ...directions[1]!, style: "braise" }, auto).identity.style).toBe("piste");
+  });
+
+  it("conversation : le client peut changer de style, la mise en avant garde les fiches", () => {
     const site = compileDirection({ ...directions[0]!, archetype: "vitrine" }, auto);
     const state: SiteState = { blocks: site.blocks, identity: site.identity, motion: site.motion };
     const style = applyOperations(state, [{ op: "set_style", style: "luxury-minimal" }], auto);
-    expect(style.state.identity.style).toBe("piste");
-    expect(style.rejected[0]).toMatch(/Piste/);
+    expect(style.state.identity.style).toBe("luxury-minimal");
+    expect(applyOperations(state, [{ op: "set_style", style: "braise" }], auto).rejected[0]).toMatch(/autre métier/);
     const showcase = site.blocks.find((b) => b.sectionKey === "immersive_showcase")!;
     const pick = applyOperations(state, [{ op: "feature_products", sectionId: showcase.id, strategy: "list", productIds: ["p4", "p3", "p2"] }], auto);
     const items = (pick.state.blocks.find((b) => b.id === showcase.id)!.params as { items: { href: string }[] }).items;

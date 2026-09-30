@@ -1,3 +1,4 @@
+import { allowedStyles } from "./schemas";
 import { isValidVariant, validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { SECTION_NAMES } from "@/lib/editor/section-names";
 import { STORE_TEMPLATES } from "@/lib/storefront/store-templates";
@@ -31,7 +32,7 @@ export interface OperationsResult {
   rejected: string[];
 }
 
-const STYLE_NAMES = Object.fromEntries(STORE_TEMPLATES.map((t) => [t.slug, t.name]));
+const STYLE_NAMES: Record<string, string> = { ...Object.fromEntries(STORE_TEMPLATES.map((t) => [t.slug, t.name])), braise: "Braise", piste: "Piste" };
 const LEVEL_NAMES = { discreet: "discrètes", dynamic: "dynamiques", immersive: "immersives" } as const;
 const MOBILE_NAMES = { same: "identiques sur téléphone", reduced: "allégées sur téléphone", none: "désactivées sur téléphone" } as const;
 const FIELD_NAMES: Record<string, string> = { eyebrow: "surtitre", title: "titre", titleAccent: "suite du titre", subtitle: "sous-titre", intro: "introduction", statement: "phrase principale", body: "texte", description: "description", primaryCtaLabel: "bouton principal", secondaryCtaLabel: "bouton secondaire", ctaLabel: "bouton", buttonLabel: "bouton" };
@@ -248,8 +249,8 @@ export function applyOperations(input: SiteState, operations: AiEditOperation[],
         break;
       }
       case "set_style": {
-        if (context.mode === "restaurant" || context.mode === "automobile") {
-          rejected.push(context.mode === "restaurant" ? "Le style de base d'un restaurant reste « Braise » (carte, commande, réservation) : je peux changer les couleurs, la typographie, les formes ou les sections." : "Le style de base d'une concession reste « Piste » (stock, fiches, essais) : je peux changer les couleurs, la typographie, les formes ou les sections.");
+        if (!allowedStyles(context.mode).includes(op.style)) {
+          rejected.push(`Le style « ${STYLE_NAMES[op.style] ?? op.style} » est réservé à un autre métier : choisissez l'un des styles proposés pour votre activité.`);
           break;
         }
         if (op.style !== identity.style) {

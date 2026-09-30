@@ -6,7 +6,8 @@ import { withTenant, getEnabledModules, getRestaurantSettings, type OpeningRange
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { applyBranding, parseHomeContent, type HomeContent } from "@/lib/storefront/home-content";
 import { isRestaurant } from "@/lib/modules/tenant-modules";
-import { BRAISE_TOKENS, RESTAURANT_TEMPLATES } from "./restaurant-templates";
+import { BRAISE_TOKENS } from "./restaurant-templates";
+import { siteStyleTokens } from "@/lib/site-ai/style-tokens";
 
 export interface RestaurantRules {
   openingHours: OpeningRange[];
@@ -68,13 +69,14 @@ export async function buildRestaurantContext(tenantId: string, tenantName: strin
     };
   });
   if (!isRestaurant(data.modules)) return null;
-  const template = RESTAURANT_TEMPLATES.find((t) => t.slug === data.branding.templatePreference);
+  // Style choisi par le restaurant (Braise par défaut, ou un autre style publié depuis « Mon site »).
+  const chosen = typeof data.branding.templatePreference === "string" ? siteStyleTokens(data.branding.templatePreference) : null;
   const s = data.settings;
   return {
       tenantId: tenantId,
       tenantName: tenantName,
       timezone: data.timezone,
-      tokens: applyBranding(template?.tokens ?? BRAISE_TOKENS, data.branding),
+      tokens: applyBranding(chosen ?? BRAISE_TOKENS, data.branding),
       logoUrl: str(data.branding.logoUrl),
       content: parseHomeContent(data.content, tenantName),
       contact: { phone: str(data.branding.contactPhone), whatsapp: str(data.branding.contactWhatsapp), email: str(data.branding.contactEmail), address: str(data.branding.contactAddress) },

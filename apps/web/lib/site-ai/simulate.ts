@@ -81,10 +81,12 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
         name: meta.label,
         pitch: meta.description.slice(0, 220),
         archetype,
-        style: look.style,
+        // Secteur : la première proposition prend le style métier, les deux autres
+        // des styles de la plateforme choisis d'après les goûts (archétypes classés).
+        style: sector && index === 0 ? (context.mode === "automobile" ? "piste" : "braise") : look.style,
         typography: meta.suggested.typography,
         shape: meta.suggested.shape,
-        palette: sector ? sector.palettes[index % 3]! : look.palette,
+        palette: sector && index === 0 ? sector.palettes[0]! : look.palette,
         animation: meta.suggested.animation,
         heroProductId: lead?.id ?? "",
         signatureProductId: premium[0]?.id ?? "",

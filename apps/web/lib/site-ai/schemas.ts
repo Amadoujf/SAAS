@@ -8,7 +8,16 @@ import * as z from "zod/v4";
  * des identifiants de produits de l'entreprise et des textes courts modifiables.
  */
 
-export const STYLE_KEYS = ["sunu-marche", "atelier-naya", "teranga-atelier", "commerce-moderne", "luxury-minimal", "marketplace", "dakar-distribution-pro"] as const;
+export const STYLE_KEYS = ["sunu-marche", "atelier-naya", "teranga-atelier", "commerce-moderne", "luxury-minimal", "marketplace", "dakar-distribution-pro", "braise", "piste"] as const;
+/** Styles propres à un métier : proposés à CE métier (parmi les autres), jamais ailleurs. */
+export const SECTOR_STYLE_BY_MODE = { restaurant: "braise", automobile: "piste" } as const;
+
+/** Styles qu'une entreprise peut choisir : ceux de la plateforme + celui de son métier. */
+export function allowedStyles(mode: "commerce" | "restaurant" | "automobile" | undefined): (typeof STYLE_KEYS)[number][] {
+  const sectorStyles = Object.values(SECTOR_STYLE_BY_MODE) as string[];
+  const base = STYLE_KEYS.filter((s) => !sectorStyles.includes(s));
+  return mode === "restaurant" || mode === "automobile" ? [SECTOR_STYLE_BY_MODE[mode], ...base] : base;
+}
 export const ANIMATION_LEVELS = ["discreet", "dynamic", "immersive"] as const;
 export const MOBILE_ANIMATION = ["same", "reduced", "none"] as const;
 

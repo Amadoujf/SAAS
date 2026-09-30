@@ -6,7 +6,8 @@ import { withTenant, getEnabledModules, getAutoSettings, type ShowroomHours } fr
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { applyBranding, parseHomeContent, type HomeContent } from "@/lib/storefront/home-content";
 import { isAutomobile } from "@/lib/modules/tenant-modules";
-import { AUTO_TEMPLATES, PISTE_TOKENS } from "./auto-templates";
+import { PISTE_TOKENS } from "./auto-templates";
+import { siteStyleTokens } from "@/lib/site-ai/style-tokens";
 
 export interface AutoContext {
   tenantId: string;
@@ -50,12 +51,13 @@ export async function buildAutoContext(tenantId: string, tenantName: string): Pr
     };
   });
   if (!isAutomobile(data.modules)) return null;
-  const template = AUTO_TEMPLATES.find((t) => t.slug === data.branding.templatePreference);
+  // Style choisi par l'entreprise (Piste par défaut, ou un autre style publié depuis « Mon site »).
+  const chosen = typeof data.branding.templatePreference === "string" ? siteStyleTokens(data.branding.templatePreference) : null;
   return {
     tenantId,
     tenantName,
     timezone: data.timezone,
-    tokens: applyBranding(template?.tokens ?? PISTE_TOKENS, data.branding),
+    tokens: applyBranding(chosen ?? PISTE_TOKENS, data.branding),
     logoUrl: str(data.branding.logoUrl),
     content: parseHomeContent(data.content, tenantName),
     contact: { phone: str(data.branding.contactPhone), whatsapp: str(data.branding.contactWhatsapp), email: str(data.branding.contactEmail), address: str(data.branding.contactAddress) },
