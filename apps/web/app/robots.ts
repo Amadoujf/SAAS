@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import type { MetadataRoute } from "next";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
+import { previewEnabled } from "@/lib/preview/private-preview";
 
 /**
  * robots.txt PAR TENANT — voir docs/12 §12.3, « RENDU PUBLIC » et « SÉCURITÉ ET
@@ -11,6 +12,8 @@ import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
  * reste une seconde couche de défense contre l'indexation accidentelle.
  */
 export default async function robots(): Promise<MetadataRoute.Robots> {
+  // Prévisualisation privée : aucune page n'est indexable.
+  if (previewEnabled()) return { rules: { userAgent: "*", disallow: "/" } };
   const headerList = await headers();
   const host = headerList.get("host") ?? "";
   const resolution = await resolvePublicSite(host);

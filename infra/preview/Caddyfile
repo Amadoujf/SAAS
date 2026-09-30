@@ -1,0 +1,15 @@
+{
+	# Certificats émis à la demande, uniquement pour les domaines que Y-COM reconnaît
+	# (plateforme et sous-domaines des entreprises de démonstration).
+	on_demand_tls {
+		ask http://web:3000/api/domains/ask
+	}
+}
+
+{$PREVIEW_DOMAIN}, *.{$PREVIEW_DOMAIN} {
+	tls {
+		on_demand
+	}
+	header X-Robots-Tag "noindex, nofollow"
+	reverse_proxy web:3000
+}

@@ -51,3 +51,6 @@ infra/**/data/
 
 # Instantanés Redis locaux
 *.rdb
+
+# Prévisualisation privée : secrets du serveur, jamais versionnés
+infra/preview/.env.preview
