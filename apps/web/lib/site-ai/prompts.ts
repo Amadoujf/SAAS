@@ -15,6 +15,7 @@ const STYLE_GUIDE = [
   ...STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${t.layout === "editorial" ? "éditoriale" : "catalogue"})`),
   "- braise : Braise — style métier de la restauration (RÉSERVÉ aux restaurants)",
   "- piste : Piste — style métier de l'automobile (RÉSERVÉ aux concessions)",
+  "- preau : Préau — style métier de l'enseignement (RÉSERVÉ aux écoles et centres de formation)",
 ].join("\n");
 
 /** Restaurant : ce qui change pour le modèle (dans le message, pas dans le texte système mis en cache). */
@@ -22,6 +23,9 @@ const RESTAURANT_NOTE = "Cette entreprise est un RESTAURANT : les « produits »
 
 /** Concession automobile : même principe. */
 const AUTO_NOTE = "Cette entreprise est une CONCESSION AUTOMOBILE : les « produits » ci-dessous sont les véhicules publiés de son stock (catégorie = type de carrosserie). Les boutons mènent au stock et aux fiches véhicules (essai sur rendez-vous). Le style « piste » (conçu pour l'automobile) est la proposition métier : utilise-le pour UNE des trois directions et choisis pour les deux autres des styles de la liste qui correspondent réellement aux goûts exprimés ; les liens restent ceux du stock et des fiches quel que soit le style. N'invente ni caractéristique technique, ni garantie, ni financement, ni promotion : seuls les éléments fournis existent. Écris sobrement, avec précision.";
+
+/** Établissement d'enseignement : même principe. */
+const EDU_NOTE = "Cette entreprise est un ÉTABLISSEMENT D'ENSEIGNEMENT (école privée, centre de formation, cours de langues ou de soutien) : les « produits » ci-dessous sont ses formations publiées (catégorie = domaine). Les boutons mènent aux formations et à la demande d'inscription. Le style « preau » (conçu pour l'enseignement) est la proposition métier : utilise-le pour UNE des trois directions et choisis pour les deux autres des styles de la liste qui correspondent réellement aux goûts exprimés ; les liens restent ceux des formations quel que soit le style. N'invente ni diplôme, ni agrément, ni taux de réussite, ni partenariat, ni bourse : seuls les éléments fournis existent. Écris avec clarté et chaleur, pour des parents et des élèves.";
 
 const QUALITY = `Exigence de qualité Y-COM : des pages sobres et maîtrisées, où chaque bloc a une seule idée ; de grandes images quand elles existent ; une typographie précise ; de l'espace ; des textes courts, concrets et élégants (jamais de superlatifs creux, jamais de points d'exclamation en série) ; des animations fluides au service du produit, jamais gratuites.`;
 
@@ -70,7 +74,7 @@ export function directionsPrompt(brief: SiteBrief, context: SiteAiContext, audit
       categories: context.categories.map((c) => ({ id: c.id, nom: c.name, produits: c.productCount })),
       images_mediatheque: context.libraryImages.length,
       produits: context.products.map((p) => ({ id: p.id, nom: p.name, categorie: p.category, prix: p.priceLabel, description: p.description?.slice(0, 300) ?? null, ajoute_le: p.createdAt.slice(0, 10), photo: Boolean(p.imageUrl) })),
-      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : context.mode === "automobile" ? { secteur: AUTO_NOTE } : {}),
+      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : context.mode === "automobile" ? { secteur: AUTO_NOTE } : context.mode === "education" ? { secteur: EDU_NOTE } : {}),
       consigne: "Propose trois directions artistiques pour la page d'accueil de ce site.",
     },
     null,
@@ -133,7 +137,7 @@ export function editPrompt(message: string, state: SiteState, context: SiteAiCon
   return JSON.stringify(
     {
       entreprise: context.tenantName,
-      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : context.mode === "automobile" ? { secteur: AUTO_NOTE } : {}),
+      ...(context.mode === "restaurant" ? { secteur: RESTAURANT_NOTE } : context.mode === "automobile" ? { secteur: AUTO_NOTE } : context.mode === "education" ? { secteur: EDU_NOTE } : {}),
       site_actuel: describeState(state),
       produits: context.products.map((p) => ({ id: p.id, nom: p.name, categorie: p.category, ajoute_le: p.createdAt.slice(0, 10), photo: Boolean(p.imageUrl) })),
       conversation_recente: history.slice(-6),

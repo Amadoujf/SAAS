@@ -1,5 +1,5 @@
 /** Vocabulaire du studio selon le métier (utilisable côté navigateur). */
-export type StudioMode = "commerce" | "restaurant" | "automobile";
+export type StudioMode = "commerce" | "restaurant" | "automobile" | "education";
 
 export interface StudioVocabulary {
   /** « produits », « plats », « véhicules ». */
@@ -58,6 +58,19 @@ export const STUDIO_VOCABULARY: Record<StudioMode, StudioVocabulary> = {
     audiencePlaceholder: "Ex. : familles, entreprises, premiers acheteurs",
     cta: "Voir les véhicules",
     suggestions: ["Mets mes véhicules vedettes en avant.", "Une ambiance plus technique.", "Ajoute une galerie de mes véhicules.", "Ajoute un récit qui présente mon stock.", ...COMMON],
+  },
+  education: {
+    items: "formations",
+    item: "formation",
+    catalog: "offre de formations",
+    groups: "domaine",
+    manageHref: "/dashboard/formations",
+    illustrated: () => "en photo",
+    question: "Qu'enseignez-vous, et qu'est-ce qui distingue votre établissement ?",
+    activityPlaceholder: "Ex. : école privée de la maternelle au lycée, petits effectifs, suivi personnalisé ; cours d'anglais du soir pour adultes.",
+    audiencePlaceholder: "Ex. : parents du quartier, lycéens, adultes en reconversion",
+    cta: "Voir les formations",
+    suggestions: ["Mets mes formations phares en avant.", "Une ambiance plus chaleureuse.", "Ajoute une galerie de mes formations.", "Ajoute un récit qui présente l'établissement.", ...COMMON],
   },
 };
 

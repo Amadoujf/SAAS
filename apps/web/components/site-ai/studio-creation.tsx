@@ -11,7 +11,7 @@ import { vocabularyOf } from "@/lib/site-ai/vocabulary";
 
 export interface CatalogSummary {
   /** Métier : « restaurant » (plats de la carte), « automobile » (véhicules du stock) — vocabulaire adapté. */
-  mode?: "commerce" | "restaurant" | "automobile";
+  mode?: "commerce" | "restaurant" | "automobile" | "education";
   products: number;
   illustrated: number;
   categories: number;

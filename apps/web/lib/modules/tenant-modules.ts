@@ -37,3 +37,8 @@ export function isRestaurant(modules: Set<string>) {
 export function isAutomobile(modules: Set<string>) {
   return modules.has("listings") && modules.has("test_drive_appointments");
 }
+
+/** Éducation : les formations et les inscriptions. */
+export function isEducation(modules: Set<string>) {
+  return modules.has("courses") && modules.has("enrollments");
+}

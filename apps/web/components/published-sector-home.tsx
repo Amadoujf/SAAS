@@ -17,6 +17,9 @@ import { RestaurantEssentials } from "@/components/restaurant/restaurant-essenti
 import type { AutoContext } from "@/lib/auto/auto-context";
 import { AutoShell } from "@/components/auto/auto-shell";
 import { AutoEssentials } from "@/components/auto/auto-essentials";
+import type { EducationContext } from "@/lib/education/education-context";
+import { EducationShell } from "@/components/education/education-shell";
+import { EducationEssentials } from "@/components/education/education-essentials";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -25,7 +28,7 @@ import { AutoEssentials } from "@/components/auto/auto-essentials";
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, auto, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; auto?: AutoContext; annotate?: boolean }) {
+export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, auto, school, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; auto?: AutoContext; school?: EducationContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
@@ -42,5 +45,7 @@ export function PublishedSectorHome({ site, store, estate, travel, salon, hotel,
   if (restaurant) return <RestaurantShell restaurant={restaurant}>{content}<RestaurantEssentials restaurant={restaurant} /></RestaurantShell>;
   // Concession : la page composée puis, toujours, le stock et les services.
   if (auto) return <AutoShell auto={auto}>{content}<AutoEssentials auto={auto} /></AutoShell>;
+  // Établissement : la page composée puis, toujours, les formations et l'inscription.
+  if (school) return <EducationShell school={school}>{content}<EducationEssentials school={school} /></EducationShell>;
   return content;
 }

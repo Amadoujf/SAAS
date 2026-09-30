@@ -1,11 +1,11 @@
 import { ycFontVariables } from "@/lib/yc-fonts";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { withTenant, autoOverview, countOrdersByQueue, hotelOverview, restaurantOverview } from "@yamacommerce/database";
+import { withTenant, autoOverview, countOrdersByQueue, educationOverview, hotelOverview, restaurantOverview } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isAutomobile, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isEducation, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -35,6 +35,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const hotel = isHotel(modules);
   const restaurant = isRestaurant(modules);
   const automobile = isAutomobile(modules);
+  const education = isEducation(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
@@ -98,6 +99,13 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     autoNewLeads = o.newLeads;
     autoSales = o.salesOpen;
     autoImports = o.importsInProgress;
+  }
+  let eduRequests = 0;
+  let eduLate = 0;
+  if (membership && education && (session.user.isSuperAdmin || membership.permissions.includes("reservations.view"))) {
+    const o = await withTenant(membership.tenantId, (tx) => educationOverview(tx, membership.tenantId));
+    eduRequests = o.pendingRequests;
+    eduLate = o.overdueCount;
   }
   if (membership) {
     const data = await withTenant(membership.tenantId, async (tx) => ({
@@ -176,6 +184,20 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
     );
+  } else if (membership && education) {
+    pilot.push(
+      { href: "/dashboard/inscriptions", label: "Inscriptions", icon: "folder", badge: eduRequests || undefined, permission: "reservations.view" },
+      { href: "/dashboard/classes", label: "Classes", icon: "school", permission: "academics.view" },
+      { href: "/dashboard/eleves", label: "Élèves", icon: "customers", permission: "customers.view" },
+      { href: "/dashboard/formations", label: "Formations", icon: "book", permission: "listings.view" },
+    );
+    manage.push(
+      { href: "/dashboard/ecole", label: "Année et règles", icon: "key", permission: "academics.manage" },
+      { href: "/dashboard/clients", label: "Responsables", icon: "customers", permission: "customers.view" },
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "listings.view" },
+      { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
+    );
   } else if (membership && automobile) {
     pilot.push(
       { href: "/dashboard/vehicules", label: "Stock", icon: "car", permission: "listings.view" },
@@ -246,6 +268,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: "/dashboard/cuisine", label: "Commandes en cuisine", count: restoKitchen },
         { href: "/dashboard/ventes?file=en-cours", label: "Commandes prêtes à remettre", count: restoReady },
         { href: "/dashboard/carte", label: "Plats épuisés", count: restoSoldOut },
+      ]
+    : education
+    ? [
+        { href: "/dashboard/inscriptions?file=a-confirmer", label: "Demandes d'inscription à confirmer", count: eduRequests },
+        { href: "/dashboard/inscriptions?file=retards", label: "Dossiers avec échéance en retard", count: eduLate },
       ]
     : automobile
     ? [

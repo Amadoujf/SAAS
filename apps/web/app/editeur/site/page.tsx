@@ -15,6 +15,7 @@ import { PublishedSectorHome } from "@/components/published-sector-home";
 import { PreviewBridge } from "@/components/site-ai/preview-bridge";
 import { buildRestaurantContext } from "@/lib/restaurant/restaurant-context";
 import { buildAutoContext } from "@/lib/auto/auto-context";
+import { buildEducationContext } from "@/lib/education/education-context";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -77,6 +78,16 @@ export default async function SiteDraftPreviewPage({ searchParams }: { searchPar
     return (
       <>
         <PublishedSectorHome site={site} auto={{ ...auto, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? auto.logoUrl }} annotate />
+        <PreviewBridge />
+      </>
+    );
+  }
+  // Établissement : même principe (en-tête, formations, inscription).
+  const school = await buildEducationContext(tenantId, tenantName);
+  if (school) {
+    return (
+      <>
+        <PublishedSectorHome site={site} school={{ ...school, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? school.logoUrl }} annotate />
         <PreviewBridge />
       </>
     );

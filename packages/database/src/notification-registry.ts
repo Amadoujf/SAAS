@@ -33,6 +33,11 @@ export const ORDER_NOTIFICATION_EVENTS = {
   test_drive_canceled: "Essai annulé",
   vehicle_lead_received: "Nouvelle demande client",
   vehicle_import_update: "Votre véhicule avance",
+  // Éducation (inscriptions, encaissements, notes).
+  enrollment_request_received: "Demande d'inscription reçue",
+  enrollment_confirmed: "Inscription confirmée",
+  enrollment_payment_received: "Paiement de scolarité reçu",
+  grades_published: "Nouvelles notes disponibles",
 } as const;
 
 export type OrderNotificationEvent = keyof typeof ORDER_NOTIFICATION_EVENTS;

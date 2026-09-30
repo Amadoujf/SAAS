@@ -32,7 +32,7 @@ export interface OperationsResult {
   rejected: string[];
 }
 
-const STYLE_NAMES: Record<string, string> = { ...Object.fromEntries(STORE_TEMPLATES.map((t) => [t.slug, t.name])), braise: "Braise", piste: "Piste" };
+const STYLE_NAMES: Record<string, string> = { ...Object.fromEntries(STORE_TEMPLATES.map((t) => [t.slug, t.name])), braise: "Braise", piste: "Piste", preau: "Préau" };
 const LEVEL_NAMES = { discreet: "discrètes", dynamic: "dynamiques", immersive: "immersives" } as const;
 const MOBILE_NAMES = { same: "identiques sur téléphone", reduced: "allégées sur téléphone", none: "désactivées sur téléphone" } as const;
 const FIELD_NAMES: Record<string, string> = { eyebrow: "surtitre", title: "titre", titleAccent: "suite du titre", subtitle: "sous-titre", intro: "introduction", statement: "phrase principale", body: "texte", description: "description", primaryCtaLabel: "bouton principal", secondaryCtaLabel: "bouton secondaire", ctaLabel: "bouton", buttonLabel: "bouton" };
@@ -190,17 +190,17 @@ export function applyOperations(input: SiteState, operations: AiEditOperation[],
           rejected.push(`${sectionLabel(block!)} : pas assez de produits photographiés pour cette sélection.`);
           break;
         }
-        if (context.mode === "restaurant" || context.mode === "automobile") {
+        if (context.mode === "restaurant" || context.mode === "automobile" || context.mode === "education") {
           // Restaurant / concession : carrousel saisi (nom, prix réel, lien vers la carte ou la fiche).
           if (block!.sectionKey !== "immersive_showcase") {
-            rejected.push(`${sectionLabel(block!)} : présentez vos ${context.mode === "automobile" ? "véhicules" : "plats"} dans un carrousel.`);
+            rejected.push(`${sectionLabel(block!)} : présentez vos ${context.mode === "automobile" ? "véhicules" : context.mode === "education" ? "formations" : "plats"} dans un carrousel.`);
             break;
           }
           const dishes = ids.map((id) => context.products.find((p) => p.id === id)!).filter((p) => p.imageUrl);
           update(
             index,
-            (b) => ({ ...b, params: { ...(b.params as object), source: "manual", showPrice: false, items: dishes.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: context.mode === "automobile" ? `/vehicules/${p.slug}` : "/carte" })) } }),
-            `${sectionLabel(block!)} : ${op.strategy === "newest" ? `les derniers ${context.mode === "automobile" ? "véhicules" : "plats"} ajoutés en premier` : `${dishes.length} ${context.mode === "automobile" ? "véhicule(s)" : "plat(s)"} choisis`}`,
+            (b) => ({ ...b, params: { ...(b.params as object), source: "manual", showPrice: false, items: dishes.map((p) => ({ title: p.name.slice(0, 90), subtitle: [p.priceLabel, p.category].filter(Boolean).join(" · ").slice(0, 160), imageUrl: p.imageUrl!, imageAlt: p.imageAlt ?? p.name, href: context.mode === "automobile" ? `/vehicules/${p.slug}` : context.mode === "education" ? `/formations/${p.slug}` : "/carte" })) } }),
+            `${sectionLabel(block!)} : ${op.strategy === "newest" ? `les derniers ${context.mode === "automobile" ? "véhicules" : context.mode === "education" ? "formations" : "plats"} ajoutés en premier` : `${dishes.length} ${context.mode === "automobile" ? "véhicule(s)" : context.mode === "education" ? "formation(s)" : "plat(s)"} choisis`}`,
           );
           break;
         }

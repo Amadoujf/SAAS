@@ -83,12 +83,54 @@ async function loadAutoContext(tx: Prisma.TransactionClient, tenantId: string, t
   };
 }
 
+/** Établissement : les formations publiées tiennent lieu de catalogue (catégorie = domaine). */
+async function loadEducationContext(tx: Prisma.TransactionClient, tenantId: string, tenantName: string, logoUrl: string | null, sectorKey: string): Promise<SiteAiContext> {
+  const [programs, media] = await Promise.all([
+    tx.listing.findMany({ where: { tenantId, type: "course", status: "published", deletedAt: null }, include: { program: true }, orderBy: [{ featured: "desc" }, { createdAt: "desc" }], take: 60 }),
+    tx.mediaAsset.findMany({ where: { tenantId, status: "READY", mimeType: { startsWith: "image/" } }, select: { id: true, width: true, altText: true }, orderBy: { createdAt: "desc" }, take: 80 }),
+  ]);
+  const widthById = new Map(media.map((m) => [m.id, m.width]));
+  const mediaId = (url: string | null | undefined) => url?.match(/^\/api\/media\/([0-9a-f-]{36})\//)?.[1] ?? null;
+  const imagesOf = (m: unknown) => (Array.isArray(m) ? m : []).filter((x): x is { url: string; alt?: string } => !!x && typeof (x as { url?: unknown }).url === "string");
+  const used = new Set(programs.flatMap((p) => imagesOf(p.media).map((i) => mediaId(i.url)).filter(Boolean)));
+  const DOMAIN: Record<string, string> = { school: "Scolarité", training: "Formation professionnelle", language: "Langues", tutoring: "Soutien scolaire", other: "Autres" };
+  const domains = new Map<string, number>();
+  for (const p of programs) if (p.program) domains.set(p.program.category, (domains.get(p.program.category) ?? 0) + 1);
+  return {
+    tenantName,
+    sectorKey,
+    mode: "education",
+    logoUrl,
+    products: programs.filter((p) => p.program).map((p) => {
+      const imgs = imagesOf(p.media);
+      const first = imgs[0];
+      return {
+        id: p.id,
+        slug: p.slug,
+        name: p.title,
+        category: DOMAIN[p.program!.category] ?? p.program!.category,
+        priceLabel: p.price != null ? `${new Intl.NumberFormat("fr-FR").format(p.price)} FCFA` : "Sur devis",
+        description: p.summary ?? p.description,
+        createdAt: p.createdAt.toISOString(),
+        imageUrl: first?.url ?? null,
+        imageAlt: first ? first.alt || p.title : null,
+        imageWidth: mediaId(first?.url) ? (widthById.get(mediaId(first?.url)!) ?? null) : first?.url.startsWith("/demo-templates/") ? 1440 : null,
+        imageCount: imgs.length,
+      };
+    }),
+    categories: [...domains.entries()].map(([k, n]) => ({ id: k, name: DOMAIN[k] ?? k, slug: k, productCount: n, hasVisual: true })),
+    libraryImages: media.filter((m) => !used.has(m.id)).map((m) => ({ url: `/api/media/${m.id}/file`, alt: m.altText, width: m.width })),
+  };
+}
+
 export async function loadSiteAiContext(tx: Prisma.TransactionClient, tenantId: string, tenantName: string, logoUrl: string | null): Promise<SiteAiContext> {
   const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { sectorKey: true } });
   const restaurant = (await tx.tenantModule.count({ where: { tenantId, moduleKey: { in: ["qr_ordering", "table_reservations"] }, isEnabled: true } })) === 2;
   if (restaurant) return loadRestaurantContext(tx, tenantId, tenantName, logoUrl, t.sectorKey ?? "restaurant");
   const automobile = (await tx.tenantModule.count({ where: { tenantId, moduleKey: { in: ["listings", "test_drive_appointments"] }, isEnabled: true } })) === 2;
   if (automobile) return loadAutoContext(tx, tenantId, tenantName, logoUrl, t.sectorKey ?? "automobile");
+  const education = (await tx.tenantModule.count({ where: { tenantId, moduleKey: { in: ["courses", "enrollments"] }, isEnabled: true } })) === 2;
+  if (education) return loadEducationContext(tx, tenantId, tenantName, logoUrl, t.sectorKey ?? "education");
   const [tenant, products, categories, media] = await Promise.all([
     Promise.resolve(t),
     tx.product.findMany({

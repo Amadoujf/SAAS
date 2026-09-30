@@ -1,6 +1,6 @@
 import type { AddableSection, AiDirection, AiDirectionsOutput, AiEditOperation, AiEditOutput, ArchetypeKey } from "./schemas";
 import { isValidVariant } from "@yamacommerce/templates";
-import { TEXT_FIELDS } from "./schemas";
+import { SECTOR_STYLE_BY_MODE, TEXT_FIELDS } from "./schemas";
 import { ARCHETYPES } from "./archetypes";
 import type { SiteState } from "./operations";
 import type { SiteAiContext, SiteBrief } from "./types";
@@ -68,8 +68,16 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
       ],
       cta: "Voir les véhicules", selection: "En stock", story: "Nos véhicules, un à un", closingTitle: "Tout le stock en ligne", closingText: "Filtrez par marque, budget ou carrosserie, puis réservez votre essai.",
     },
+    education: {
+      palettes: [
+        { primary: "#1C2A4A", accent: "#D8A327", background: "#F6F1E6" },
+        { primary: "#2F5D50", accent: "#C9433A", background: "#F4F2EC" },
+        { primary: "#3A2E5C", accent: "#E08A2E", background: "#F7F5F0" },
+      ],
+      cta: "Voir les formations", selection: "Nos formations", story: "Nos formations, une à une", closingTitle: "Inscriptions ouvertes", closingText: "Choisissez la formation et la classe, puis envoyez votre demande d'inscription.",
+    },
   } as const;
-  const sector = context.mode === "restaurant" || context.mode === "automobile" ? SECTOR_SIM[context.mode] : null;
+  const sector = context.mode === "restaurant" || context.mode === "automobile" || context.mode === "education" ? SECTOR_SIM[context.mode] : null;
   return {
     directions: chosen.map((archetype, index) => {
       const look = ARCHETYPE_LOOK[archetype];
@@ -83,7 +91,7 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
         archetype,
         // Secteur : la première proposition prend le style métier, les deux autres
         // des styles de la plateforme choisis d'après les goûts (archétypes classés).
-        style: sector && index === 0 ? (context.mode === "automobile" ? "piste" : "braise") : look.style,
+        style: sector && index === 0 ? SECTOR_STYLE_BY_MODE[context.mode as keyof typeof SECTOR_STYLE_BY_MODE] : look.style,
         typography: meta.suggested.typography,
         shape: meta.suggested.shape,
         palette: sector && index === 0 ? sector.palettes[0]! : look.palette,
@@ -131,7 +139,7 @@ const VARIANT_WORDS: [RegExp, string[]][] = [
   [/arc/, ["arc"]],
 ];
 
-export function simulateEdit(message: string, state: SiteState, selectedSectionId: string | null, items: "produits" | "plats" | "véhicules" = "produits"): AiEditOutput {
+export function simulateEdit(message: string, state: SiteState, selectedSectionId: string | null, items: "produits" | "plats" | "véhicules" | "formations" = "produits"): AiEditOutput {
   const text = message.toLowerCase();
   const ops: AiEditOperation[] = [];
   const replies: string[] = [];

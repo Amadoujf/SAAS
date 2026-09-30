@@ -819,6 +819,62 @@
    "height": 900,
    "bytes": 29456,
    "source": "Illustration originale générée par scripts/demo-visuals/automobile.py (silhouette générique, sans logo ni dessin de constructeur ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/tableau.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 28516,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/cahier.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 40540,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/langues.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 33100,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/ordinateur.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 28330,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/geometrie.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 47096,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/primaire.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 22022,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/livres.webp",
+   "width": 1440,
+   "height": 1080,
+   "bytes": 21142,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/education/preau.webp",
+   "width": 1600,
+   "height": 1200,
+   "bytes": 28852,
+   "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
   }
  ]
 }

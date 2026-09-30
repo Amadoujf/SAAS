@@ -89,6 +89,7 @@ export function compileDirection(direction: AiDirection, context: SiteAiContext)
 const SECTOR = {
   restaurant: { style: "braise", home: "/carte", item: (_p: CatalogProduct) => "/carte", cta: "Voir la carte", all: "Voir la carte", secondary: { label: "Réserver une table", href: "/reserver-une-table" }, signature: "Le plat signature", signatureCta: "Le commander", showcaseTitle: "À la carte", featuredTitle: "Nos plats" },
   automobile: { style: "piste", home: "/vehicules", item: (p: CatalogProduct) => `/vehicules/${p.slug}`, cta: "Voir les véhicules", all: "Tout le stock", secondary: { label: "Nos arrivages", href: "/vehicules?stock=arrivage" }, signature: "Le véhicule vedette", signatureCta: "Voir la fiche", showcaseTitle: "En stock", featuredTitle: "Notre stock" },
+  education: { style: "preau", home: "/formations", item: (p: CatalogProduct) => `/formations/${p.slug}`, cta: "Voir les formations", all: "Toutes les formations", secondary: { label: "Comment s'inscrire", href: "/#inscription" }, signature: "La formation phare", signatureCta: "Voir la formation", showcaseTitle: "Nos formations", featuredTitle: "Nos formations" },
 } as const;
 
 /** Compose une suite d'emplacements (un archétype entier, ou une section ajoutée par
@@ -99,7 +100,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   // Restaurant : le style de base est celui du secteur (en-tête, carte, réservation) ;
   // l'assistant joue sur la structure, la typographie, les formes et les couleurs.
   // Même principe pour une concession (style « Piste », stock et fiches véhicules).
-  const sector = context.mode === "restaurant" || context.mode === "automobile" ? SECTOR[context.mode] : null;
+  const sector = context.mode === "restaurant" || context.mode === "automobile" || context.mode === "education" ? SECTOR[context.mode] : null;
   const outsideStore = sector !== null;
   // Le style du métier (Braise, Piste) est une PROPOSITION parmi d'autres : la direction
   // choisit ; un style réservé à un autre métier est remplacé par celui du métier.
