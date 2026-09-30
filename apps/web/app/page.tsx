@@ -22,6 +22,8 @@ import { isAutoTenant, resolveAuto } from "@/lib/auto/auto-context";
 import { AutoHome } from "@/components/auto/auto-home";
 import { isEducationTenant, resolveEducation } from "@/lib/education/education-context";
 import { EducationHome } from "@/components/education/education-home";
+import { isCourierTenant, resolveCourier } from "@/lib/courier/courier-context";
+import { CourierHome } from "@/components/courier/courier-home";
 import { PublishedSectorHome } from "@/components/published-sector-home";
 import { resolvePublicSite } from "@/lib/rendering/resolve-public-site";
 import { PublicSitePage } from "@/components/public-site-page";
@@ -66,6 +68,9 @@ export default async function HomePage() {
       } else if (await isEducationTenant(tenant.id)) {
         const school = await resolveEducation("/");
         if (school.status === "ok") return <PublishedSectorHome site={resolution.site} school={school.school} />;
+      } else if (await isCourierTenant(tenant.id)) {
+        const courier = await resolveCourier("/");
+        if (courier.status === "ok") return <PublishedSectorHome site={resolution.site} courier={courier.company} />;
       } else if (await isCatalogModuleEnabled(tenant.id)) {
         const store = await resolveStore("/");
         if (store.status === "ok") return <PublishedSectorHome site={resolution.site} store={store.store} />;
@@ -98,6 +103,11 @@ export default async function HomePage() {
     if (await isEducationTenant(tenant.id)) {
       const school = await resolveEducation("/");
       if (school.status === "ok") return <EducationHome school={school.school} />;
+    }
+    // Société de livraison : accueil de son template (« Trajet » par défaut).
+    if (await isCourierTenant(tenant.id)) {
+      const courier = await resolveCourier("/");
+      if (courier.status === "ok") return <CourierHome company={courier.company} />;
     }
     // "not_published" : aucun site publié depuis l'éditeur. Une boutique (module
     // catalogue actif) affiche l'accueil de SON template avec ses contenus mis en

@@ -409,6 +409,8 @@ export async function getCourierTracking(tx: Tx, tenantId: string, token: string
     deliveredAt: job.deliveredAt,
     proofType: job.proofType,
     code: role === "recipient" && !["delivered", "returned", "canceled"].includes(job.status) ? job.deliveryCode : null,
+    /** Lien du destinataire, à lui transmettre si aucune messagerie n'est branchée (expéditeur seulement). */
+    recipientToken: role === "sender" ? job.recipientToken : null,
     events: job.events.map((e) => ({ status: e.toStatus, at: e.createdAt, note: role === "sender" ? e.note : null })),
   };
 }

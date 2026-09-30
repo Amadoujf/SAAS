@@ -42,3 +42,8 @@ export function isAutomobile(modules: Set<string>) {
 export function isEducation(modules: Set<string>) {
   return modules.has("courses") && modules.has("enrollments");
 }
+
+/** Livraison (société de coursiers) : répartition des courses et suivi des livreurs. */
+export function isCourier(modules: Set<string>) {
+  return modules.has("dispatch") && modules.has("deliverer_tracking");
+}

@@ -38,6 +38,11 @@ export const ORDER_NOTIFICATION_EVENTS = {
   enrollment_confirmed: "Inscription confirmée",
   enrollment_payment_received: "Paiement de scolarité reçu",
   grades_published: "Nouvelles notes disponibles",
+  // Livraison (courses pour le compte d'expéditeurs).
+  courier_job_created: "Votre colis est enregistré",
+  courier_job_on_the_way: "Votre colis est en route",
+  courier_job_delivered: "Colis livré",
+  courier_job_failed: "Livraison non effectuée",
 } as const;
 
 export type OrderNotificationEvent = keyof typeof ORDER_NOTIFICATION_EVENTS;

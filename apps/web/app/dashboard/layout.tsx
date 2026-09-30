@@ -1,11 +1,11 @@
 import { ycFontVariables } from "@/lib/yc-fonts";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { withTenant, autoOverview, countOrdersByQueue, educationOverview, hotelOverview, restaurantOverview } from "@yamacommerce/database";
+import { withTenant, autoOverview, countOrdersByQueue, courierOverview, educationOverview, hotelOverview, restaurantOverview } from "@yamacommerce/database";
 import { auth, signOut } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isAutomobile, isEducation, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isCourier, isEducation, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { DashboardSidebar, type NavGroup } from "@/components/dashboard-shell/nav";
 import { DashboardTopbar } from "@/components/dashboard-shell/topbar";
 
@@ -36,6 +36,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   const restaurant = isRestaurant(modules);
   const automobile = isAutomobile(modules);
   const education = isEducation(modules);
+  const courier = isCourier(modules);
 
   let queues: Awaited<ReturnType<typeof countOrdersByQueue>> | null = null;
   let lowStock = 0;
@@ -99,6 +100,15 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     autoNewLeads = o.newLeads;
     autoSales = o.salesOpen;
     autoImports = o.importsInProgress;
+  }
+  let courierPending = 0;
+  let courierFailed = 0;
+  let courierCash = 0;
+  if (membership && courier) {
+    const o = await withTenant(membership.tenantId, (tx) => courierOverview(tx, membership.tenantId));
+    courierPending = o.pending;
+    courierFailed = o.failed;
+    courierCash = o.cashInHands;
   }
   let eduRequests = 0;
   let eduLate = 0;
@@ -184,6 +194,18 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "products.view" },
       { href: "/dashboard/paiements", label: "Moyens de paiement", icon: "payments", permission: "payments.view" },
     );
+  } else if (membership && courier) {
+    pilot.push(
+      { href: "/dashboard/courses", label: "Courses", icon: "delivery", badge: courierPending + courierFailed || undefined, permission: "delivery.view" },
+      { href: "/dashboard/livreurs", label: "Livreurs", icon: "customers", permission: "delivery.view" },
+      { href: "/dashboard/caisse", label: "Caisse et reversements", icon: "payments", permission: "payments.view" },
+      { href: "/dashboard/clients", label: "Expéditeurs", icon: "customers", permission: "customers.view" },
+    );
+    manage.push(
+      { href: "/dashboard/tarifs", label: "Zones et règles", icon: "key", permission: "delivery.manage_zones" },
+      { href: "/dashboard/mon-site", label: "Mon site", icon: "site", permission: "settings.branding" },
+      { href: "/dashboard/mediatheque", label: "Médiathèque", icon: "media", permission: "settings.branding" },
+    );
   } else if (membership && education) {
     pilot.push(
       { href: "/dashboard/inscriptions", label: "Inscriptions", icon: "folder", badge: eduRequests || undefined, permission: "reservations.view" },
@@ -268,6 +290,12 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         { href: "/dashboard/cuisine", label: "Commandes en cuisine", count: restoKitchen },
         { href: "/dashboard/ventes?file=en-cours", label: "Commandes prêtes à remettre", count: restoReady },
         { href: "/dashboard/carte", label: "Plats épuisés", count: restoSoldOut },
+      ]
+    : courier
+    ? [
+        { href: "/dashboard/courses?file=a-affecter", label: "Courses à affecter", count: courierPending },
+        { href: "/dashboard/courses?file=echecs", label: "Courses en échec", count: courierFailed },
+        { href: "/dashboard/caisse", label: "Livreurs avec espèces à verser", count: courierCash > 0 ? 1 : 0 },
       ]
     : education
     ? [

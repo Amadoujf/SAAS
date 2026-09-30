@@ -4,7 +4,7 @@ import { withTenant, getDashboardInsights, isDashboardPeriod, planHasFeature, ty
 import { auth } from "@/lib/auth";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
-import { getTenantModuleKeys, isAutomobile, isEducation, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
+import { getTenantModuleKeys, isAutomobile, isCourier, isEducation, isHotel, isRealEstate, isRestaurant, isSalon, isTravel } from "@/lib/modules/tenant-modules";
 import { RealEstateOverview } from "@/components/dashboard-real-estate/overview";
 import { TravelOverview } from "@/components/dashboard-travel/overview";
 import { SalonOverview } from "@/components/dashboard-salon/overview";
@@ -12,6 +12,7 @@ import { HotelOverview } from "@/components/dashboard-hotel/overview";
 import { RestaurantOverview } from "@/components/dashboard-restaurant/overview";
 import { AutoOverview } from "@/components/dashboard-auto/overview";
 import { EducationOverview } from "@/components/dashboard-education/overview";
+import { CourierOverview } from "@/components/dashboard-courier/overview";
 import { scopeOf } from "@/lib/education/guard";
 import { formatAmount, formatRelative } from "@/lib/format";
 import { Panel } from "@/components/yc/panel";
@@ -152,6 +153,9 @@ export default async function DashboardHome({ searchParams }: { searchParams: { 
   }
   if (moduleKeys && isRestaurant(moduleKeys)) {
     return <RestaurantOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
+  }
+  if (moduleKeys && isCourier(moduleKeys)) {
+    return <CourierOverview tenantId={membership.tenantId} permissions={membership.permissions} greeting={<Greeting name={firstName} />} />;
   }
   if (moduleKeys && isEducation(moduleKeys)) {
     return <EducationOverview tenantId={membership.tenantId} permissions={membership.permissions} scope={scopeOf(membership.permissions, { userId: session?.user?.id ?? "", isSuperAdmin: !!session?.user?.isSuperAdmin })} greeting={<Greeting name={firstName} />} />;

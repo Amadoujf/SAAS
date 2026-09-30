@@ -875,6 +875,13 @@
    "height": 1200,
    "bytes": 28852,
    "source": "Illustration originale générée par scripts/demo-visuals/education.py (nature morte d'école rendue par procédé, sans photographie, sans personne ni logo ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/livraison/plan-ville.webp",
+   "width": 1600,
+   "height": 1000,
+   "bytes": 28546,
+   "source": "Illustration originale générée par scripts/demo-visuals/livraison.py (plan de ville imaginaire rendu par procédé, sans carte réelle ni donnée géographique tierce ; droits entiers)"
   }
  ]
 }

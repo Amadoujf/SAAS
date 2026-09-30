@@ -20,6 +20,9 @@ import { AutoEssentials } from "@/components/auto/auto-essentials";
 import type { EducationContext } from "@/lib/education/education-context";
 import { EducationShell } from "@/components/education/education-shell";
 import { EducationEssentials } from "@/components/education/education-essentials";
+import type { CourierContext } from "@/lib/courier/courier-context";
+import { CourierShell } from "@/components/courier/courier-shell";
+import { CourierEssentials } from "@/components/courier/courier-essentials";
 
 /**
  * Accueil PUBLIÉ depuis l'éditeur, dans l'habillage de SON secteur : une boutique garde
@@ -28,7 +31,7 @@ import { EducationEssentials } from "@/components/education/education-essentials
  * `SiteShell` fournit les contextes (langue, devise, panier des sections historiques)
  * attendus par certaines sections du catalogue.
  */
-export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, auto, school, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; auto?: AutoContext; school?: EducationContext; annotate?: boolean }) {
+export function PublishedSectorHome({ site, store, estate, travel, salon, hotel, restaurant, auto, school, courier, annotate = false }: { site: TenantSiteRenderProps; store?: StoreContext; estate?: EstateContext; travel?: TravelContext; salon?: SalonContext; hotel?: HotelContext; restaurant?: RestaurantContext; auto?: AutoContext; school?: EducationContext; courier?: CourierContext; annotate?: boolean }) {
   const page = site.manifest.pages.find((p) => p.isHome) ?? site.manifest.pages[0];
   if (!page) return null;
   const content = (
@@ -47,5 +50,7 @@ export function PublishedSectorHome({ site, store, estate, travel, salon, hotel,
   if (auto) return <AutoShell auto={auto}>{content}<AutoEssentials auto={auto} /></AutoShell>;
   // Établissement : la page composée puis, toujours, les formations et l'inscription.
   if (school) return <EducationShell school={school}>{content}<EducationEssentials school={school} /></EducationShell>;
+  // Société de livraison : la page composée puis, toujours, marche à suivre, tarifs et suivi.
+  if (courier) return <CourierShell company={courier}>{content}<CourierEssentials company={courier} /></CourierShell>;
   return content;
 }

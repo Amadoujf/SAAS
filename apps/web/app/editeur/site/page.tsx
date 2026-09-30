@@ -16,6 +16,7 @@ import { PreviewBridge } from "@/components/site-ai/preview-bridge";
 import { buildRestaurantContext } from "@/lib/restaurant/restaurant-context";
 import { buildAutoContext } from "@/lib/auto/auto-context";
 import { buildEducationContext } from "@/lib/education/education-context";
+import { buildCourierContext } from "@/lib/courier/courier-context";
 
 export const metadata: Metadata = { robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
@@ -88,6 +89,15 @@ export default async function SiteDraftPreviewPage({ searchParams }: { searchPar
     return (
       <>
         <PublishedSectorHome site={site} school={{ ...school, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? school.logoUrl }} annotate />
+        <PreviewBridge />
+      </>
+    );
+  }
+  const courier = await buildCourierContext(tenantId, tenantName);
+  if (courier) {
+    return (
+      <>
+        <PublishedSectorHome site={site} courier={{ ...courier, tokens, logoUrl: snapshot.settings.identity.logoUrl ?? courier.logoUrl }} annotate />
         <PreviewBridge />
       </>
     );
