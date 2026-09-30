@@ -24,7 +24,7 @@ export function linkSyntaxError(raw: string): string | null {
   if (!href) return null;
   if (href.length > 300) return "Lien trop long.";
   // Caractères de contrôle ou antislash : techniques de contournement.
-  if (/[\u0000-\u001f\u007f\\]/.test(href)) return `Lien refusé (« ${href.slice(0, 60)} ») : caractères non autorisés.`;
+  if ([...href].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127 || ch === "\\")) return `Lien refusé (« ${href.slice(0, 60)} ») : caractères non autorisés.`;
   if (/^tel:\+?[\d ().-]{3,30}$/i.test(href)) return null;
   if (/\s/.test(href)) return `Lien refusé (« ${href.slice(0, 60)} ») : espaces non autorisés.`;
   if (href.startsWith("#")) return null;

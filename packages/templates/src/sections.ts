@@ -67,6 +67,9 @@ const mediaSchema = z.object({ url: imageRefSchema, alt: z.string().optional() }
 /** Lien libre d'une section : chemin interne, ancre, https, téléphone ou e-mail —
  *  jamais `javascript:`, `data:`, `http:`, `//hôte` ni caractères de contrôle. Le
  *  serveur vérifie EN PLUS les zones privées et les sites d'autres entreprises. */
+/** Caractère de contrôle (0–31, 127) ou barre oblique inverse : jamais dans un lien. */
+const hasControlChar = (v: string) => [...v].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127 || ch === "\\");
+
 const linkHrefSchema = z
   .string()
   .trim()
@@ -74,7 +77,7 @@ const linkHrefSchema = z
   .refine(
     (v) =>
       v === "" ||
-      (!/[\u0000-\u001f\u007f\\]/.test(v) &&
+      (!hasControlChar(v) &&
         (/^tel:\+?[\d ().-]{3,30}$/i.test(v) ||
           (!/\s/.test(v) && (/^#[\w-]*$/.test(v) || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[a-z0-9.-]+(:\d+)?(\/\S*)?$/i.test(v) || /^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v))))),
     "Lien invalide : chemin de votre site, adresse https, téléphone ou e-mail.",
