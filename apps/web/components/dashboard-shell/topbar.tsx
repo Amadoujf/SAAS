@@ -35,6 +35,7 @@ const SECTION_LABELS: [string, string][] = [
   ["/dashboard/cuisine", "Cuisine"],
   ["/dashboard/ventes", "Commandes"],
   ["/dashboard/salle", "Réservations"],
+  ["/dashboard/services", "État des services"],
   ["/dashboard/vehicules", "Stock"],
   ["/dashboard/essais", "Essais"],
   ["/dashboard/prospects", "Prospects"],

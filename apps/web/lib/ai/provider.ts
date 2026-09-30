@@ -27,7 +27,8 @@ export interface AiStatus {
   reason?: string;
 }
 
-const DEFAULT_MODEL = "claude-opus-5";
+/** Modèle par défaut (surchargeable par `AI_MODEL`). Claude Opus 5.5 : le modèle Opus actuel. */
+const DEFAULT_MODEL = "claude-opus-5-5";
 
 export function getAiStatus(): AiStatus {
   const key = process.env.AI_PROVIDER_API_KEY?.trim();
