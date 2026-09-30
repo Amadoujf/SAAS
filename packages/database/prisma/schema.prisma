@@ -123,6 +123,16 @@ model Tenant {
   leadEvents               LeadEvent[]
   vehicleImports           VehicleImport[]
   vehicleImportEvents      VehicleImportEvent[]
+  programDetails           ProgramDetails[]
+  classGroups              ClassGroup[]
+  students                 Student[]
+  familyAccesses           FamilyAccess[]
+  enrollmentDetails        EnrollmentDetails[]
+  enrollmentInstallments   EnrollmentInstallment[]
+  attendanceRecords        AttendanceRecord[]
+  assessments              Assessment[]
+  grades                   Grade[]
+  educationSettings        EducationSettings?
   autoSettings             AutoSettings?
   roles                    Role[]
   shops                    Shop[]
@@ -838,18 +848,19 @@ model MediaAsset {
 // ============================================================================
 
 model User {
-  id               String    @id @default(uuid())
-  email            String?   @unique
-  phone            String?   @unique
+  id               String       @id @default(uuid())
+  taughtClasses    ClassGroup[] @relation("ClassTeacher")
+  email            String?      @unique
+  phone            String?      @unique
   passwordHash     String
   fullName         String
-  isSuperAdmin     Boolean   @default(false)
-  preferredLocale  String    @default("fr")
-  twoFactorEnabled Boolean   @default(false)
+  isSuperAdmin     Boolean      @default(false)
+  preferredLocale  String       @default("fr")
+  twoFactorEnabled Boolean      @default(false)
   twoFactorSecret  String?
   lastLoginAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   memberships      TenantUser[]
   impersonations   ImpersonationSession[] @relation("SuperAdminActor")
@@ -953,6 +964,7 @@ model Listing {
   vehicleSales   VehicleSale[]
   leads          Lead[]
   imports        VehicleImport[]
+  program        ProgramDetails?
   leases         Lease[]
 
   @@unique([tenantId, slug])
@@ -1047,6 +1059,7 @@ model Reservation {
   tableBooking RestaurantTableBooking?
   testDrive    VehicleTestDrive?
   vehicleSale  VehicleSale?
+  enrollment   EnrollmentDetails?
 
   @@unique([tenantId, reference])
   @@index([tenantId, moduleKey, startAt])
@@ -1467,6 +1480,8 @@ model Customer {
   RestaurantOrder RestaurantOrder[]
   Lead            Lead[]
   VehicleImport   VehicleImport[]
+  students        Student[]
+  familyAccess    FamilyAccess?
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -2999,5 +3014,225 @@ model AutoSettings {
   maxAdvanceDays   Int      @default(30)
   /// Acompte conseillé pour réserver un véhicule (pourcentage du prix).
   depositPercent   Int      @default(10)
+  updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// ÉDUCATION (secteur `education`) — écoles, centres de formation, cours du soir.
+// Une formation EST une fiche commune (`Listing`, type « program ») ; une inscription
+// EST une réservation commune (module « enrollments ») dont les encaissements passent
+// par le service commun (`ReservationPayment`) et dont les échéances sont planifiées
+// ici. Présences et notes ne portent que sur des élèves réellement inscrits dans la
+// classe. Élèves et familles accèdent à LEUR espace par un lien personnel révocable.
+// ============================================================================
+
+/// Extension ÉDUCATION d'une fiche (`type = "program"`).
+model ProgramDetails {
+  listingId           String  @id
+  listing             Listing @relation(fields: [listingId], references: [id])
+  tenantId            String
+  tenant              Tenant  @relation(fields: [tenantId], references: [id])
+  /// school (scolaire) | training (formation professionnelle) | language | tutoring | other (CHECK)
+  category            String  @default("training")
+  /// Niveau affiché (« Terminale », « B1 », « Débutant »…)
+  level               String?
+  /// onsite | online | hybrid (CHECK)
+  format              String  @default("onsite")
+  /// Durée affichée (« 9 mois », « 12 semaines »…)
+  durationLabel       String?
+  /// Frais d'inscription (FCFA) — le prix de la fiche est la scolarité.
+  registrationFee     Int     @default(0)
+  /// Nombre d'échéances proposé par défaut pour la scolarité (1 = paiement unique).
+  defaultInstallments Int     @default(1)
+  /// Public : children | teens | adults | all (CHECK)
+  audience            String  @default("all")
+  position            Int     @default(0)
+
+  classes ClassGroup[]
+
+  @@index([tenantId])
+}
+
+/// Classe / session d'une formation : un enseignant, une salle, un horaire, une capacité.
+model ClassGroup {
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  listingId     String
+  program       ProgramDetails @relation(fields: [listingId], references: [listingId])
+  name          String
+  /// Enseignant principal (membre de l'équipe) — ne voit et ne saisit que SES classes.
+  teacherUserId String?
+  teacher       User?          @relation("ClassTeacher", fields: [teacherUserId], references: [id])
+  room          String?
+  /// [{ weekday, startMinute, endMinute }]
+  schedule      Json           @default("[]")
+  startDate     DateTime       @db.Date
+  endDate       DateTime       @db.Date
+  capacity      Int
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+
+  enrollments EnrollmentDetails[]
+  attendance  AttendanceRecord[]
+  assessments Assessment[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, listingId])
+  @@index([tenantId, teacherUserId])
+}
+
+/// Élève / apprenant. Son responsable (parent, tuteur, ou lui-même s'il est adulte) est
+/// un client du registre commun (téléphone normalisé, jamais de doublon).
+model Student {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  guardianId       String
+  guardian         Customer  @relation(fields: [guardianId], references: [id])
+  /// parent | guardian | self (CHECK)
+  guardianRelation String    @default("parent")
+  firstName        String
+  lastName         String
+  birthDate        DateTime? @db.Date
+  /// Lien personnel de l'espace élève (révocable).
+  accessToken      String    @unique @default(uuid())
+  notes            String?
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
+  enrollments EnrollmentDetails[]
+  attendance  AttendanceRecord[]
+  grades      Grade[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, guardianId])
+}
+
+/// Espace FAMILLE : un lien personnel par responsable (révocable), qui montre tous ses enfants.
+model FamilyAccess {
+  customerId  String   @id
+  customer    Customer @relation(fields: [customerId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  accessToken String   @unique @default(uuid())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId])
+}
+
+/// Extension ÉDUCATION d'une réservation (module « enrollments ») : l'inscription.
+model EnrollmentDetails {
+  reservationId   String      @id
+  reservation     Reservation @relation(fields: [reservationId], references: [id])
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  studentId       String
+  student         Student     @relation(fields: [studentId], references: [id])
+  listingId       String
+  classGroupId    String?
+  classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
+  /// Inscription active (requested | confirmed) — maintenu par déclencheur.
+  active          Boolean     @default(true)
+  registrationFee Int         @default(0)
+  tuition         Int         @default(0)
+  /// Remise / bourse accordée par l'administration, toujours motivée.
+  discountAmount  Int         @default(0)
+  discountReason  String?
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+
+  installments EnrollmentInstallment[]
+
+  @@index([tenantId, classGroupId])
+  @@index([tenantId, studentId])
+}
+
+/// Échéancier d'une inscription : la somme des échéances = montant dû de l'inscription.
+model EnrollmentInstallment {
+  id            String            @id @default(uuid())
+  tenantId      String
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  reservationId String
+  enrollment    EnrollmentDetails @relation(fields: [reservationId], references: [reservationId])
+  position      Int
+  label         String
+  dueDate       DateTime          @db.Date
+  amount        Int
+
+  @@unique([reservationId, position])
+  @@index([tenantId, dueDate])
+}
+
+/// Présence d'un élève à une séance d'une classe (une ligne par élève et par jour).
+model AttendanceRecord {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  classGroupId String
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  sessionDate  DateTime   @db.Date
+  /// present | absent | late | excused (CHECK)
+  status       String
+  note         String?
+  recordedBy   String?
+  recordedAt   DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@unique([classGroupId, studentId, sessionDate])
+  @@index([tenantId, studentId])
+}
+
+/// Évaluation d'une classe (devoir, examen) — notes visibles des familles une fois publiées.
+model Assessment {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  classGroupId String
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  title        String
+  date         DateTime   @db.Date
+  coefficient  Decimal    @default(1) @db.Decimal(4, 2)
+  maxScore     Int        @default(20)
+  publishedAt  DateTime?  @db.Timestamptz(3)
+  createdBy    String?
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+
+  grades Grade[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, classGroupId])
+}
+
+model Grade {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  /// Note sur `maxScore` ; null = absent à l'évaluation (`absent` = true).
+  score        Decimal?   @db.Decimal(5, 2)
+  absent       Boolean    @default(false)
+  comment      String?
+  recordedBy   String?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([tenantId, studentId])
+}
+
+/// Réglages de l'établissement.
+model EducationSettings {
+  tenantId         String   @id
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  /// Année scolaire affichée (« 2026-2027 »)
+  academicYear     String   @default("")
+  /// Barème des notes (20 = sur 20)
+  gradeScale       Int      @default(20)
+  /// Seuil d'alerte d'absences non justifiées (par élève et par classe)
+  absenceAlert     Int      @default(3)
+  /// Les inscriptions en ligne sont-elles ouvertes ?
+  onlineEnrollment Boolean  @default(true)
   updatedAt        DateTime @updatedAt
 }

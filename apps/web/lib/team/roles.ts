@@ -7,4 +7,5 @@ export const ROLE_LABELS: Record<string, { label: string; description: string }>
   MARKETING: { label: "Marketing", description: "Clients, promotions et rapports." },
   ACCOUNTANT: { label: "Comptable", description: "Factures, paiements et rapports." },
   DELIVERY_STAFF: { label: "Livreur", description: "Livraisons qui lui sont confiées." },
+  TEACHER: { label: "Enseignant", description: "Présences et notes de ses classes uniquement." },
 };

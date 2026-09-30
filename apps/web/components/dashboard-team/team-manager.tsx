@@ -7,7 +7,7 @@ import { Field, Input } from "@/components/yc/field";
 import { IconCheck } from "@/components/yc/icons";
 import { ROLE_LABELS } from "@/lib/team/roles";
 
-const INVITABLE = ["MANAGER", "SALES", "INVENTORY_MANAGER", "MARKETING", "ACCOUNTANT", "DELIVERY_STAFF"] as const;
+const INVITABLE = ["MANAGER", "SALES", "INVENTORY_MANAGER", "MARKETING", "ACCOUNTANT", "DELIVERY_STAFF", "TEACHER"] as const;
 
 async function post(body: unknown) {
   const res = await fetch("/api/dashboard/team", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });

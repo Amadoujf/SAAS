@@ -104,6 +104,13 @@ export const PERMISSIONS = [
   // (argent réel — permission distincte, accordée au comptable).
   "travelers.manage",
   "reservation_payments.record",
+
+  // Éducation : présences et notes (`academics.record`, limité aux classes de
+  // l'enseignant), gestion complète (classes, évaluations de toutes les classes,
+  // publication des notes : `academics.manage`).
+  "academics.view",
+  "academics.record",
+  "academics.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -121,6 +128,7 @@ export const SYSTEM_ROLES = [
   "MARKETING",
   "ACCOUNTANT",
   "DELIVERY_STAFF",
+  "TEACHER",
 ] as const;
 
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
@@ -142,6 +150,7 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "reservations.update_status",
     "leases.view",
     "travelers.manage",
+    "academics.view",
   ],
   INVENTORY_MANAGER: [
     "products.view",
@@ -175,4 +184,5 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "reservation_payments.record",
   ],
   DELIVERY_STAFF: ["delivery.view", "delivery.update_status"],
+  TEACHER: ["academics.view", "academics.record"],
 };
