@@ -2,6 +2,7 @@ import "server-only";
 import { withTenant } from "@yamacommerce/database";
 import { ONLINE_PROVIDERS } from "@yamacommerce/payments";
 import { getAiStatus } from "@/lib/ai/provider";
+import { platformAiCapXOF } from "@/lib/ai/budget";
 
 /**
  * État EXPLICITE des intégrations — ce qui fonctionne réellement, ce qui ne l'est pas,
@@ -38,11 +39,11 @@ export function platformIntegrations(): Integration[] {
       state: ai.kind === "anthropic" ? "operational" : ai.kind === "simulated" ? "simulation" : "not_configured",
       detail:
         ai.kind === "anthropic"
-          ? `Génération réelle par ${ai.model}.`
+          ? `Génération réelle par ${ai.model}. ${platformAiCapXOF() === null ? "Aucun plafond mensuel de plateforme (seuls les plafonds des formules s'appliquent)." : `Plafond mensuel de la plateforme : ${platformAiCapXOF()!.toLocaleString("fr-FR")} FCFA estimés.`}`
           : ai.kind === "simulated"
             ? "Simulation locale par règles (développement uniquement) : chaque proposition est étiquetée « simulation », jamais présentée comme une génération IA."
             : "Aucune clé configurée : l'assistant l'indique et ne propose rien.",
-      howTo: ai.kind === "anthropic" ? undefined : "Renseigner AI_PROVIDER_API_KEY (clé Anthropic) dans les variables d'environnement du serveur ; AI_MODEL facultatif (défaut claude-opus-5-5). Jamais dans le code.",
+      howTo: ai.kind === "anthropic" ? undefined : "Renseigner AI_PROVIDER_API_KEY (clé Anthropic) dans les variables d'environnement du serveur ; AI_MODEL facultatif (défaut claude-opus-5-5) ; AI_PLATFORM_MONTHLY_CAP_XOF recommandé (plafond mensuel global). Jamais dans le code.",
     },
     {
       key: "email",

@@ -503,12 +503,14 @@ async function seedDemoTenant(input: {
     // Active les modules par défaut du secteur choisi — voir docs/11 §11.6.
     await activateSectorDefaults(tx, createdTenant.id, input.sectorKey);
 
+    // Même suffixe que les autres démos (prévisualisation : sous-domaine du serveur).
+    const subdomain = `${input.slug}.${process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai"}`;
     await tx.domain.upsert({
-      where: { domain: `${input.slug}.yamacommerce.ai` },
+      where: { domain: subdomain },
       update: {},
       create: {
         tenantId: createdTenant.id,
-        domain: `${input.slug}.yamacommerce.ai`,
+        domain: subdomain,
         type: "subdomain",
         isPrimary: true,
         serveDirectlyWhenNotPrimary: true,

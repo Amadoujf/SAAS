@@ -15,4 +15,5 @@ for demo in commerce real-estate travel salon hotel restaurant auto education co
   echo "Démonstration : $demo"
   pnpm exec tsx "src/seed-$demo-demo.ts"
 done
+pnpm exec tsx src/preview-demo-passwords.ts
 echo "Base de prévisualisation prête."

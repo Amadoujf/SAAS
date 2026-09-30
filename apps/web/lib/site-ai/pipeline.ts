@@ -15,6 +15,7 @@ import { validateSectionInstance, type SectionInstance } from "@yamacommerce/tem
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { AiProviderError, generateStructured, getAiStatus } from "@/lib/ai/provider";
+import { assertPlatformAiBudget } from "@/lib/ai/budget";
 import { ensureTenantEditorSite, syncEditorSiteIdentity } from "@/lib/site-editor/tenant-site";
 import { publishTenantDraft } from "@/lib/site-editor/editor-pipeline";
 import { getHomeStatus } from "@/lib/site-editor/home-status";
@@ -70,6 +71,7 @@ async function runJob<T>(
 ): Promise<{ jobId: string; output: Record<string, unknown>; simulated: boolean }> {
   const status = getAiStatus();
   if (!status.available) throw new AiProviderError("unavailable", status.reason ?? "IA indisponible.");
+  if (status.kind === "anthropic") await assertPlatformAiBudget();
   const job = await withTenant(who.tenantId, (tx) =>
     startAiJob(tx, who.tenantId, { type, payload: payload as Prisma.InputJsonValue, createdBy: who.userId, simulated: status.kind === "simulated", model: status.model }),
   );

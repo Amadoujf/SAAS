@@ -84,11 +84,12 @@ export async function startAiJob(
   if (limits.maxGenerations === 0) {
     throw new AiUsageError("not_in_plan", "L'assistant IA n'est pas inclus dans votre formule. Passez à la formule Business pour l'utiliser.");
   }
-  await tx.aIUsageRecord.upsert({
-    where: { tenantId_periodMonth: { tenantId, periodMonth: period } },
-    update: {},
-    create: { tenantId, periodMonth: period },
-  });
+  // Création idempotente de la ligne du mois : deux premières demandes simultanées ne se
+  // heurtent pas sur la contrainte d'unicité (un `upsert` Prisma n'est pas atomique).
+  await tx.$executeRaw`
+    INSERT INTO "AIUsageRecord" ("id", "tenantId", "periodMonth", "updatedAt")
+    VALUES (gen_random_uuid()::text, ${tenantId}, ${period}, now())
+    ON CONFLICT ("tenantId", "periodMonth") DO NOTHING`;
   const [usage] = await tx.$queryRaw<{ generationsUsed: number; estimatedCostXOF: number }[]>`
     SELECT "generationsUsed", "estimatedCostXOF" FROM "AIUsageRecord"
     WHERE "tenantId" = ${tenantId} AND "periodMonth" = ${period} FOR UPDATE`;
@@ -151,6 +152,16 @@ export async function failAiJob(tx: Prisma.TransactionClient, tenantId: string, 
       data: { estimatedCostXOF: { increment: cost.costXOF } },
     });
   }
+}
+
+/**
+ * Dépense IA estimée de TOUTE la plateforme pour un mois (somme des lignes d'usage de
+ * chaque entreprise) — à lire avec `withSuperAdminAccess`. Sert au plafond global
+ * `AI_PLATFORM_MONTHLY_CAP_XOF`, qui s'ajoute aux plafonds de chaque formule.
+ */
+export async function platformAiSpendXOF(tx: Prisma.TransactionClient, period = aiPeriod()): Promise<number> {
+  const total = await tx.aIUsageRecord.aggregate({ where: { periodMonth: period }, _sum: { estimatedCostXOF: true } });
+  return total._sum.estimatedCostXOF ?? 0;
 }
 
 /** Validation humaine : la proposition a été appliquée au brouillon par un membre. */

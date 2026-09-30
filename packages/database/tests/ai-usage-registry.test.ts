@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 import { testOwnerClient } from "./test-owner-client";
-import { AiUsageError, failAiJob, finishAiJob, getAiUsage, startAiJob } from "../src/ai-usage-registry";
+import { AiUsageError, failAiJob, finishAiJob, getAiUsage, platformAiSpendXOF, startAiJob } from "../src/ai-usage-registry";
 
 /**
  * Quotas et journal IA sur PostgreSQL RÉEL : quota de la formule, plafond de coût, une
@@ -90,5 +90,15 @@ describe.skipIf(!databaseAvailable)("journal et quotas IA", () => {
     expect(usage).toMatchObject({ used: 2, limit: 2, estimatedCostXOF: 5 });
     // Une autre entreprise ne voit pas ce journal.
     expect(await withTenant(b, (tx) => tx.aIGenerationJob.count({ where: { tenantId: a } }))).toBe(0);
+  });
+
+  it("dépense de la plateforme : somme de toutes les entreprises, lisible seulement en super-admin", async () => {
+    const before = await withSuperAdminAccess((tx) => platformAiSpendXOF(tx));
+    const c = await tenantWithPlan(5, null);
+    const job = await start(c);
+    await withTenant(c, (tx) => finishAiJob(tx, c, job.id, { ok: true }, { inputTokens: 10, outputTokens: 10, costXOF: 7 }));
+    expect(await withSuperAdminAccess((tx) => platformAiSpendXOF(tx))).toBe(before + 7);
+    // Dans le contexte d'une entreprise, la somme ne couvre que ses propres lignes.
+    expect(await withTenant(c, (tx) => platformAiSpendXOF(tx))).toBe(7);
   });
 });

@@ -161,8 +161,10 @@ async function main() {
     });
   }
 
-  // Réservations : ce soir et demain.
-  const today = utcToLocal(new Date(), TZ).date;
+  // Réservations : ce soir et demain — ou, si la soirée est déjà entamée (script lancé
+  // tard), à partir de demain : jamais un créneau déjà passé.
+  const local = utcToLocal(new Date(), TZ);
+  const today = local.minute < 19 * 60 ? local.date : addDays(local.date, 1);
   const bookings: [number, number, number, string | null, string | null][] = [
     // [jour +N, minute, couverts, table, occasion]
     [0, 20 * 60, 4, "4", null], [0, 20 * 60 + 30, 2, null, "Dîner en amoureux"], [0, 21 * 60, 6, "6", "Anniversaire"], [0, 21 * 60 + 30, 3, null, null],

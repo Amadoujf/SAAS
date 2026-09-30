@@ -4,7 +4,12 @@
 # au démarrage du conteneur.
 FROM node:20-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1
-RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# pnpm est installé DANS l'image (version de `packageManager`) : aucun téléchargement au
+# démarrage des conteneurs.
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 COREPACK_HOME=/corepack
+COPY package.json /tmp/package.json
+RUN corepack enable && corepack install -g "$(node -p "require('/tmp/package.json').packageManager")" && rm /tmp/package.json \
+ && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 FROM base AS build
