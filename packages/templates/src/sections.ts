@@ -64,6 +64,22 @@ const imageRefSchema = z
 const mediaSchema = z.object({ url: imageRefSchema, alt: z.string().optional() });
 
 /** Lien d'un bouton : chemin interne (« /catalogue ») ou adresse https. */
+/** Lien libre d'une section : chemin interne, ancre, https, téléphone ou e-mail —
+ *  jamais `javascript:`, `data:`, `http:`, `//hôte` ni caractères de contrôle. Le
+ *  serveur vérifie EN PLUS les zones privées et les sites d'autres entreprises. */
+const linkHrefSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .refine(
+    (v) =>
+      v === "" ||
+      (!/[\u0000-\u001f\u007f\\]/.test(v) &&
+        (/^tel:\+?[\d ().-]{3,30}$/i.test(v) ||
+          (!/\s/.test(v) && (/^#[\w-]*$/.test(v) || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[a-z0-9.-]+(:\d+)?(\/\S*)?$/i.test(v) || /^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v))))),
+    "Lien invalide : chemin de votre site, adresse https, téléphone ou e-mail.",
+  );
+
 const actionHrefSchema = z
   .string()
   .trim()
@@ -82,7 +98,7 @@ export const sectionParamSchemas = {
     subtitle: z.string().optional(),
     media: mediaSchema,
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
     /** Bouton secondaire (variante plein cadre) — absent = aucun bouton secondaire. */
     secondaryCtaLabel: z.string().max(40).optional(),
     secondaryCtaHref: z
@@ -155,7 +171,7 @@ export const sectionParamSchemas = {
     title: z.string().min(1),
     description: z.string().optional(),
     buttonLabel: z.string(),
-    buttonHref: z.string(),
+    buttonHref: linkHrefSchema,
   }),
   contact: z.object({
     address: z.string().optional(),
@@ -189,7 +205,7 @@ export const sectionParamSchemas = {
     media: mediaSchema,
     detailMedia: mediaSchema.optional(),
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
     /** Mécaniques « édition limitée » — voir Teranga Atelier (template 4, 20
      *  septembre 2026) : nombre de pièces encore disponibles et/ou précommande. Ces
      *  deux champs restent optionnels pour ne rien changer au comportement existant
@@ -208,7 +224,7 @@ export const sectionParamSchemas = {
       .max(4)
       .optional(),
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
   }),
   lookbook: z.object({
     title: z.string().optional(),
@@ -267,7 +283,7 @@ export const sectionParamSchemas = {
     subtitle: z.string().optional(),
     searchPlaceholder: z.string().optional(),
     quickCategories: z
-      .array(z.object({ label: z.string(), href: z.string() }))
+      .array(z.object({ label: z.string(), href: linkHrefSchema }))
       .max(8)
       .optional(),
     stats: z

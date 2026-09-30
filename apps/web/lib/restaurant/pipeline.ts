@@ -29,6 +29,7 @@ import {
   ReservationNotFoundError,
   RESTAURANT_PAYMENT_METHODS,
   RestaurantError,
+  SiteLinkError,
   TABLE_BOOKING_MODULE,
 } from "@yamacommerce/database";
 import type { Permission } from "@yamacommerce/auth";
@@ -64,6 +65,7 @@ const DENIED = { ok: false as const, status: 403, error: "Action non autorisée.
 
 function toError(error: unknown): { ok: false; status: number; error: string } {
   if (error instanceof RestaurantError || error instanceof InvalidReservationTransitionError || error instanceof ReservationNotFoundError) return { ok: false, status: 409, error: error.message };
+  if (error instanceof SiteLinkError) return { ok: false, status: 400, error: error.message };
   if (error instanceof Error && error.message.startsWith("Image")) return { ok: false, status: 400, error: error.message };
   // eslint-disable-next-line no-console
   console.error("[restaurant]", error);

@@ -42,3 +42,4 @@ export * from "./service-registry";
 export * from "./hotel-registry";
 export * from "./restaurant-registry";
 export * from "./auto-registry";
+export * from "./site-links";

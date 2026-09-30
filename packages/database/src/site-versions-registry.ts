@@ -1,3 +1,4 @@
+import { assertTenantLinks } from "./site-links";
 import { Prisma } from "@prisma/client";
 import {
   pageDefinitionSchema,
@@ -190,6 +191,8 @@ export async function updatePageBlocks(
   }
 
   const validatedBlocks = blocks.map((block) => validateSectionInstance(block));
+  // Liens contrôlés côté serveur (forme, zones privées, sites d'autres entreprises).
+  await assertTenantLinks(tx, page.tenantId, validatedBlocks);
   const blockIds = new Set<string>();
   for (const block of validatedBlocks) {
     if (blockIds.has(block.id)) {

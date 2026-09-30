@@ -1,3 +1,4 @@
+import { assertTenantLinks } from "./site-links";
 import type { Prisma } from "@prisma/client";
 
 /**
@@ -49,6 +50,7 @@ export async function updateTenantBranding(tx: Prisma.TransactionClient, tenantI
 }
 
 export async function saveStorefrontContent(tx: Prisma.TransactionClient, tenantId: string, content: Prisma.InputJsonValue, userId: string | null) {
+  await assertTenantLinks(tx, tenantId, content);
   return tx.storefrontContent.upsert({
     where: { tenantId },
     update: { content, updatedBy: userId },

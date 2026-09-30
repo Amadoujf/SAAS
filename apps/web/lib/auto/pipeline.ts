@@ -37,6 +37,7 @@ import {
   LEAD_STATUSES,
   ReservationNotFoundError,
   ReservationUnavailableError,
+  SiteLinkError,
   TRANSMISSIONS,
   TravelError,
   TRAVEL_PAYMENT_METHODS,
@@ -83,7 +84,7 @@ function toError(error: unknown): { ok: false; status: number; error: string } {
     error instanceof ReservationUnavailableError
   )
     return { ok: false, status: 409, error: error.message };
-  if (error instanceof Error && error.message.startsWith("Image")) return { ok: false, status: 400, error: error.message };
+  if (error instanceof SiteLinkError || (error instanceof Error && error.message.startsWith("Image"))) return { ok: false, status: 400, error: error.message };
   // eslint-disable-next-line no-console
   console.error("[auto]", error);
   return { ok: false, status: 400, error: "Action impossible pour le moment." };
