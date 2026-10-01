@@ -54,3 +54,4 @@ infra/**/data/
 
 # Prévisualisation privée : secrets du serveur, jamais versionnés
 infra/preview/.env.preview
+infra/preview/ai-trial/out/

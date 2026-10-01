@@ -12,7 +12,9 @@ import { withSuperAdminAccess, withTenant } from "./tenant-context";
 import { assertDemoSeedAllowed } from "./demo-guard";
 import { createOwnerAccount, provisionTenantForOwner } from "./tenant-provisioning";
 
-const SLUG = "terre-et-email";
+// AI_SEED=test : entreprise de TEST séparée (banc d'essai IA), jamais la démo.
+const TEST = process.env.AI_SEED === "test";
+const SLUG = TEST ? "test-ceramique" : "terre-et-email";
 const C = "/demo-templates/ceramiques";
 
 const CATEGORIES = [
@@ -36,8 +38,8 @@ async function main() {
   assertDemoSeedAllowed();
   const existing = await withSuperAdminAccess((tx) => tx.tenant.findUnique({ where: { slug: SLUG } }));
   if (existing) return console.info(`« ${SLUG} » existe déjà — rien à faire.`);
-  const owner = await createOwnerAccount({ email: "fatou@terre-et-email.sn", fullName: "Fatou Ndiaye", password: "Demo!2026" });
-  const { tenantId } = await provisionTenantForOwner({ ownerUserId: owner.id, name: "Terre & Émail", subdomain: SLUG, subdomainSuffix: process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai", sectorKey: "ecommerce", planName: "Business", templatePreference: "sunu-marche" });
+  const owner = await createOwnerAccount({ email: TEST ? "fatou@test-ceramique.sn" : "fatou@terre-et-email.sn", fullName: "Fatou Ndiaye", password: "Demo!2026" });
+  const { tenantId } = await provisionTenantForOwner({ ownerUserId: owner.id, name: TEST ? "Céramique de test" : "Terre & Émail", subdomain: SLUG, subdomainSuffix: process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai", sectorKey: "ecommerce", planName: "Business", templatePreference: "sunu-marche" });
   await withSuperAdminAccess((tx) => tx.tenant.update({ where: { id: tenantId }, data: { isDemo: true } }));
   await withTenant(tenantId, async (tx) => {
     const shop = (await tx.shop.findFirst({ where: { tenantId, isMain: true } }))!;
@@ -56,7 +58,7 @@ async function main() {
       await tx.inventoryItem.create({ data: { tenantId, productVariantId: variant.id, shopId: shop.id, availableQuantity: 6, lowStockThreshold: 2 } });
     }
   });
-  console.info("Boutique de démonstration « Terre & Émail » créée (fatou@terre-et-email.sn / Demo!2026).");
+  console.info(`[${SLUG}] Boutique de démonstration « Terre & Émail » créée (fatou@terre-et-email.sn / Demo!2026).`);
 }
 
 main()

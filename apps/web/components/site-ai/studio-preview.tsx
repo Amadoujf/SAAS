@@ -98,7 +98,9 @@ export function StudioPreview({
           src={src}
           title={label}
           onLoad={() => setLoading(false)}
-          className="block origin-top-left border-0 bg-white"
+          // Vignette (compact) : le clic va au bouton qui l'entoure (« Voir en grand »),
+          // jamais au site miniature affiché dedans.
+          className={`block origin-top-left border-0 bg-white ${compact ? "pointer-events-none" : ""}`}
           style={{ width: logical.width, height: (height - (device === "desktop" && !compact ? 32 / scale : 0)), transform: `scale(${scale})` }}
           tabIndex={compact ? -1 : 0}
         />

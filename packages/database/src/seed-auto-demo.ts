@@ -30,7 +30,9 @@ import {
   type VehicleInput,
 } from "./auto-registry";
 
-const SLUG = "baobab-motors";
+// AUTO_SEED=test : entreprise de TEST séparée (essais, banc IA), jamais la démo.
+const TEST = process.env.AUTO_SEED === "test";
+const SLUG = TEST ? "test-auto" : "baobab-motors";
 const V = "/demo-templates/automobile";
 const TZ = "Africa/Dakar";
 const media = (key: string, title: string) => [1, 2, 3].map((n) => ({ url: `${V}/${key}-${n}.webp`, alt: `${title} — illustration ${n}`, demo: true }));
@@ -42,10 +44,10 @@ async function main() {
     console.info("Démonstration automobile déjà présente — rien à faire.");
     return;
   }
-  const owner = await createOwnerAccount({ email: "awa@baobab-motors.sn", fullName: "Awa Diallo", password: "Demo!2026" });
+  const owner = await createOwnerAccount({ email: TEST ? "awa@test-auto.sn" : "awa@baobab-motors.sn", fullName: "Awa Diallo", password: "Demo!2026" });
   const { tenantId } = await provisionTenantForOwner({
     ownerUserId: owner.id,
-    name: "Baobab Motors",
+    name: TEST ? "Garage de test" : "Baobab Motors",
     subdomain: SLUG,
     subdomainSuffix: process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai",
     sectorKey: "automobile",
@@ -149,7 +151,7 @@ async function main() {
       reassurance: [],
     }, owner.id),
   );
-  console.info(`Démonstration automobile créée : Baobab Motors (awa@baobab-motors.sn / Demo!2026), ${stock.length} véhicules, ${drives.length} essais.`);
+  console.info(`[${SLUG}] Démonstration automobile créée : Baobab Motors (awa@baobab-motors.sn / Demo!2026), ${stock.length} véhicules, ${drives.length} essais.`);
 }
 
 main()

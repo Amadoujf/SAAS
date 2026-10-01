@@ -28,7 +28,9 @@ import {
   type OrderLineInput,
 } from "./restaurant-registry";
 
-const SLUG = "braise-bissap";
+// RESTO_SEED=test : entreprise de TEST séparée (essais, banc IA), jamais la démo.
+const TEST = process.env.RESTO_SEED === "test";
+const SLUG = TEST ? "test-restaurant" : "braise-bissap";
 const V = "/demo-templates/restaurant";
 const TZ = "Africa/Dakar";
 const img = (name: string) => ({ imageUrl: `${V}/${name}.webp`, imageDemo: true });
@@ -40,10 +42,10 @@ async function main() {
     console.info("Démonstration restaurant déjà présente — rien à faire.");
     return;
   }
-  const owner = await createOwnerAccount({ email: "fatou@braise-bissap.sn", fullName: "Fatou Sarr", password: "Demo!2026" });
+  const owner = await createOwnerAccount({ email: TEST ? "fatou@test-restaurant.sn" : "fatou@braise-bissap.sn", fullName: "Fatou Sarr", password: "Demo!2026" });
   const { tenantId } = await provisionTenantForOwner({
     ownerUserId: owner.id,
-    name: "Braise & Bissap",
+    name: TEST ? "Restaurant de test" : "Braise & Bissap",
     subdomain: SLUG,
     subdomainSuffix: process.env.PLATFORM_SUBDOMAIN_SUFFIX ?? "yamacommerce.ai",
     sectorKey: "restaurant",
@@ -193,7 +195,7 @@ async function main() {
       reassurance: [],
     }, owner.id),
   );
-  console.info(`Démonstration restaurant créée : Braise & Bissap (fatou@braise-bissap.sn / Demo!2026), ${plan.length} commandes, ${bookings.length} réservations.`);
+  console.info(`[${SLUG}] Démonstration restaurant créée : Braise & Bissap (fatou@braise-bissap.sn / Demo!2026), ${plan.length} commandes, ${bookings.length} réservations.`);
 }
 
 main()

@@ -15,5 +15,11 @@ for demo in commerce fashion real-estate travel salon hotel restaurant auto educ
   echo "Démonstration : $demo"
   pnpm exec tsx "src/seed-$demo-demo.ts"
 done
+# Entreprises de TEST du banc d'essai IA (infra/preview/ai-trial) : jamais les démos.
+FASHION_SEED=test pnpm exec tsx src/seed-fashion-demo.ts
+AI_SEED=test pnpm exec tsx src/seed-ai-demo.ts
+RESTO_SEED=test pnpm exec tsx src/seed-restaurant-demo.ts
+AUTO_SEED=test pnpm exec tsx src/seed-auto-demo.ts
+EDU_SEED=test pnpm exec tsx src/seed-education-demo.ts
 pnpm exec tsx src/preview-demo-passwords.ts
 echo "Base de prévisualisation prête."
