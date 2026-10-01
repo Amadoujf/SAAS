@@ -62,13 +62,15 @@ function SearchForm({ className = "", autoFocus = false }: { className?: string;
   );
 }
 
-/** En-tête de boutique. Deux compositions selon le template : « market » (recherche
- *  centrale, rangée d'univers) et « editorial » (nom en capitales espacées, navigation
- *  sobre). Couleurs et polices viennent toujours des design tokens de l'entreprise. */
+/** En-tête de boutique. Compositions selon le cadre du site : « market » (recherche
+ *  centrale, rangée d'univers), « editorial » (nom centré en capitales espacées, liens de
+ *  part et d'autre), « sculptural » (nom espacé à gauche, navigation centrée, beaucoup
+ *  d'air), « studio » (nom massif, liens en capitales, panier en pastille). Couleurs et
+ *  polices viennent toujours des design tokens de l'entreprise. */
 export function StoreHeader({ tenantName, logoUrl, categories, layout }: HeaderProps) {
   const [menu, setMenu] = useState(false);
   const [search, setSearch] = useState(false);
-  const editorial = layout === "editorial";
+  const editorial = layout !== "market";
 
   useEffect(() => {
     if (!menu && !search) return;
@@ -82,34 +84,95 @@ export function StoreHeader({ tenantName, logoUrl, categories, layout }: HeaderP
     return () => document.removeEventListener("keydown", onKey);
   }, [menu, search]);
 
-  const links = [{ href: "/catalogue", label: editorial ? "Collections" : "Tout" }, ...categories.slice(0, editorial ? 4 : 7).map((c) => ({ href: `/catalogue?categorie=${c.slug}`, label: c.name }))];
+  const links = [{ href: "/catalogue", label: editorial ? (layout === "studio" ? "Tout voir" : "Collection") : "Tout" }, ...categories.slice(0, editorial ? 3 : 7).map((c) => ({ href: `/catalogue?categorie=${c.slug}`, label: c.name }))];
+  const searchButton = (
+    <button type="button" aria-label="Rechercher" onClick={() => setSearch(true)} className={`grid h-11 w-11 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] ${editorial ? "" : "md:hidden"}`}>
+      <IconSearch size={20} />
+    </button>
+  );
+  const menuButton = (
+    <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full md:hidden" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(true)}>
+      <IconMenu size={22} />
+    </button>
+  );
+  const navLink = (l: { href: string; label: string }, cls: string) => <Link key={l.href} href={l.href} className={cls}>{l.label}</Link>;
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)] backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-[var(--content-max-width,1280px)] items-center gap-3 px-4 sm:h-[72px] sm:gap-4 sm:px-6">
-        <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full md:hidden" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(true)}>
-          <IconMenu size={22} />
-        </button>
-        <Brand tenantName={tenantName} logoUrl={logoUrl} editorial={editorial} />
-        {editorial ? (
-          <nav aria-label="Collections" className="mx-auto hidden items-center gap-7 md:flex">
-            {links.map((l) => (
-              <Link key={l.href} href={l.href} className="text-[13px] tracking-[0.06em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]">{l.label}</Link>
-            ))}
+    <header
+      className={`sticky top-0 z-40 backdrop-blur-md ${
+        layout === "studio"
+          ? "border-b-2 border-[var(--color-text-primary)] bg-[var(--color-background)]"
+          : layout === "sculptural"
+            ? "bg-[color-mix(in_srgb,var(--color-background)_94%,transparent)] shadow-[0_1px_0_var(--color-border)]"
+            : "border-b border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_92%,transparent)]"
+      }`}
+    >
+      {layout === "editorial" ? (
+        <div className="mx-auto grid h-16 max-w-[var(--content-max-width,1280px)] grid-cols-[1fr_auto_1fr] items-center gap-3 px-4 sm:h-[84px] sm:px-6">
+          <div className="flex items-center">
+            {menuButton}
+            {/* Trois liens à côté du nom centré (quatre sur très grand écran) : jamais de retour à la ligne. */}
+            <nav aria-label="Collections" className="hidden items-center gap-6 md:flex [&>*:nth-child(n+4)]:hidden 2xl:[&>*:nth-child(n+4)]:inline">
+              {links.map((l) => navLink(l, "whitespace-nowrap text-[12px] uppercase tracking-[0.16em] text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"))}
+            </nav>
+          </div>
+          <Link href="/" className="flex min-w-0 items-center justify-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {logoUrl ? <img src={logoUrl} alt="" className="h-9 w-auto" /> : null}
+            <span className="truncate font-[family-name:var(--font-heading)] text-[19px] uppercase tracking-[0.18em] sm:text-[30px] sm:tracking-[0.32em]">{tenantName}</span>
+          </Link>
+          <div className="flex items-center justify-end gap-0.5">
+            {searchButton}
+            <Link href="/suivi" aria-label="Suivre ma commande" title="Suivre ma commande" className="hidden h-11 w-11 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] sm:grid"><IconTruck size={20} /></Link>
+            <CartButton />
+          </div>
+        </div>
+      ) : layout === "sculptural" ? (
+        <div className="mx-auto flex h-16 max-w-[var(--content-max-width,1280px)] items-center gap-3 px-4 sm:h-[76px] sm:px-8">
+          {menuButton}
+          <Link href="/" className="flex min-w-0 items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {logoUrl ? <img src={logoUrl} alt="" className="h-8 w-auto" /> : null}
+            <span className="truncate text-[17px] font-light uppercase tracking-[0.24em] sm:text-[22px] sm:tracking-[0.42em]">{tenantName}</span>
+          </Link>
+          <nav aria-label="Collections" className="mx-auto hidden items-center gap-10 md:flex">
+            {links.map((l) => navLink(l, "text-[13.5px] text-[var(--color-text-primary)] transition-opacity hover:opacity-60"))}
           </nav>
-        ) : (
-          <SearchForm className="mx-auto hidden w-full max-w-md md:block" />
-        )}
+          <div className="ml-auto flex items-center gap-0.5 md:ml-0">
+            {searchButton}
+            <CartButton />
+          </div>
+        </div>
+      ) : layout === "studio" ? (
+        <div className="mx-auto flex h-16 max-w-[var(--content-max-width,1280px)] items-center gap-3 px-4 sm:h-[72px] sm:px-6">
+          {menuButton}
+          <Link href="/" className="flex min-w-0 items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {logoUrl ? <img src={logoUrl} alt="" className="h-8 w-auto" /> : null}
+            <span className="truncate font-[family-name:var(--font-heading)] text-[24px] font-extrabold uppercase leading-none tracking-[-0.03em] sm:text-[30px]">{tenantName}</span>
+          </Link>
+          <nav aria-label="Collections" className="ml-8 hidden items-center gap-1 md:flex">
+            {links.map((l) => navLink(l, "rounded-full px-3.5 py-2 text-[12px] font-bold uppercase tracking-[0.12em] transition-colors hover:bg-[var(--color-text-primary)] hover:text-[var(--color-background)]"))}
+          </nav>
+          <div className="ml-auto flex items-center gap-1">
+            {searchButton}
+            <span className="rounded-full bg-[var(--color-primary)] text-white"><CartButton /></span>
+          </div>
+        </div>
+      ) : (
+      <div className="mx-auto flex h-16 max-w-[var(--content-max-width,1280px)] items-center gap-3 px-4 sm:h-[72px] sm:gap-4 sm:px-6">
+        {menuButton}
+        <Brand tenantName={tenantName} logoUrl={logoUrl} editorial={false} />
+        <SearchForm className="mx-auto hidden w-full max-w-md md:block" />
         <div className="ml-auto flex shrink-0 items-center gap-0.5 md:ml-0">
-          <button type="button" aria-label="Rechercher" onClick={() => setSearch(true)} className={`grid h-11 w-11 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] ${editorial ? "" : "md:hidden"}`}>
-            <IconSearch size={20} />
-          </button>
+          {searchButton}
           <Link href="/suivi" aria-label="Suivre ma commande" title="Suivre ma commande" className="hidden h-11 w-11 place-items-center rounded-full hover:bg-[var(--color-surface-muted)] sm:grid">
             <IconTruck size={20} />
           </Link>
           <CartButton />
         </div>
       </div>
+      )}
 
       {!editorial && categories.length > 0 && (
         <nav aria-label="Univers" className="hidden border-t border-[var(--color-border)] md:block">

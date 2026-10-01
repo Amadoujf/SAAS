@@ -38,6 +38,13 @@ export const SECTION_KEYS = [
   "immersive_hero",
   "immersive_showcase",
   "scroll_story",
+  // Compositions de mode (1er octobre 2026) : une ouverture, une présentation des pièces,
+  // un bandeau défilant et un récit de marque, chacun en trois variantes accordées aux
+  // directions éditoriale, sculpturale et studio.
+  "collection_hero",
+  "product_lineup",
+  "marquee",
+  "brand_story",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -426,6 +433,44 @@ export const sectionParamSchemas = {
      *  cadre, inclinaison légère ; « cutout » = objet détouré posé librement. */
     objectStyle: z.enum(["photo", "cutout"]).default("photo"),
   }),
+  /** Ouverture de collection. Règles de lisibilité tenues par le composant (voile sous
+   *  le texte, tailles bornées) ; le titre reste court pour rester lisible sur téléphone. */
+  collection_hero: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    title: z.string().trim().min(1).max(70),
+    subtitle: z.string().trim().max(220).optional(),
+    /** Nom en très grandes lettres (variante « wordmark ») ; 2 à 12 caractères. */
+    wordmark: z.string().trim().min(2).max(12).optional(),
+    media: mediaSchema,
+    /** Deuxième image (variante « cover » : vignette ; « wordmark » : arrière-plan). */
+    secondaryMedia: mediaSchema.optional(),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
+    secondaryCtaLabel: z.string().trim().max(40).optional(),
+    secondaryCtaHref: actionHrefSchema.optional(),
+  }),
+  /** Présentation des pièces (produits RÉELS de l'entreprise, résolus au rendu). */
+  product_lineup: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    title: z.string().trim().max(80).optional(),
+    productIds: z.array(z.string()).optional(),
+    displayCount: z.number().int().min(2).max(12).default(6),
+    linkLabel: z.string().trim().max(40).optional(),
+    linkHref: actionHrefSchema.optional(),
+  }),
+  /** Bandeau défilant : mots courts (univers, matières), jamais de promesse. */
+  marquee: z.object({
+    items: z.array(z.string().trim().min(1).max(40)).min(2).max(8),
+  }),
+  /** Récit de marque : une phrase forte, un texte, une image facultative. */
+  brand_story: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    statement: z.string().trim().min(1).max(180),
+    body: z.string().trim().max(600).optional(),
+    media: mediaSchema.optional(),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
+  }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 
 /** Variantes visuelles disponibles par section — voir docs/12 (« plusieurs variantes
@@ -473,6 +518,17 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   // (itinéraire, parcours de formation, suivi de livraison) ; « product » : un objet
   // détouré mis en scène, qui pivote d'étape en étape sur une ambiance colorée.
   scroll_story: ["focus", "sequence", "timeline", "product"],
+  // « cover » : photographie dominante, titre en sérif, vignette décalée (éditorial) ;
+  // « plinth » : pièce posée sur un socle, très grand titre grotesque (sculptural) ;
+  // « wordmark » : nom de la marque en lettres géantes traversé par la photo (studio).
+  collection_hero: ["cover", "plinth", "wordmark"],
+  // « editorial » : grands portraits décalés ; « plinth » : pièces isolées sur socles ;
+  // « index » : grille dense numérotée, survol en aplat de couleur.
+  product_lineup: ["editorial", "plinth", "index"],
+  marquee: ["band", "outline"],
+  // « quote » : grande citation centrée ; « split » : image sur fond de pierre et texte ;
+  // « bold » : aplat de couleur, phrase en capitales.
+  brand_story: ["quote", "split", "bold"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {

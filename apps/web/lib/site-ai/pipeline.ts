@@ -144,7 +144,7 @@ export async function loadStudio() {
       canUndo: Boolean(lastRevision && lastRevision.afterSignature === draft.signature),
       lastRevision: lastRevision ? { label: lastRevision.label, source: lastRevision.source, at: lastRevision.createdAt.toISOString() } : null,
       brief: (lastDirections?.inputPayload as { brief?: SiteBrief } | null)?.brief ?? null,
-      directions: lastDirections ? { jobId: lastDirections.id, chosen: lastDirections.approved, simulated: lastDirections.simulated, ...(lastDirections.outputPayload as object) } : null,
+      directions: lastDirections ? { jobId: lastDirections.id, chosen: lastDirections.approved, simulated: lastDirections.simulated, at: lastDirections.createdAt.toISOString(), ...(lastDirections.outputPayload as object) } : null,
       conversation: jobs
         .filter((j) => j.type !== "site_directions")
         .reverse()
@@ -446,6 +446,7 @@ export async function publishStudioDraft(): Promise<StudioResult<{ versionNumber
       backgroundColor: identity.backgroundColor,
       fontPair: identity.fontPair ?? null,
       shape: identity.shape ?? null,
+      siteFrame: identity.frame ?? null,
       logoUrl: identity.logoUrl,
     });
     const site = await tx.tenantSite.findUniqueOrThrow({ where: { tenantId: who.tenantId }, select: { id: true, designTokenOverrides: true } });

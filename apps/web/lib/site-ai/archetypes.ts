@@ -1,4 +1,5 @@
 import type { ArchetypeKey } from "./schemas";
+import type { SiteFrame } from "@/lib/storefront/store-templates";
 
 /**
  * Archétypes de page d'accueil : chacun est une STRUCTURE (suite de sections du registre,
@@ -21,7 +22,11 @@ export type SlotKind =
   | "featured"
   | "new_arrivals"
   | "categories"
-  | "closing";
+  | "closing"
+  | "collection_hero"
+  | "lineup"
+  | "marquee"
+  | "brand_story";
 
 export interface Slot {
   id: string;
@@ -36,11 +41,55 @@ export interface Archetype {
   /** Plan de la page, en mots simples, affiché sur la carte de la direction. */
   outline: string[];
   slots: Slot[];
+  /** Cadre de page imposé par la structure (en-tête, cartes produits, pied de page) :
+   *  une ouverture « studio » n'est jamais servie avec l'en-tête d'une autre direction. */
+  frame?: SiteFrame;
   /** Réglages suggérés quand la direction n'en précise pas (mode simulé). */
   suggested: { typography: "editorial" | "couture" | "moderne" | "neutre"; shape: "sharp" | "soft" | "round"; animation: "discreet" | "dynamic" | "immersive" };
 }
 
 export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
+  editorial: {
+    label: "Éditorial",
+    description: "Composition de magazine : photographie dominante qui respire, titres en didone, grands portraits de pièces décalés, citation de la maison. Pour une marque d'images, mode et maison.",
+    outline: ["Ouverture photographique, titre en didone", "Les pièces en grands portraits", "Citation de la maison", "Lookbook", "Univers"],
+    frame: "editorial",
+    slots: [
+      { id: "ouverture", kind: "collection_hero", variant: "cover" },
+      { id: "pieces", kind: "lineup", variant: "editorial" },
+      { id: "maison", kind: "brand_story", variant: "quote" },
+      { id: "lookbook", kind: "lookbook", variant: "mosaic" },
+      { id: "univers", kind: "categories", variant: "editorial" },
+    ],
+    suggested: { typography: "couture", shape: "sharp", animation: "dynamic" },
+  },
+  sculptural: {
+    label: "Sculptural",
+    description: "La pièce au centre : posée dans une arche sur un socle de pierre, très grand titre grotesque, pièces isolées sur socles clairs. Pour des objets forts : maroquinerie, bijoux, design.",
+    outline: ["La pièce sur son socle, grand titre", "Les pièces isolées sur socles", "Le geste de la maison", "Univers"],
+    frame: "sculptural",
+    slots: [
+      { id: "ouverture", kind: "collection_hero", variant: "plinth" },
+      { id: "pieces", kind: "lineup", variant: "plinth" },
+      { id: "geste", kind: "brand_story", variant: "split" },
+      { id: "univers", kind: "categories", variant: "grid" },
+    ],
+    suggested: { typography: "neutre", shape: "sharp", animation: "dynamic" },
+  },
+  studio: {
+    label: "Studio",
+    description: "Boutique contemporaine et affirmée : nom de la marque en lettres géantes sur aplat de couleur, bandeau défilant, grille numérotée, aplats. Pour une marque jeune et dynamique.",
+    outline: ["Nom géant sur aplat de couleur", "Bandeau défilant", "Grille numérotée des pièces", "Manifeste en aplat", "Bandeau final"],
+    frame: "studio",
+    slots: [
+      { id: "ouverture", kind: "collection_hero", variant: "wordmark" },
+      { id: "bandeau", kind: "marquee", variant: "band" },
+      { id: "pieces", kind: "lineup", variant: "index" },
+      { id: "manifeste", kind: "brand_story", variant: "bold" },
+      { id: "fin", kind: "marquee", variant: "outline" },
+    ],
+    suggested: { typography: "moderne", shape: "sharp", animation: "immersive" },
+  },
   galerie: {
     label: "Galerie",
     description: "Épure de galerie : grand titre centré, peu d'éléments, beaucoup d'espace ; les produits comme des œuvres. Pour une marque sûre d'elle, un catalogue court.",

@@ -117,10 +117,12 @@ réussis.
 
 ### Couverture Mode et vêtements (mise à jour du 1er octobre 2026)
 
-- **Démo dédiée « Atelier Naya »**, secteur `fashion` : 15 articles (robes, ensembles,
-  boubous et caftans, chemises homme, chaussures, accessoires), variantes taille ×
-  couleur avec stock, 4 guides des tailles, commandes réelles par les moteurs ; 5 photos
-  de démonstration et 10 illustrations originales (scripts/demo-visuals/mode.py).
+- **Démo dédiée « Atelier Naya »** (et sa boutique de test « Maison Naya »), secteur
+  `fashion` : 7 pièces photographiées dans une même direction (prêt-à-porter, sacs,
+  accessoires), variantes taille × couleur avec stock, 2 guides des tailles, commandes
+  réelles par les moteurs. Les illustrations dessinées ont été retirées : un catalogue
+  mêlant photos et dessins rendait les propositions incohérentes. Les photos sont des
+  recadrages provisoires des maquettes du client (voir demo-templates/MANIFEST.json).
 - **Guide des tailles modifiable** : tableau libre (2 à 6 colonnes, 1 à 30 lignes,
   conseil), rattaché à une catégorie et remplaçable par produit ; affiché sur la fiche
   produit (feuille en bas d'écran sur téléphone) seulement si un guide s'applique.
@@ -129,3 +131,27 @@ réussis.
 - **Reste** : le module « Lookbook » n'active rien de spécifique (la section existe pour
   tout commerce) ; pas de filtre par taille dans le catalogue ; pas de génération de
   photos portées (voir docs/18, section 5).
+
+### Atelier de création et trois directions Mode (1er octobre 2026)
+
+- **Trois directions vraiment différentes** pour une boutique d'au moins trois produits
+  photographiés : *Éditorial* (photographie dominante, didone, portraits décalés,
+  citation), *Sculptural* (pièce sur socle de pierre, arches, grotesque légère, nouveau
+  style « Socle ») et *Studio* (nom géant sur aplat cobalt, bandeau défilant, grille
+  numérotée, nouveau style « Studio »). Chacune a son propre cadre de page : en-tête,
+  cartes produits et pied de page (`siteFrame`, publié avec le site).
+- **Nouvelles sections** : `collection_hero` (cover, plinth, wordmark), `product_lineup`
+  (editorial, plinth, index), `marquee` (band, outline), `brand_story` (quote, split,
+  bold). Contenu toujours visible sans animation ; animations signature (respiration
+  de la photo, lettres levées, pièce qui flotte, bandeau en boucle, révélations au
+  défilement) coupées si le visiteur réduit les animations.
+- **Atelier de création** : onglets 01/02/03, grand aperçu ordinateur ou téléphone,
+  plein écran (←/→, Échap), « Votre directeur artistique » à côté de l'aperçu (panneau
+  qui monte du bas sur téléphone et tablette), bouton Publier avec menu (voir le site,
+  annuler, logo, recréer, réglages avancés). Les directions non choisies sont retrouvées
+  en revenant sur la page.
+- **Vérifié dans le navigateur** (simulation locale, boutique de test « Maison Naya ») à
+  1440 et 390 px : choix d'une direction, sélection d'une section, modification en
+  conversation, application au brouillon, publication, puis site en ligne au bon cadre
+  avec le nouveau titre. Les textes des directions sont produits par la simulation
+  (signalée), pas par l'IA.

@@ -7,6 +7,7 @@ import type { SectionInstance } from "@yamacommerce/templates";
 import { applyBranding } from "@/lib/storefront/home-content";
 import { siteStyleTokens } from "./style-tokens";
 import { isFontPair, isShape } from "@/lib/storefront/brand-kit";
+import { isSiteFrame } from "@/lib/storefront/store-templates";
 import type { SiteState } from "./operations";
 import type { SiteIdentity, SiteMotion } from "./types";
 import { canonicalJson } from "./canonical-json";
@@ -58,6 +59,7 @@ export async function liveSettings(tx: Prisma.TransactionClient, tenantId: strin
       backgroundColor: color(b.backgroundColor),
       fontPair: isFontPair(b.fontPair) ? b.fontPair : null,
       shape: isShape(b.shape) ? b.shape : null,
+      frame: isSiteFrame(b.siteFrame) ? b.siteFrame : null,
       logoUrl: str(b.logoUrl),
     },
     motion: { level: ["discreet", "dynamic", "immersive"].includes(level) ? level : "dynamic", mobile },

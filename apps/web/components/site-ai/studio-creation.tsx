@@ -94,7 +94,7 @@ export function StudioCreation({
         animate: { opacity: 1, y: 0, filter: "blur(0px)" },
         exit: { opacity: 0, y: direction * -20, filter: "blur(6px)" },
       };
-  const questionClass = "font-display text-[clamp(1.7rem,3.6vw,2.6rem)] font-semibold leading-[1.08] tracking-[-0.025em] text-white";
+  const questionClass = "font-display text-[clamp(1.5rem,2.8vw,2.1rem)] font-semibold leading-[1.1] tracking-[-0.025em] text-white";
   const inputClass =
     "w-full rounded-2xl bg-white/[0.06] px-5 py-4 text-[17px] leading-relaxed text-white ring-1 ring-inset ring-white/15 placeholder:text-white/35 focus:bg-white/[0.09] focus:outline-none focus:ring-2 focus:ring-[#7C93FF]";
 
@@ -109,10 +109,10 @@ export function StudioCreation({
         />
       </div>
 
-      <div className="grid min-h-[620px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
+      <div className="grid min-h-[460px] grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)]">
         {/* Questions */}
         <form
-          className="flex min-w-0 flex-col gap-8 p-6 sm:p-10 lg:p-14"
+          className="flex min-w-0 flex-col gap-6 p-6 sm:p-8 lg:p-10"
           onSubmit={(e) => {
             e.preventDefault();
             next();

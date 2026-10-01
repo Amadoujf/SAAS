@@ -18,6 +18,8 @@ export interface TenantBrandingPatch {
   /** Kit de marque (typographie, formes) — clés fermées, voir apps/web/lib/storefront/brand-kit.ts. */
   fontPair?: string | null;
   shape?: string | null;
+  /** Cadre de page de la direction choisie (editorial | sculptural | studio). */
+  siteFrame?: string | null;
   contactPhone?: string | null;
   contactWhatsapp?: string | null;
   contactAddress?: string | null;

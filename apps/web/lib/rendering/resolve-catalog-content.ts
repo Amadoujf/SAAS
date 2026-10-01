@@ -41,7 +41,8 @@ export async function resolveCatalogContentForManifest(
     page.sections.filter((section) => section.sectionKey === "categories"),
   );
   const featuredSections = manifest.pages.flatMap((page) =>
-    page.sections.filter((section) => section.sectionKey === "featured_products"),
+    // Pièces de la collection (product_lineup) : même contrat que les produits en vedette.
+    page.sections.filter((section) => section.sectionKey === "featured_products" || section.sectionKey === "product_lineup"),
   );
   const newArrivalsSections = manifest.pages.flatMap((page) =>
     page.sections.filter((section) => section.sectionKey === "new_arrivals"),
@@ -77,7 +78,7 @@ export async function resolveCatalogContentForManifest(
     const publishedProducts = await tx.product.findMany({
       where: { tenantId, status: "PUBLISHED", deletedAt: null },
       include: {
-        images: { orderBy: { position: "asc" }, take: 1 },
+        images: { orderBy: { position: "asc" }, take: 2 },
         variants: { include: { inventoryItems: { select: { availableQuantity: true } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -101,6 +102,8 @@ export async function resolveCatalogContentForManifest(
         price: product.basePrice,
         compareAtPrice: product.compareAtPrice ?? undefined,
         imageUrl: product.images[0]?.url ?? "",
+        // Deuxième photo réelle (survol des présentations qui l'utilisent), jamais inventée.
+        hoverImageUrl: product.images[1]?.url,
         href: `/p/${product.slug}`,
         sizes: sizes.length > 0 ? sizes : undefined,
         inStock,

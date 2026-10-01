@@ -85,7 +85,7 @@ export function StudioAssistant({
     <section aria-labelledby="assistant" className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl bg-white shadow-yc ring-1 ring-yc-ink/[0.06]">
       <header className="flex items-center justify-between gap-3 border-b border-yc-ink/[0.06] px-5 py-4">
         <div>
-          <h2 id="assistant" className="flex items-center gap-2 text-[15px] font-semibold text-yc-ink"><IconSparkles size={16} className="text-yc-electric" /> Assistant</h2>
+          <h2 id="assistant" className="flex items-center gap-2.5 text-[15px] font-semibold text-yc-ink"><span className="grid h-8 w-8 place-items-center rounded-full bg-yc-night-950 text-white" aria-hidden="true"><IconSparkles size={14} /></span> Votre directeur artistique</h2>
           <p className="text-[12px] text-yc-ink-soft">{usage.limit === null ? `${usage.used} demande${usage.used > 1 ? "s" : ""} ce mois` : `${usage.used} / ${usage.limit} demandes ce mois`}</p>
         </div>
         {simulated && <span className="rounded-full bg-yc-warning/[0.14] px-2.5 py-1 text-[11px] font-semibold text-[rgb(146_84_0)]" title="Le fournisseur IA n'est pas configuré : réponses produites par des règles locales de développement.">Simulation</span>}

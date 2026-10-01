@@ -177,7 +177,7 @@ export async function StoreHome({ store }: { store: StoreContext }) {
   const data = await loadHome(store);
   return (
     <StoreShell store={store}>
-      {store.layout === "editorial" ? <EditorialHome store={store} {...data} /> : <MarketHome store={store} {...data} />}
+      {store.layout !== "market" ? <EditorialHome store={store} {...data} /> : <MarketHome store={store} {...data} />}
     </StoreShell>
   );
 }

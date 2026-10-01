@@ -82,7 +82,12 @@ export function excerpt(text: string | null | undefined, max: number): string | 
  * est remplacé par une présentation plus simple ou retiré — et c'est signalé.
  */
 export function compileDirection(direction: AiDirection, context: SiteAiContext): CompiledSite {
-  return compileSlots(direction, context, ARCHETYPES[direction.archetype].slots);
+  const archetype = ARCHETYPES[direction.archetype];
+  const compiled = compileSlots(direction, context, archetype.slots);
+  // Le cadre (en-tête, cartes, pied de page) suit la structure ; hors boutique, le
+  // secteur garde le sien.
+  if (archetype.frame && (context.mode ?? "commerce") === "commerce") compiled.identity.frame = archetype.frame;
+  return compiled;
 }
 
 /** Secteurs hors boutique : style de base imposé, liens et libellés propres au métier. */
@@ -359,6 +364,82 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
       case "categories":
         if (outsideStore || !categories.length) return null;
         return { id: slot.id, sectionKey: "categories", variant: slot.variant, params: { title: "Nos univers", categoryIds: categories.map((c) => c.id), displayCount: categories.length } };
+      case "collection_hero": {
+        // Ouverture : la pièce choisie (photo réelle). « cover » ajoute une vignette ;
+        // le nom géant (« wordmark ») n'est retenu que s'il tient (2 à 12 caractères).
+        const lead = nextPhoto(heroProduct);
+        if (!lead) return build({ ...slot, kind: "immersive_hero", variant: "centered" });
+        const second = slot.variant === "cover" ? nextPhoto() : undefined;
+        const word = [context.tenantName, ...context.tenantName.split(/\s+/)].map((w) => w.trim()).find((w) => w.length >= 2 && w.length <= 12);
+        return {
+          id: slot.id,
+          sectionKey: "collection_hero",
+          variant: slot.variant,
+          params: {
+            eyebrow: text(copy.heroEyebrow, "surtitre"),
+            title: (heroTitle.length <= 70 ? heroTitle : context.tenantName).slice(0, 70),
+            subtitle: text(copy.heroSubtitle, "sous-titre")?.slice(0, 220),
+            wordmark: slot.variant === "wordmark" || slot.variant === "plinth" ? word : undefined,
+            media: photo(lead),
+            secondaryMedia: second ? photo(second) : undefined,
+            ctaLabel: cta.slice(0, 40),
+            ctaHref: catalogHref,
+            ...(outsideStore ? { secondaryCtaLabel: sector!.secondary.label, secondaryCtaHref: sector!.secondary.href } : { secondaryCtaLabel: lead.name.slice(0, 40), secondaryCtaHref: itemHref(lead) }),
+          },
+        };
+      }
+      case "lineup": {
+        if (outsideStore) return featured.length >= 3 ? dishShowcase(slot.id, "stack", undefined, text(copy.selectionTitle, "titre de la sélection") ?? sector!.featuredTitle) : null;
+        // Rangées complètes : 3 ou 6 portraits, 3 ou 6 socles, 4 ou 8 cases numérotées.
+        // L'index accepte aussi 7 pièces : la case restante invite vers la collection.
+        const per = slot.variant === "index" ? 4 : 3;
+        const full = featured.length >= per * 2 ? per * 2 : featured.length >= per ? per : featured.length;
+        const count = slot.variant === "index" && featured.length === 7 ? 7 : full;
+        if (count < 2) return null;
+        return {
+          id: slot.id,
+          sectionKey: "product_lineup",
+          variant: slot.variant,
+          params: {
+            eyebrow: slot.variant === "index" ? "La sélection" : "Collection",
+            title: (text(copy.selectionTitle, "titre de la sélection") ?? "Les pièces remarquables").slice(0, 80),
+            productIds: featured.slice(0, count).map((p) => p.id),
+            displayCount: count,
+            linkLabel: "Voir toute la collection",
+            linkHref: catalogHref,
+          },
+        };
+      }
+      case "marquee": {
+        // Mots réels : univers du catalogue, puis le nom de l'entreprise.
+        const words = [...new Set([...withProducts.map((c) => c.name), context.tenantName])].map((w) => w.slice(0, 40)).slice(0, 6);
+        if (words.length < 2) return null;
+        return { id: slot.id, sectionKey: "marquee", variant: slot.variant, params: { items: words } };
+      }
+      case "brand_story": {
+        if (!manifesto) return null;
+        const product = nextPhoto();
+        // Une phrase forte reste courte : « Maison de mode à Dakar : prêt-à-porter… » devient
+        // une phrase (avant les deux-points) et un texte (après), sans rien inventer.
+        const limit = slot.variant === "bold" ? 80 : 120;
+        const cut = manifesto.length > limit ? manifesto.search(/\s?[:—–]\s/) : -1;
+        const statement = cut > 8 ? `${manifesto.slice(0, cut).trim()}.` : manifesto;
+        const rest = cut > 8 ? manifesto.slice(cut).replace(/^\s?[:—–]\s*/, "") : "";
+        const body = [rest && rest[0]!.toUpperCase() + rest.slice(1), manifestoBody].filter(Boolean).join(" ") || undefined;
+        return {
+          id: slot.id,
+          sectionKey: "brand_story",
+          variant: slot.variant,
+          params: {
+            eyebrow: slot.variant === "bold" ? context.tenantName.slice(0, 60) : "La maison",
+            statement: statement.slice(0, 180),
+            body: body?.slice(0, 600),
+            media: product ? photo(product) : undefined,
+            ctaLabel: (sector ? sector.all : "Découvrir la collection").slice(0, 40),
+            ctaHref: catalogHref,
+          },
+        };
+      }
       case "closing": {
         const title = text(copy.closingTitle, "invitation finale");
         if (!title) return null;

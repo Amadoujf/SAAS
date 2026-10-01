@@ -8,7 +8,7 @@ import { requireTenantPermission } from "@/lib/tenant-permissions";
 import { ensureTenantEditorSite } from "@/lib/site-editor/tenant-site";
 import { resolveCatalogContentForManifest } from "@/lib/rendering/resolve-catalog-content";
 import { loadStoreContext } from "@/lib/storefront/store-context";
-import { templateLayout } from "@/lib/storefront/store-templates";
+import { storeLayoutFor } from "@/lib/storefront/store-templates";
 import { isDraftSettings, loadDraft, previewTokens, type DraftSnapshot } from "@/lib/site-ai/site-state";
 import type { CompiledSite } from "@/lib/site-ai/compile";
 import { PublishedSectorHome } from "@/components/published-sector-home";
@@ -103,7 +103,7 @@ export default async function SiteDraftPreviewPage({ searchParams }: { searchPar
     );
   }
   const base = await loadStoreContext(tenantId, tenantName);
-  const store = { ...base, tokens, logoUrl: snapshot.settings.identity.logoUrl, templateSlug: snapshot.settings.identity.style, layout: templateLayout(snapshot.settings.identity.style) };
+  const store = { ...base, tokens, logoUrl: snapshot.settings.identity.logoUrl, templateSlug: snapshot.settings.identity.style, layout: storeLayoutFor(snapshot.settings.identity.style, snapshot.settings.identity.frame) };
   return (
     <>
       <PublishedSectorHome site={site} store={store} annotate />

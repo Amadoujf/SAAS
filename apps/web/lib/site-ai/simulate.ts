@@ -18,7 +18,12 @@ function firstSentence(text: string | null, max: number): string {
   return sentence.length > max ? `${sentence.slice(0, max - 1)}…` : sentence;
 }
 
-const ARCHETYPE_LOOK: Record<ArchetypeKey, { style: AiDirection["style"]; palette: AiDirection["palette"]; selection: string; story: string; order: "newest" | "premium" }> = {
+const ARCHETYPE_LOOK: Record<ArchetypeKey, { style: AiDirection["style"]; palette: AiDirection["palette"]; selection: string; story: string; order: "newest" | "premium"; title?: string; pitch?: string }> = {
+  // Les trois directions de boutique (mode, maison, objets) : ambiances, typographies et
+  // compositions nettement différentes. Titres génériques de SIMULATION (signalés).
+  editorial: { style: "atelier-naya", palette: { primary: "#1B1712", accent: "#8C6A3D", background: "#F6F1EA" }, selection: "Les pièces remarquables", story: "La maison", order: "newest", title: "L'allure, naturellement.", pitch: "Une approche mode et humaine : la photographie domine, les titres en didone, les pièces en grands portraits." },
+  sculptural: { style: "socle", palette: { primary: "#1C2733", accent: "#9A5B34", background: "#F5F6F4" }, selection: "Pièces choisies", story: "Le geste", order: "premium", title: "Des pièces pour aujourd'hui et demain.", pitch: "Une direction sculpturale qui met vos pièces au premier plan : socles de pierre, lumière froide, grands titres." },
+  studio: { style: "studio", palette: { primary: "#1F3FD1", accent: "#0B0B0F", background: "#FFFFFF" }, selection: "La sélection", story: "Manifeste", order: "newest", title: "Élégance sans effort.", pitch: "Contemporain et affirmé : votre nom en lettres géantes sur aplat cobalt, bandeau défilant, grille numérotée." },
   galerie: { style: "luxury-minimal", palette: { primary: "#1F2A37", accent: "#7A5C32", background: "#F4F2EE" }, selection: "Pièces choisies", story: "En détail", order: "premium" },
   atelier: { style: "teranga-atelier", palette: { primary: "#5B3A29", accent: "#9C4F2E", background: "#FBF5EE" }, selection: "Les créations", story: "Pièce par pièce", order: "newest" },
   maison: { style: "luxury-minimal", palette: { primary: "#151515", accent: "#8E7147", background: "#F6F1EA" }, selection: "La collection", story: "Lookbook", order: "premium" },
@@ -29,7 +34,11 @@ const ARCHETYPE_LOOK: Record<ArchetypeKey, { style: AiDirection["style"]; palett
 
 /** Archétypes les plus adaptés au brief et au catalogue (règles simples, déterministes). */
 function rankArchetypes(brief: SiteBrief, context: SiteAiContext): ArchetypeKey[] {
-  const score: Record<ArchetypeKey, number> = { galerie: 2, atelier: 1.5, vitrine: 1, maison: 0.5, magazine: 0, marche: 0 };
+  // Boutique avec au moins 3 photos : les trois directions éditoriale, sculpturale et
+  // studio d'abord (structures, typographies et ambiances les plus contrastées).
+  const photos = context.products.filter((p) => p.imageUrl).length;
+  const trio = (context.mode ?? "commerce") === "commerce" && photos >= 3 ? 10 : -10;
+  const score: Record<ArchetypeKey, number> = { editorial: trio + 0.3, sculptural: trio + 0.2, studio: trio + 0.1, galerie: 2, atelier: 1.5, vitrine: 1, maison: 0.5, magazine: 0, marche: 0 };
   const has = (w: string) => brief.styles.includes(w);
   if (has("luxueux")) (score.maison += 4), (score.galerie += 1);
   if (has("épuré")) (score.galerie += 3), (score.maison += 1);
@@ -87,7 +96,7 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
       const lead = ordered[index % Math.max(1, ordered.length)] ?? ordered[0];
       return {
         name: meta.label,
-        pitch: meta.description.slice(0, 220),
+        pitch: (look.pitch ?? meta.description).slice(0, 220),
         archetype,
         // Secteur : la première proposition prend le style métier, les deux autres
         // des styles de la plateforme choisis d'après les goûts (archétypes classés).
@@ -101,11 +110,11 @@ export function simulateDirections(brief: SiteBrief, context: SiteAiContext): Ai
         featuredProductIds: ordered.slice(0, 8).map((p) => p.id),
         copy: {
           heroEyebrow: eyebrow,
-          heroTitle: context.tenantName,
+          heroTitle: look.title && !sector ? look.title : context.tenantName,
           heroTitleAccent: "",
-          heroSubtitle: activity,
-          ctaLabel: sector ? sector.cta : archetype === "vitrine" ? "Voir les nouveautés" : "Découvrir la collection",
-          manifesto: activity,
+          heroSubtitle: firstSentence(brief.activity, 200),
+          ctaLabel: sector ? sector.cta : archetype === "vitrine" ? "Voir les nouveautés" : archetype === "studio" ? "Voir la sélection" : "Découvrir la collection",
+          manifesto: firstSentence(brief.activity, 160),
           manifestoBody: rest.slice(0, 400),
           selectionTitle: sector ? sector.selection : look.selection,
           storyTitle: sector ? sector.story : look.story,

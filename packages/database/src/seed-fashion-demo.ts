@@ -1,7 +1,7 @@
 /**
  * Démonstration MODE ET VÊTEMENTS : « Atelier Naya », maison de prêt-à-porter fictive
  * (secteur `fashion`, habillage « Atelier Naya »). Script de DÉVELOPPEMENT et de
- * prévisualisation uniquement. Catalogue 100 % vêtements, chaussures et accessoires,
+ * prévisualisation uniquement. Catalogue prêt-à-porter, sacs et accessoires,
  * variantes taille × couleur avec stock propre, guides des tailles modifiables
  * rattachés aux catégories (un produit en remplace un), commandes créées par les VRAIS
  * moteurs (panier → commande → transitions).
@@ -9,9 +9,10 @@
  *   pnpm --filter @yamacommerce/database run seed:fashion-demo
  *   FASHION_SEED=test pnpm --filter @yamacommerce/database run seed:fashion-demo   (entreprise de test séparée)
  *
- * Visuels : 5 photographies de démonstration (maquettes fournies par le client,
- * demo-templates/atelier-naya) et 10 illustrations originales dessinées par
- * `scripts/demo-visuals/mode.py` (demo-templates/mode). Jamais présentés comme réels.
+ * Visuels : uniquement des PHOTOGRAPHIES de démonstration (recadrages provisoires des
+ * maquettes fournies par le client, demo-templates/atelier-naya, voir MANIFEST.json) :
+ * un catalogue visuellement cohérent pour comparer les directions. Jamais présentés
+ * comme réels ; à remplacer par des photographies sous licence.
  */
 import { prisma } from "./client";
 import { withSuperAdminAccess, withTenant } from "./tenant-context";
@@ -26,10 +27,11 @@ import { createSizeGuide, setCategorySizeGuide, setProductSizeGuide } from "./si
 
 const TEST = process.env.FASHION_SEED === "test";
 const SLUG = TEST ? "test-mode" : "atelier-naya";
-const NAME = TEST ? "Mode de test" : "Atelier Naya";
+// Entreprise de test : identité fictive soignée (même maison que les photos), toujours
+// signalée « démonstration » dans l'interface.
+const NAME = TEST ? "Maison Naya" : "Atelier Naya";
 const MAIL = TEST ? "test-mode.sn" : "atelier-naya.sn";
 const NAYA = "/demo-templates/atelier-naya";
-const MODE = "/demo-templates/mode";
 
 const GUIDES = {
   femme: {
@@ -38,53 +40,30 @@ const GUIDES = {
     rows: [["XS", "80-84", "62-66", "88-92"], ["S", "85-89", "67-71", "93-97"], ["M", "90-94", "72-76", "98-102"], ["L", "95-100", "77-82", "103-108"], ["XL", "101-107", "83-89", "109-115"]],
     note: "Mesures du corps, pas du vêtement. Entre deux tailles, prenez la plus grande : nos coupes sont près du corps.",
   },
-  ample: {
-    name: "Boubous et caftans (coupe ample)",
-    columns: ["Taille", "Tour de poitrine jusqu'à (cm)", "Longueur (cm)"],
-    rows: [["S/M", "110", "140"], ["L/XL", "125", "145"], ["XXL", "140", "150"]],
-    note: "Coupe volontairement ample : choisissez d'après votre tour de poitrine et la longueur souhaitée.",
-  },
-  homme: {
-    name: "Chemises homme",
-    columns: ["Taille", "Tour de cou (cm)", "Poitrine (cm)", "Longueur de manche (cm)"],
-    rows: [["S", "37-38", "92-96", "62"], ["M", "39-40", "97-102", "63"], ["L", "41-42", "103-108", "64"], ["XL", "43-44", "109-115", "65"], ["XXL", "45-46", "116-122", "66"]],
-    note: null,
-  },
-  pieds: {
-    name: "Chaussures (pointures)",
-    columns: ["Pointure", "Longueur du pied (cm)"],
-    rows: [["37", "23,5"], ["38", "24,2"], ["39", "24,9"], ["40", "25,5"], ["41", "26,2"], ["42", "26,9"], ["43", "27,5"]],
-    note: "Mesurez votre pied le soir, talon contre un mur, jusqu'au bout du plus long orteil.",
+  sacs: {
+    name: "Sacs (dimensions)",
+    columns: ["Format", "Largeur (cm)", "Hauteur (cm)", "Profondeur (cm)"],
+    rows: [["Moyen", "32", "24", "12"], ["Grand", "40", "30", "15"]],
+    note: "Le format Moyen accueille un téléphone, un portefeuille et un carnet A5 ; le Grand, un ordinateur 13 pouces.",
   },
 } as const;
 
 const CATEGORIES = [
-  { slug: "robes", name: "Robes", guide: "femme", img: `${NAYA}/collection-terres.webp` },
-  { slug: "ensembles", name: "Ensembles", guide: "femme", img: `${NAYA}/hero-allure.webp` },
-  { slug: "boubous-caftans", name: "Boubous et caftans", guide: "ample", img: `${MODE}/boubou-indigo.webp` },
-  { slug: "chemises-homme", name: "Chemises homme", guide: "homme", img: `${MODE}/chemise-bogolan.webp` },
-  { slug: "chaussures", name: "Chaussures", guide: "pieds", img: `${MODE}/sandales-ngor.webp` },
-  { slug: "accessoires", name: "Accessoires", guide: null, img: `${NAYA}/bijoux-martele.webp` },
+  { slug: "pret-a-porter", name: "Prêt-à-porter", guide: "femme", img: `${NAYA}/hero-allure.webp` },
+  { slug: "sacs", name: "Sacs", guide: "sacs", img: `${NAYA}/sac-cognac-porte.webp` },
+  { slug: "accessoires", name: "Accessoires", guide: null, img: `${NAYA}/lunettes-ecaille.webp` },
 ] as const;
 
-type Item = { slug: string; name: string; cat: string; price: number; compare?: number; img: string; alt: string; sizes: string[]; colors: string[]; stock: number[]; desc: string; guide?: keyof typeof GUIDES };
+type Item = { slug: string; name: string; cat: string; price: number; compare?: number; img: string; alt: string; more?: { img: string; alt: string }[]; sizes: string[]; colors: string[]; stock: number[]; desc: string; guide?: keyof typeof GUIDES };
 const F = ["XS", "S", "M", "L", "XL"];
 const PRODUCTS: Item[] = [
-  { slug: "robe-portefeuille-ivoire", name: "Robe portefeuille ivoire", cat: "robes", price: 54_000, img: `${NAYA}/hero-portefeuille.webp`, alt: "Robe portefeuille ivoire portée", sizes: F, colors: ["Ivoire"], stock: [1, 3, 4, 3, 1], desc: "Crêpe de coton, ceinture à nouer, manches amples. Taille marquée, longueur midi." },
-  { slug: "robe-drapee-terres", name: "Robe drapée Terres", cat: "robes", price: 72_000, img: `${NAYA}/collection-terres.webp`, alt: "Robe drapée ivoire devant un mur ocre", sizes: ["S", "M", "L"], colors: ["Ivoire"], stock: [2, 3, 0], desc: "Drapé asymétrique, épaule dénudée, boucle en laiton. Collection Terres lumineuses." },
-  { slug: "robe-wax-baobab", name: "Robe wax Baobab", cat: "robes", price: 38_000, img: `${MODE}/robe-wax-baobab.webp`, alt: "Illustration : robe en wax vert et ocre, ceinture camel", sizes: F, colors: ["Vert baobab", "Indigo"], stock: [2, 4, 5, 3, 1, 1, 2, 3, 2, 0], desc: "Wax 100 % coton, manches courtes, jupe évasée, ceinture assortie. Doublée." },
-  { slug: "robe-lin-terracotta", name: "Robe lin terracotta", cat: "robes", price: 46_000, compare: 52_000, img: `${MODE}/robe-lin-terracotta.webp`, alt: "Illustration : robe longue en lin terracotta", sizes: F, colors: ["Terracotta", "Sable"], stock: [0, 2, 3, 2, 1, 1, 2, 2, 1, 0], desc: "Lin lavé, col V, coupe trapèze. Fraîche pour la saison chaude." },
-  { slug: "ensemble-lin-horizons", name: "Ensemble lin Horizons", cat: "ensembles", price: 68_000, img: `${NAYA}/hero-allure.webp`, alt: "Ensemble veste et pantalon en lin ivoire porté", sizes: ["S", "M", "L", "XL"], colors: ["Ivoire"], stock: [3, 5, 2, 1], desc: "Veste croisée et pantalon large en lin lavé. Finitions main, boutons en corne." },
-  { slug: "ensemble-sable-horizons", name: "Ensemble Horizons sable", cat: "ensembles", price: 64_000, img: `${NAYA}/collection-horizons.webp`, alt: "Ensemble sable de la collection Horizons", sizes: ["S", "M", "L"], colors: ["Sable"], stock: [2, 2, 2], desc: "Tunique longue et pantalon fluide, coton et lin. Collection Horizons Sénégal." },
-  { slug: "grand-boubou-indigo", name: "Grand boubou brodé indigo", cat: "boubous-caftans", price: 85_000, compare: 95_000, img: `${MODE}/boubou-indigo.webp`, alt: "Illustration : grand boubou en bazin indigo, broderie dorée au col", sizes: ["S/M", "L/XL", "XXL"], colors: ["Indigo", "Blanc cassé"], stock: [2, 4, 1, 1, 2, 1], desc: "Bazin riche teint à Thiès, broderie main au col et au plastron. Pièce de cérémonie." },
-  { slug: "boubou-blanc-tabaski", name: "Boubou blanc brodé or", cat: "boubous-caftans", price: 78_000, img: `${MODE}/boubou-blanc.webp`, alt: "Illustration : boubou blanc cassé, broderie dorée", sizes: ["S/M", "L/XL", "XXL"], colors: ["Blanc cassé"], stock: [3, 4, 2], desc: "Bazin blanc cassé, broderie fil doré. Livré avec son pantalon." },
-  { slug: "caftan-wax-soleil", name: "Caftan wax Soleil", cat: "boubous-caftans", price: 42_000, img: `${MODE}/caftan-wax-soleil.webp`, alt: "Illustration : caftan en wax jaune soleil, motifs bleus et rouges", sizes: ["S/M", "L/XL"], colors: ["Soleil"], stock: [4, 3], desc: "Wax lumineux, encolure soulignée d'un biais crème, poches cachées." },
-  { slug: "chemise-bogolan", name: "Chemise bogolan", cat: "chemises-homme", price: 32_000, img: `${MODE}/chemise-bogolan.webp`, alt: "Illustration : chemise en bogolan terre et brun", sizes: ["S", "M", "L", "XL", "XXL"], colors: ["Terre"], stock: [1, 3, 4, 2, 1], desc: "Bogolan teint à la terre par un atelier de Ségou, coton épais, col classique." },
-  { slug: "chemise-lin-mao", name: "Chemise lin col mao", cat: "chemises-homme", price: 29_000, img: `${MODE}/chemise-lin-mao.webp`, alt: "Illustration : chemise en lin écru, col mao", sizes: ["S", "M", "L", "XL", "XXL"], colors: ["Écru", "Kaki"], stock: [2, 3, 3, 2, 1, 1, 2, 2, 1, 0], desc: "Lin léger, col mao, boutons nacrés. Se porte ouverte sur un pantalon de lin." },
-  { slug: "sandales-cuir-ngor", name: "Sandales cuir Ngor", cat: "chaussures", price: 18_500, img: `${MODE}/sandales-ngor.webp`, alt: "Illustration : paire de sandales en cuir à deux brides", sizes: ["37", "38", "39", "40", "41", "42", "43"], colors: ["Cognac"], stock: [2, 3, 5, 5, 3, 2, 0], desc: "Cuir tanné végétal, semelle cousue main à Soumbédioune." },
-  { slug: "mules-brodees", name: "Mules en wax", cat: "chaussures", price: 16_000, img: `${MODE}/mules-brodees.webp`, alt: "Illustration : mules en wax bordeaux et or", sizes: ["37", "38", "39", "40", "41"], colors: ["Bordeaux"], stock: [2, 4, 4, 2, 1], desc: "Dessus en wax, semelle en cuir, intérieur doux. Elles chaussent petit.", guide: "pieds" },
-  { slug: "foulard-wax", name: "Foulard de tête en wax", cat: "accessoires", price: 9_500, img: `${MODE}/foulard-wax.webp`, alt: "Illustration : foulard en wax bleu, motifs jaunes et rouges", sizes: ["Unique"], colors: ["Bleu roi"], stock: [14], desc: "Wax 2 m × 0,9 m, ourlé main. Pour un nœud haut ou un turban." },
+  { slug: "sac-kora-cognac", name: "Sac Kora cognac", cat: "sacs", price: 128_000, img: `${NAYA}/sac-cognac-socle.webp`, alt: "Sac en cuir cognac posé sur un socle bleu, voile de lin", more: [{ img: `${NAYA}/sac-cognac-porte.webp`, alt: "Le sac Kora porté à l'épaule avec une tunique de lin" }], sizes: ["Moyen", "Grand"], colors: ["Cognac"], stock: [4, 2], desc: "Cuir pleine fleur tanné végétal, anse réglable, fermeture aimantée. Sa forme en croissant se porte à l'épaule ou à la main." },
+  { slug: "sac-ndar-ivoire", name: "Sac Ndar ivoire", cat: "sacs", price: 96_000, img: `${NAYA}/sac-ivoire.webp`, alt: "Sac ivoire posé sur un socle de pierre", sizes: ["Moyen", "Grand"], colors: ["Ivoire"], stock: [3, 1], desc: "Cuir grainé ivoire, doublure en coton, poche intérieure zippée. Une ligne sobre qui accompagne les tenues de cérémonie." },
+  { slug: "lunettes-corniche", name: "Lunettes Corniche", cat: "accessoires", price: 42_000, img: `${NAYA}/lunettes-ecaille.webp`, alt: "Lunettes de soleil en écaille sur une pierre au soleil", sizes: ["Unique"], colors: ["Écaille"], stock: [9], desc: "Monture en acétate écaille, verres teintés ambre. Livrées avec leur étui en cuir." },
   { slug: "boucles-martelees", name: "Boucles d'oreilles martelées", cat: "accessoires", price: 19_500, img: `${NAYA}/bijoux-martele.webp`, alt: "Boucles d'oreilles en laiton martelé", sizes: ["Unique"], colors: ["Laiton"], stock: [8], desc: "Laiton doré martelé à la main par un artisan de la Médina." },
+  { slug: "ensemble-lin-horizons", name: "Ensemble lin Horizons", cat: "pret-a-porter", price: 68_000, img: `${NAYA}/hero-allure.webp`, alt: "Ensemble veste et pantalon en lin ivoire porté", sizes: ["S", "M", "L", "XL"], colors: ["Ivoire"], stock: [3, 5, 2, 1], desc: "Veste croisée et pantalon large en lin lavé. Finitions main, boutons en corne." },
+  { slug: "robe-portefeuille-ivoire", name: "Robe portefeuille ivoire", cat: "pret-a-porter", price: 54_000, img: `${NAYA}/hero-portefeuille.webp`, alt: "Robe portefeuille ivoire portée", sizes: F, colors: ["Ivoire"], stock: [1, 3, 4, 3, 1], desc: "Crêpe de coton, ceinture à nouer, manches amples. Taille marquée, longueur midi." },
+  { slug: "robe-drapee-terres", name: "Robe drapée Terres", cat: "pret-a-porter", price: 72_000, img: `${NAYA}/collection-terres.webp`, alt: "Robe drapée ivoire devant un mur ocre", sizes: ["S", "M", "L"], colors: ["Ivoire"], stock: [2, 3, 0], desc: "Drapé asymétrique, épaule dénudée, boucle en laiton. Collection Terres lumineuses." },
 ];
 
 const CUSTOMERS = [["Ndèye", "Sarr"], ["Mame", "Diouf"], ["Abdou", "Ndiaye"], ["Coumba", "Ba"], ["Ousmane", "Sy"], ["Aïssatou", "Diallo"], ["Fatou", "Kane"], ["Moustapha", "Gueye"]] as const;
@@ -121,7 +100,7 @@ async function main() {
         data: {
           tenantId, slug: p.slug, name: p.name, description: p.desc, shortDescription: p.desc.split(".")[0], basePrice: p.price, compareAtPrice: p.compare ?? null,
           status: "PUBLISHED", categoryId: catIds[p.cat]!, tags: ["mode", ...p.colors.map((c) => c.toLowerCase())],
-          images: { create: [{ url: p.img, altText: p.alt, position: 0 }] },
+          images: { create: [{ url: p.img, altText: p.alt, position: 0 }, ...(p.more ?? []).map((m, k) => ({ url: m.img, altText: m.alt, position: k + 1 }))] },
         },
       });
       ids[p.slug] = product.id;
@@ -152,14 +131,14 @@ async function main() {
   const zones = await withTenant(tenantId, (tx) => tx.deliveryZone.findMany({ where: { tenantId }, orderBy: { fee: "asc" } }));
   const actor = { userId: null, type: "owner" as const };
   const scenarios: { daysAgo: number; lines: [string, number, number][]; method: OrderPaymentMethod; path: string[] }[] = [
-    { daysAgo: 0, lines: [["robe-wax-baobab", 2, 1]], method: "cod", path: [] },
-    { daysAgo: 0, lines: [["grand-boubou-indigo", 1, 1]], method: "manual_wave", path: [] },
-    { daysAgo: 1, lines: [["chemise-bogolan", 2, 1], ["sandales-cuir-ngor", 4, 1]], method: "cod", path: ["PREPARING"] },
+    { daysAgo: 0, lines: [["sac-kora-cognac", 0, 1]], method: "cod", path: [] },
+    { daysAgo: 0, lines: [["robe-portefeuille-ivoire", 2, 1]], method: "manual_wave", path: [] },
+    { daysAgo: 1, lines: [["lunettes-corniche", 0, 1], ["boucles-martelees", 0, 1]], method: "cod", path: ["PREPARING"] },
     { daysAgo: 2, lines: [["ensemble-lin-horizons", 1, 1]], method: "cod", path: ["PREPARING", "READY", "SHIPPED"] },
-    { daysAgo: 4, lines: [["foulard-wax", 0, 2], ["boucles-martelees", 0, 1]], method: "cod", path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"] },
-    { daysAgo: 6, lines: [["caftan-wax-soleil", 0, 1]], method: "cod", path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"] },
-    { daysAgo: 9, lines: [["robe-portefeuille-ivoire", 2, 1]], method: "cod", path: ["CANCELED"] },
+    { daysAgo: 4, lines: [["sac-ndar-ivoire", 0, 1]], method: "cod", path: ["PREPARING", "READY", "SHIPPED", "DELIVERED"] },
+    { daysAgo: 9, lines: [["robe-drapee-terres", 1, 1]], method: "cod", path: ["CANCELED"] },
   ];
+
   for (const [i, s] of scenarios.entries()) {
     const [firstName, lastName] = CUSTOMERS[i % CUSTOMERS.length]!;
     const zone = zones[i % zones.length]!;
@@ -186,21 +165,21 @@ async function main() {
       hero: {
         autoplaySeconds: 7,
         slides: [
-          { id: "allure", imageUrl: `${NAYA}/hero-allure.webp`, mobileImageUrl: null, imageAlt: "Ensemble de lin ivoire, lumière de fin de journée", demo: true, productId: ids["ensemble-lin-horizons"]!, eyebrow: "Prêt-à-porter · Dakar", title: "L'allure en héritage.", subtitle: "Des coupes contemporaines, des tissus d'ici : bazin, wax, bogolan et lin.", ctaLabel: "Découvrir la collection", ctaHref: "/catalogue", theme: "dark" },
-          { id: "terres", imageUrl: `${NAYA}/collection-terres.webp`, mobileImageUrl: null, imageAlt: "Robe drapée ivoire devant un mur ocre", demo: true, productId: ids["robe-drapee-terres"]!, eyebrow: "Collection Terres lumineuses", title: "Des lignes pures.", subtitle: "Robes et ensembles à porter du bureau à la cérémonie.", ctaLabel: "Voir les robes", ctaHref: "/catalogue?categorie=robes", theme: "dark" },
+          { id: "kora", imageUrl: `${NAYA}/sac-cognac-socle.webp`, mobileImageUrl: null, imageAlt: "Sac en cuir cognac posé sur un socle bleu", demo: true, productId: ids["sac-kora-cognac"]!, eyebrow: "Collection signature — Dakar", title: "L'allure, naturellement.", subtitle: "Cuir, lin et laiton : des pièces dessinées à Dakar, faites pour durer.", ctaLabel: "Découvrir la collection", ctaHref: "/catalogue", theme: "dark" },
+          { id: "allure", imageUrl: `${NAYA}/hero-allure.webp`, mobileImageUrl: null, imageAlt: "Ensemble de lin ivoire, lumière de fin de journée", demo: true, productId: ids["ensemble-lin-horizons"]!, eyebrow: "Prêt-à-porter", title: "Le lin, en lumière.", subtitle: "Des coupes amples et des matières nobles, confectionnées à Dakar.", ctaLabel: "Voir le prêt-à-porter", ctaHref: "/catalogue?categorie=pret-a-porter", theme: "dark" },
         ],
       },
-      featuredCategoryIds: ["robes", "boubous-caftans", "chemises-homme", "chaussures"].map((s) => catIds[s]!),
-      featuredProductIds: ["robe-wax-baobab", "grand-boubou-indigo", "ensemble-lin-horizons", "chemise-bogolan", "sandales-cuir-ngor", "caftan-wax-soleil"].map((s) => ids[s]!),
+      featuredCategoryIds: ["pret-a-porter", "sacs", "accessoires"].map((s) => catIds[s]!),
+      featuredProductIds: ["sac-kora-cognac", "ensemble-lin-horizons", "sac-ndar-ivoire", "robe-drapee-terres", "lunettes-corniche", "robe-portefeuille-ivoire"].map((s) => ids[s]!),
       collections: [
-        { id: "horizons", eyebrow: "Collection", title: "Horizons Sénégal", subtitle: "Lin et coton, couleurs de sable et d'océan.", imageUrl: `${NAYA}/collection-horizons.webp`, demo: true, href: "/catalogue?categorie=ensembles" },
-        { id: "ceremonie", eyebrow: "Cérémonies", title: "Bazin et broderies", subtitle: "Grands boubous et caftans, brodés à la main.", imageUrl: `${MODE}/boubou-indigo.webp`, demo: true, href: "/catalogue?categorie=boubous-caftans" },
+        { id: "horizons", eyebrow: "Collection", title: "Horizons", subtitle: "Lin et coton, couleurs de sable et d'océan.", imageUrl: `${NAYA}/collection-horizons.webp`, demo: true, href: "/catalogue?categorie=pret-a-porter" },
+        { id: "sacs", eyebrow: "Maroquinerie", title: "Les sacs", subtitle: "Cuir tanné végétal, lignes en croissant.", imageUrl: `${NAYA}/sac-cognac-porte.webp`, demo: true, href: "/catalogue?categorie=sacs" },
       ],
       reassurance: [
         { icon: "truck", title: "Livraison au Sénégal", text: "Dakar en 24 h" },
         { icon: "leaf", title: "Confectionné à Dakar", text: "Ateliers partenaires" },
         { icon: "card", title: "Wave ou à la livraison", text: "Paiement simple" },
-        { icon: "phone", title: "Conseil taille", text: "Par téléphone ou WhatsApp" },
+        { icon: "phone", title: "Conseil personnalisé", text: "Par téléphone ou WhatsApp" },
       ],
     }, null),
   );

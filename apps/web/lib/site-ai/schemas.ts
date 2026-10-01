@@ -8,7 +8,7 @@ import * as z from "zod/v4";
  * des identifiants de produits de l'entreprise et des textes courts modifiables.
  */
 
-export const STYLE_KEYS = ["sunu-marche", "atelier-naya", "teranga-atelier", "commerce-moderne", "luxury-minimal", "marketplace", "dakar-distribution-pro", "braise", "piste", "preau"] as const;
+export const STYLE_KEYS = ["sunu-marche", "atelier-naya", "teranga-atelier", "commerce-moderne", "luxury-minimal", "marketplace", "dakar-distribution-pro", "socle", "studio", "braise", "piste", "preau"] as const;
 /** Styles propres à un métier : proposés à CE métier (parmi les autres), jamais ailleurs. */
 export const SECTOR_STYLE_BY_MODE = { restaurant: "braise", automobile: "piste", education: "preau" } as const;
 
@@ -25,7 +25,7 @@ const hex = z.string().describe("Couleur hexadécimale #RRGGBB");
 
 /** Archétypes de page : des STRUCTURES différentes (sections, rythme, hiérarchie), pas
  *  des variantes de couleurs. Détail et composition : archetypes.ts. */
-export const ARCHETYPE_KEYS = ["galerie", "atelier", "maison", "vitrine", "magazine", "marche"] as const;
+export const ARCHETYPE_KEYS = ["editorial", "sculptural", "studio", "galerie", "atelier", "maison", "vitrine", "magazine", "marche"] as const;
 export const FONT_PAIR_OPTIONS = ["editorial", "couture", "moderne", "neutre"] as const;
 export const SHAPE_OPTIONS = ["sharp", "soft", "round"] as const;
 

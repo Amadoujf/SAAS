@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import { withTenant, resolveEffectiveDesignTokens, listCategories } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
-import { templateLayout, templateTokens, type StoreLayout } from "./store-templates";
+import { storeLayoutFor, templateTokens, type StoreLayout } from "./store-templates";
 import { applyBranding, parseHomeContent } from "./home-content";
 
 export interface StoreContext {
@@ -64,6 +64,7 @@ export async function loadStoreContext(
         templatePreference?: string;
         primaryColor?: string;
         accentColor?: string;
+        siteFrame?: string;
       } | null,
     }),
   );
@@ -83,7 +84,7 @@ export async function loadStoreContext(
     })),
     logoUrl: branding?.logoUrl ?? null,
     templateSlug: branding?.templatePreference ?? null,
-    layout: templateLayout(branding?.templatePreference),
+    layout: storeLayoutFor(branding?.templatePreference, branding?.siteFrame),
     demoData: isDemo,
     announcement: parseHomeContent(content, tenantName).announcement,
   };

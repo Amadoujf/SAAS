@@ -64,6 +64,8 @@ export interface SiteIdentity {
   fontPair?: string | null;
   /** Formes (angles, arrondis) ; absentes = celles du style. */
   shape?: string | null;
+  /** Cadre de page (en-tête, cartes, pied de page) ; absent = celui du style. */
+  frame?: "editorial" | "sculptural" | "studio" | null;
 }
 
 export interface SiteMotion {

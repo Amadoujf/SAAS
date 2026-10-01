@@ -37,6 +37,20 @@ describe("création assistée : trois directions vraiment différentes", () => {
     }
   });
 
+  it("boutique photographiée : le trio éditorial, sculptural, studio — cadres, styles et palettes distincts", () => {
+    expect(directions.map((d) => d.archetype)).toEqual(["editorial", "sculptural", "studio"]);
+    const sites = directions.map((d) => compileDirection(d, context));
+    expect(sites.map((s) => s.identity.frame)).toEqual(["editorial", "sculptural", "studio"]);
+    expect(new Set(sites.map((s) => s.identity.style)).size).toBe(3);
+    expect(new Set(directions.map((d) => d.palette.primary)).size).toBe(3);
+    expect(sites.map((s) => `${s.blocks[0]!.sectionKey}:${s.blocks[0]!.variant}`)).toEqual(["collection_hero:cover", "collection_hero:plinth", "collection_hero:wordmark"]);
+    for (const site of sites) {
+      const lineup = site.blocks.find((b) => b.sectionKey === "product_lineup");
+      expect(lineup, "sélection de pièces").toBeTruthy();
+      expect(JSON.stringify(site.blocks)).not.toContain("/img/5");
+    }
+  });
+
   it("chacun des six archétypes se compose en sections valides avec ce catalogue", () => {
     for (const archetype of ARCHETYPE_KEYS) {
       const site = compileDirection({ ...directions[0]!, archetype }, context);

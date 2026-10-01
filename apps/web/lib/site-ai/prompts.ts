@@ -6,13 +6,15 @@ import type { SiteState } from "./operations";
 import type { PhotoAudit } from "./photo-audit";
 import type { SiteAiContext, SiteBrief } from "./types";
 
+const LAYOUT_NAMES = { market: "catalogue", editorial: "éditoriale", sculptural: "sculpturale", studio: "studio" } as const;
+
 /**
  * Consignes données au modèle. Le texte SYSTÈME est stable (mis en cache chez le
  * fournisseur) ; tout ce qui varie (entreprise, catalogue, demande) est dans le message.
  */
 
 const STYLE_GUIDE = [
-  ...STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${t.layout === "editorial" ? "éditoriale" : "catalogue"})`),
+  ...STORE_TEMPLATES.map((t) => `- ${t.slug} : ${t.name} — ${t.tagline} (mise en page ${LAYOUT_NAMES[t.layout]})`),
   "- braise : Braise — style métier de la restauration (RÉSERVÉ aux restaurants)",
   "- piste : Piste — style métier de l'automobile (RÉSERVÉ aux concessions)",
   "- preau : Préau — style métier de l'enseignement (RÉSERVÉ aux écoles et centres de formation)",
@@ -59,6 +61,7 @@ Styles de base (en-tête, pied de page, détails) :
 ${STYLE_GUIDE}
 
 Palette : « primary » doit rester lisible sous un texte blanc (couleur foncée), « accent » aussi ; « background » est un fond clair et doux sur lequel un texte foncé reste très lisible. Les trois palettes doivent être nettement différentes.
+Boutique de mode, maison ou objets avec au moins trois produits photographiés : les archétypes « editorial », « sculptural » et « studio » forment le trio le plus contrasté (photographie dominante en didone, pièce isolée sur socle de pierre, nom géant sur aplat de couleur) ; associe-leur respectivement les styles « atelier-naya », « socle » et « studio », sauf raison claire tirée de la description.
 Photos : l'archétype « magazine » et l'ouverture de « maison » sont à leur meilleur avec une grande photo d'ambiance ; sans elle, la plateforme adapte. Les produits mis en scène (ouverture, pièce signature, sélection, récit) doivent avoir une photo.
 Textes : le manifeste et son texte reprennent ce que dit l'entreprise dans sa description, reformulé avec soin ; rien d'autre. Les étapes du récit décrivent chaque produit d'après SA description.
 

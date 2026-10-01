@@ -1,4 +1,8 @@
 import { sectionParamSchemas, validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
+import { CollectionHeroSection } from "./collection/collection-hero";
+import { ProductLineupSection } from "./collection/product-lineup";
+import { MarqueeSection } from "./collection/marquee-band";
+import { BrandStorySection } from "./collection/brand-story";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import type { Locale } from "@/lib/i18n";
 import { AnimationScopeOverride } from "@/lib/motion/animation-level-context";
@@ -308,6 +312,21 @@ function renderByKey(
 
     case "scroll_story":
       return <ScrollStorySection variant={instance.variant} params={sectionParamSchemas.scroll_story.parse(instance.params)} />;
+
+    case "collection_hero":
+      return <CollectionHeroSection variant={instance.variant} params={sectionParamSchemas.collection_hero.parse(instance.params)} />;
+
+    case "product_lineup": {
+      const content = resolvedContent?.[instance.id] as ResolvedProductsContent | undefined;
+      if (!content) return <SectionFallback sectionKey="product_lineup" />;
+      return <ProductLineupSection variant={instance.variant} params={sectionParamSchemas.product_lineup.parse(instance.params)} content={content} />;
+    }
+
+    case "marquee":
+      return <MarqueeSection variant={instance.variant} params={sectionParamSchemas.marquee.parse(instance.params)} />;
+
+    case "brand_story":
+      return <BrandStorySection variant={instance.variant} params={sectionParamSchemas.brand_story.parse(instance.params)} />;
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être

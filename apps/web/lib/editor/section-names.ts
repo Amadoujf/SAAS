@@ -28,6 +28,10 @@ export const SECTION_NAMES: Record<SectionKey, string> = {
   immersive_hero: "Hero immersif",
   immersive_showcase: "Carrousel immersif",
   scroll_story: "Récit au défilement",
+  collection_hero: "Ouverture de collection",
+  product_lineup: "Pièces de la collection",
+  marquee: "Bandeau défilant",
+  brand_story: "Récit de marque",
 };
 
 /** Libellés des choix proposés dans les formulaires de l'éditeur (valeurs techniques
