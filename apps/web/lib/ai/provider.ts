@@ -2,7 +2,7 @@ import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import type * as z from "zod/v4";
-import { estimateCostXOF } from "./cost";
+import { AI_MAX_OUTPUT_TOKENS, estimateCostXOF } from "./cost";
 
 /**
  * Accès au fournisseur IA — UNIQUEMENT côté serveur (jamais de clé ni d'appel depuis le
@@ -27,8 +27,9 @@ export interface AiStatus {
   reason?: string;
 }
 
-/** Modèle par défaut (surchargeable par `AI_MODEL`). Claude Opus 5.5 : le modèle Opus actuel. */
-const DEFAULT_MODEL = "claude-opus-5-5";
+/** Modèle par défaut (surchargeable par `AI_MODEL`, ex. `claude-opus-5-5` pour comparer).
+ *  Claude Sonnet 5.5 : le Sonnet actuel, environ deux fois moins cher qu'Opus 5.5. */
+export const DEFAULT_MODEL = "claude-sonnet-5-5";
 
 export function getAiStatus(): AiStatus {
   const key = process.env.AI_PROVIDER_API_KEY?.trim();
@@ -39,11 +40,21 @@ export function getAiStatus(): AiStatus {
   return { available: false, kind: null, model: null, reason: "Le fournisseur IA n'est pas encore configuré sur cette plateforme (clé d'accès manquante)." };
 }
 
+/**
+ * Facturation d'un appel en échec, pour le budget :
+ * - « known » : le fournisseur a répondu, jetons connus (refus, réponse incomplète) ;
+ * - « none » : erreur renvoyée par l'API (clé, quota, surcharge…) — pas de génération ;
+ * - « unknown » : coupure ou réponse illisible — l'appel a pu être facturé, le coût
+ *   maximal réservé est donc imputé par précaution.
+ */
+export type AiBilling = "known" | "none" | "unknown";
+
 export class AiProviderError extends Error {
   constructor(
     public readonly reason: "unavailable" | "refused" | "invalid_output" | "rate_limited" | "network" | "provider",
     message: string,
     public readonly usage: { inputTokens: number; outputTokens: number; costXOF: number } = { inputTokens: 0, outputTokens: 0, costXOF: 0 },
+    public readonly billing: AiBilling = "known",
   ) {
     super(message);
     this.name = "AiProviderError";
@@ -71,7 +82,10 @@ export interface StructuredResult<T> {
 
 let client: Anthropic | null = null;
 function anthropic(apiKey: string): Anthropic {
-  client ??= new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 });
+  // Aucune nouvelle tentative automatique : chaque tentative est une génération
+  // distincte, réservée et comptée sur le budget (une reprise cachée pourrait être
+  // facturée sans être comptée). Délai sous le seuil de 5 min des générations bloquées.
+  client ??= new Anthropic({ apiKey, timeout: 240_000, maxRetries: 0 });
   return client;
 }
 
@@ -87,7 +101,7 @@ export async function generateStructured<T>(request: StructuredRequest<T>): Prom
   try {
     const response = await anthropic(process.env.AI_PROVIDER_API_KEY!.trim()).beta.messages.parse({
       model,
-      max_tokens: 16000,
+      max_tokens: AI_MAX_OUTPUT_TOKENS,
       // Repli côté serveur si le modèle décline : la demande est reprise par un autre
       // modèle dans le même appel, sans intervention de l'entreprise.
       betas: ["server-side-fallback-2026-07-01"],
@@ -105,13 +119,17 @@ export async function generateStructured<T>(request: StructuredRequest<T>): Prom
     if (!response.parsed_output) throw new AiProviderError("invalid_output", "La réponse de l'IA n'a pas le format attendu. Réessayez.", usage);
     return { data: response.parsed_output as T, model: response.model ?? model, simulated: false, ...usage };
   } catch (error) {
+    const none = { inputTokens: 0, outputTokens: 0, costXOF: 0 };
     if (error instanceof AiProviderError) throw error;
-    if (error instanceof Anthropic.RateLimitError) throw new AiProviderError("rate_limited", "Le service IA est très sollicité. Réessayez dans une minute.");
+    if (error instanceof Anthropic.RateLimitError) throw new AiProviderError("rate_limited", "Le service IA est très sollicité. Réessayez dans une minute.", none, "none");
     if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-      throw new AiProviderError("unavailable", "La clé du fournisseur IA est refusée : vérifiez la configuration de la plateforme.");
+      throw new AiProviderError("unavailable", "La clé du fournisseur IA est refusée : vérifiez la configuration de la plateforme.", none, "none");
     }
-    if (error instanceof Anthropic.APIConnectionError) throw new AiProviderError("network", "Le service IA est injoignable. Réessayez dans un instant.");
-    if (error instanceof Anthropic.APIError) throw new AiProviderError("provider", `Le service IA a renvoyé une erreur (${error.status ?? "?"}). Réessayez.`);
-    throw new AiProviderError("invalid_output", "La réponse de l'IA n'a pas pu être validée. Réessayez.");
+    // Coupure ou délai dépassé (APIConnectionTimeoutError en hérite) : la génération a pu
+    // avoir lieu et être facturée sans que la réponse arrive.
+    if (error instanceof Anthropic.APIConnectionError) throw new AiProviderError("network", "Le service IA est injoignable. Réessayez dans un instant.", none, "unknown");
+    if (error instanceof Anthropic.APIError) throw new AiProviderError("provider", `Le service IA a renvoyé une erreur (${error.status ?? "?"}). Réessayez.`, none, "none");
+    // Réponse reçue mais illisible : facturée, jetons inconnus.
+    throw new AiProviderError("invalid_output", "La réponse de l'IA n'a pas pu être validée. Réessayez.", none, "unknown");
   }
 }

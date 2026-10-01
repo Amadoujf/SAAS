@@ -77,7 +77,15 @@ export async function getAiUsage(tx: Prisma.TransactionClient, tenantId: string)
 export async function startAiJob(
   tx: Prisma.TransactionClient,
   tenantId: string,
-  input: { type: AiJobType; payload: Prisma.InputJsonValue; createdBy: string | null; simulated: boolean; model: string | null },
+  input: {
+    type: AiJobType;
+    payload: Prisma.InputJsonValue;
+    createdBy: string | null;
+    simulated: boolean;
+    model: string | null;
+    /** Réservation déjà faite sur le budget de la plateforme (voir ai-platform-budget.ts). */
+    reservation?: { period: string; amountXOF: number } | null;
+  },
 ): Promise<{ id: string }> {
   const period = aiPeriod();
   const limits = await resolveAiLimits(tx, tenantId);
@@ -109,7 +117,10 @@ export async function startAiJob(
   }
   try {
     return await tx.aIGenerationJob.create({
-      data: { tenantId, type: input.type, status: "processing", inputPayload: input.payload, createdBy: input.createdBy, simulated: input.simulated, model: input.model },
+      data: {
+        tenantId, type: input.type, status: "processing", inputPayload: input.payload, createdBy: input.createdBy, simulated: input.simulated, model: input.model,
+        reservedXOF: input.reservation?.amountXOF ?? 0, budgetPeriod: input.reservation?.period ?? null,
+      },
       select: { id: true },
     });
   } catch (error) {
@@ -152,16 +163,6 @@ export async function failAiJob(tx: Prisma.TransactionClient, tenantId: string, 
       data: { estimatedCostXOF: { increment: cost.costXOF } },
     });
   }
-}
-
-/**
- * Dépense IA estimée de TOUTE la plateforme pour un mois (somme des lignes d'usage de
- * chaque entreprise) — à lire avec `withSuperAdminAccess`. Sert au plafond global
- * `AI_PLATFORM_MONTHLY_CAP_XOF`, qui s'ajoute aux plafonds de chaque formule.
- */
-export async function platformAiSpendXOF(tx: Prisma.TransactionClient, period = aiPeriod()): Promise<number> {
-  const total = await tx.aIUsageRecord.aggregate({ where: { periodMonth: period }, _sum: { estimatedCostXOF: true } });
-  return total._sum.estimatedCostXOF ?? 0;
 }
 
 /** Validation humaine : la proposition a été appliquée au brouillon par un membre. */

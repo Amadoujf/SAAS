@@ -2048,6 +2048,16 @@ model DelivererRemittance {
 // IA (adjustement #8 : quotas par formule, historique, validation humaine)
 // ============================================================================
 
+/// Budget IA de TOUTE la plateforme, par mois (FCFA estimés). Réservations atomiques :
+/// `spentXOF + reservedXOF` ne dépasse jamais le plafond `AI_PLATFORM_MONTHLY_CAP_XOF`,
+/// même avec des appels simultanés. Accessible uniquement en Super Admin (RLS).
+model AIPlatformBudget {
+  periodMonth String   @id // "2026-10"
+  spentXOF    Int      @default(0)
+  reservedXOF Int      @default(0)
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
 model AIGenerationJob {
   id              String    @id @default(uuid())
   tenantId        String
@@ -2065,6 +2075,11 @@ model AIGenerationJob {
   /// Génération SIMULÉE (développement, sans fournisseur IA) : jamais présentée
   /// comme une vraie génération. Voir apps/web/lib/ai/provider.ts.
   simulated       Boolean   @default(false)
+  /// Coût maximal réservé sur le budget de la plateforme pendant l'appel (FCFA) ;
+  /// remis à 0 quand le coût réel est imputé. Voir `ai-platform-budget.ts`.
+  reservedXOF     Int       @default(0)
+  /// Mois du budget de la plateforme sur lequel la réservation a été faite.
+  budgetPeriod    String?
   errorMessage    String?
   finishedAt      DateTime?
   createdBy       String?

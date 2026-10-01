@@ -30,3 +30,13 @@ export function estimateCostXOF(model: string, usage: TokenUsage): number {
     1_000_000;
   return Math.ceil(usd * rate);
 }
+
+/** Plafond de la réponse demandée au fournisseur (réflexion comprise). */
+export const AI_MAX_OUTPUT_TOKENS = 16_000;
+/** Majorant des jetons envoyés par appel (consigne + demande + schéma ≈ 5 000 mesurés). */
+const AI_MAX_INPUT_TOKENS = 30_000;
+
+/** Coût MAXIMAL d'un appel, réservé sur le budget de la plateforme avant l'appel. */
+export function worstCaseCostXOF(model: string): number {
+  return estimateCostXOF(model, { input_tokens: AI_MAX_INPUT_TOKENS, output_tokens: AI_MAX_OUTPUT_TOKENS });
+}

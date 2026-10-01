@@ -43,7 +43,7 @@ export function platformIntegrations(): Integration[] {
           : ai.kind === "simulated"
             ? "Simulation locale par règles (développement uniquement) : chaque proposition est étiquetée « simulation », jamais présentée comme une génération IA."
             : "Aucune clé configurée : l'assistant l'indique et ne propose rien.",
-      howTo: ai.kind === "anthropic" ? undefined : "Renseigner AI_PROVIDER_API_KEY (clé Anthropic) dans les variables d'environnement du serveur ; AI_MODEL facultatif (défaut claude-opus-5-5) ; AI_PLATFORM_MONTHLY_CAP_XOF recommandé (plafond mensuel global). Jamais dans le code.",
+      howTo: ai.kind === "anthropic" ? undefined : "Renseigner AI_PROVIDER_API_KEY (clé Anthropic) dans les variables d'environnement du serveur ; AI_MODEL facultatif (défaut claude-sonnet-5-5) ; AI_PLATFORM_MONTHLY_CAP_XOF recommandé (plafond mensuel global). Jamais dans le code.",
     },
     {
       key: "email",

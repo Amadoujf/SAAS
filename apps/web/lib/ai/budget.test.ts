@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { platformAiCapXOF, platformCapReached } from "./budget";
+import { platformAiCapXOF } from "./budget";
+import { worstCaseCostXOF } from "./cost";
 
 describe("plafond IA de la plateforme", () => {
   afterEach(() => {
@@ -14,11 +15,14 @@ describe("plafond IA de la plateforme", () => {
     }
   });
 
-  it("valeur positive lue en FCFA entiers ; atteint dès que la dépense l'égale", () => {
+  it("valeur positive lue en FCFA entiers", () => {
     process.env.AI_PLATFORM_MONTHLY_CAP_XOF = "15000.9";
     expect(platformAiCapXOF()).toBe(15_000);
-    expect(platformCapReached(14_999, 15_000)).toBe(false);
-    expect(platformCapReached(15_000, 15_000)).toBe(true);
-    expect(platformCapReached(1_000_000, null)).toBe(false);
+  });
+
+  it("réservation maximale par appel : Sonnet 5.5 environ deux fois moins qu'Opus 5.5", () => {
+    // 30 000 jetons en entrée + 16 000 en sortie, au taux par défaut de 610 FCFA/$.
+    expect(worstCaseCostXOF("claude-sonnet-5-5")).toBe(135);
+    expect(worstCaseCostXOF("claude-opus-5-5")).toBe(269);
   });
 });

@@ -21,7 +21,7 @@ x-app-env: &app-env
   SAAS_BILLING_PROVIDER: manual
   PAYDUNYA_MODE: sandbox
   AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
-  AI_MODEL: ${AI_MODEL:-claude-opus-5-5}
+  AI_MODEL: ${AI_MODEL:-claude-sonnet-5-5}
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   EMAIL_FROM: ${EMAIL_FROM:-}
   LOCAL_STORAGE_ROOT_DIR: /data/storage

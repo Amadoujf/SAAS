@@ -14,8 +14,9 @@ import {
 import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { requireTenantPermission } from "@/lib/tenant-permissions";
-import { AiProviderError, generateStructured, getAiStatus } from "@/lib/ai/provider";
-import { assertPlatformAiBudget } from "@/lib/ai/budget";
+import { AiProviderError, DEFAULT_MODEL, generateStructured, getAiStatus } from "@/lib/ai/provider";
+import { releaseAiCall, reserveAiCall, settleAiCall } from "@/lib/ai/budget";
+import { failedCallCharge } from "@/lib/ai/charge";
 import { ensureTenantEditorSite, syncEditorSiteIdentity } from "@/lib/site-editor/tenant-site";
 import { publishTenantDraft } from "@/lib/site-editor/editor-pipeline";
 import { getHomeStatus } from "@/lib/site-editor/home-status";
@@ -60,8 +61,9 @@ function usageError(error: unknown): StudioResult<never> | null {
   return null;
 }
 
-/** Génération encadrée : quota vérifié, job journalisé, appel au fournisseur HORS
- *  transaction, résultat ou échec enregistré. Ne touche jamais au brouillon. */
+/** Génération encadrée : budget de la plateforme réservé, quota vérifié, job journalisé,
+ *  appel au fournisseur HORS transaction, coût imputé (réel, ou maximal s'il est
+ *  inconnu), résultat ou échec enregistré. Ne touche jamais au brouillon. */
 async function runJob<T>(
   who: { tenantId: string; userId: string },
   type: "site_directions" | "site_edit" | "site_improve",
@@ -71,17 +73,34 @@ async function runJob<T>(
 ): Promise<{ jobId: string; output: Record<string, unknown>; simulated: boolean }> {
   const status = getAiStatus();
   if (!status.available) throw new AiProviderError("unavailable", status.reason ?? "IA indisponible.");
-  if (status.kind === "anthropic") await assertPlatformAiBudget();
-  const job = await withTenant(who.tenantId, (tx) =>
-    startAiJob(tx, who.tenantId, { type, payload: payload as Prisma.InputJsonValue, createdBy: who.userId, simulated: status.kind === "simulated", model: status.model }),
-  );
+  const reservation = status.kind === "anthropic" ? await reserveAiCall(status.model ?? DEFAULT_MODEL) : null;
+  let job: { id: string };
   try {
-    const result = await call();
+    job = await withTenant(who.tenantId, (tx) =>
+      startAiJob(tx, who.tenantId, { type, payload: payload as Prisma.InputJsonValue, createdBy: who.userId, simulated: status.kind === "simulated", model: status.model, reservation }),
+    );
+  } catch (error) {
+    if (reservation) await releaseAiCall(reservation);
+    throw error;
+  }
+  let received: Awaited<ReturnType<typeof call>> | null = null;
+  try {
+    received = await call();
+    const result = received;
     const output = toOutput(result.data);
+    if (reservation) await settleAiCall(job.id, result.costXOF);
     await withTenant(who.tenantId, (tx) => finishAiJob(tx, who.tenantId, job.id, output as Prisma.InputJsonValue, result));
     return { jobId: job.id, output, simulated: result.simulated };
   } catch (error) {
-    const usage = error instanceof AiProviderError ? error.usage : undefined;
+    const providerError = error instanceof AiProviderError ? error : null;
+    const charged = failedCallCharge({
+      receivedCostXOF: received?.costXOF ?? null,
+      billing: providerError?.billing ?? null,
+      knownCostXOF: providerError?.usage.costXOF ?? 0,
+      reservedXOF: reservation?.amountXOF ?? 0,
+    });
+    if (reservation) await settleAiCall(job.id, charged);
+    const usage = received ? { inputTokens: received.inputTokens, outputTokens: received.outputTokens, costXOF: charged } : { ...(providerError?.usage ?? { inputTokens: 0, outputTokens: 0 }), costXOF: charged };
     await withTenant(who.tenantId, (tx) => failAiJob(tx, who.tenantId, job.id, error instanceof Error ? error.message : "Échec", usage));
     throw error;
   }

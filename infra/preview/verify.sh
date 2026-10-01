@@ -49,7 +49,7 @@ done
 
 echo "4. Assistant IA"
 if [ -n "${AI_PROVIDER_API_KEY:-}" ]; then
-  ok "clé présente (valeur non affichée) ; modèle ${AI_MODEL:-claude-opus-5-5} ; plafond ${AI_PLATFORM_MONTHLY_CAP_XOF:-15000} FCFA/mois"
+  ok "clé présente (valeur non affichée) ; modèle ${AI_MODEL:-claude-sonnet-5-5} ; plafond ${AI_PLATFORM_MONTHLY_CAP_XOF:-15000} FCFA/mois"
   echo "  → parcours à faire depuis le téléphone : description → propositions → brouillon → modification → publication (docs/16)."
 else
   echo "  – aucune clé : l'assistant affichera « non configuré » (aucune simulation en production)."
