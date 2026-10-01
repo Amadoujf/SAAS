@@ -23,8 +23,8 @@ ne sont pas concernés.
 
 `infra/preview/init-demo-db.sh` (service `migrate`, exécuté une fois) :
 `prisma migrate deploy`, mot de passe du rôle applicatif, données de base, les neuf
-démonstrations (commerce, immobilier, voyage, salon, hôtel, restaurant, automobile,
-éducation, livraison), puis le mot de passe de prévisualisation des comptes de démo.
+démonstrations (commerce, mode, immobilier, voyage, salon, hôtel, restaurant, automobile,
+éducation, livraison) et les entreprises de test du banc d'essai IA, puis le mot de passe de prévisualisation des comptes de démo.
 Les démos sont servies sur `https://<entreprise>.<PREVIEW_DOMAIN>`.
 
 ## Clé IA et plafond de dépenses
@@ -37,8 +37,11 @@ La clé n'est **jamais** envoyée dans une conversation, un ticket ou le dépôt
 2. Sur le serveur, par SSH : l'écrire dans `infra/preview/.env.preview`
    (`AI_PROVIDER_API_KEY=…`), fichier ignoré par Git, droits `chmod 600`.
 3. `AI_PLATFORM_MONTHLY_CAP_XOF` (défaut 15 000) : plafond Y-COM de toute la
-   prévisualisation, vérifié avant chaque appel ; une fois atteint, l'assistant se met en
-   pause jusqu'au mois suivant. Il s'ajoute aux quotas et plafonds de chaque formule.
+   prévisualisation. Le coût maximal de chaque appel est réservé avant l'appel
+   (atomique, appels simultanés compris), puis remplacé par le coût réel ; une fois
+   atteint, l'assistant se met en pause jusqu'au mois suivant. Il s'ajoute aux quotas et
+   plafonds de chaque formule. Modèle par défaut : `claude-sonnet-5-5` (`AI_MODEL`).
+   Étapes détaillées, limites fournisseur et banc d'essai : docs/18.
 4. `docker compose ... up -d` pour prendre la clé en compte ; « État des services »
    (`/dashboard/services`) affiche le modèle et le plafond, jamais la clé.
 

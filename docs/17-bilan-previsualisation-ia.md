@@ -30,10 +30,11 @@ suit attend une validation.
 ## 2. IA proposée
 
 - **Fournisseur** : Anthropic (API Claude), appelée uniquement depuis le serveur.
-- **Modèle** : Claude Opus 5.5 (`claude-opus-5-5`), déjà le modèle par défaut du code.
-  Tarif public : 4 $ par million de jetons en entrée, 20 $ en sortie, 0,20 $ en
-  lecture de cache. Variante moins chère, à qualité moindre : Claude Sonnet 5.5
-  (`AI_MODEL=claude-sonnet-5-5`, 2 $ / 10 $), environ deux fois moins cher.
+- **Modèle retenu pour les premiers essais** : Claude Sonnet 5.5 (`claude-sonnet-5-5`),
+  modèle par défaut du code depuis le 1er octobre 2026. Tarif public : 2 $ par million
+  de jetons en entrée, 10 $ en sortie, 0,20 $ en lecture de cache. Interchangeable par
+  `AI_MODEL` : Claude Opus 5.5 (`claude-opus-5-5`, 4 $ / 20 $) pour comparer quelques
+  résultats ; chaque génération enregistre le modèle réellement utilisé.
 
 ### Ce que l'IA fait réellement (secteurs commerce et mode, restauration, automobile, éducation)
 
@@ -71,11 +72,12 @@ d'où des fourchettes. Taux utilisé : 610 FCFA pour 1 $ (réglable, `AI_USD_TO_
 | Modification par conversation | 0,045 à 0,09 $ (30 à 55 FCFA) | 0,02 à 0,045 $ | idem |
 | « Améliorer mon site » | 0,06 à 0,15 $ (35 à 90 FCFA) | 0,03 à 0,08 $ | idem |
 
-Exemple de mois de test : 20 créations et 100 modifications, soit environ 13 $ au plus
-(≈ 8 200 FCFA) avec Opus. Plafond proposé : 15 000 FCFA dans Y-COM
-(`AI_PLATFORM_MONTHLY_CAP_XOF`) et 25 $ de limite dans la console Anthropic. Les coûts
-réels s'affichent après chaque génération ; ces estimations seront remplacées par les
-chiffres mesurés.
+Exemple de mois de test avec Sonnet 5.5 : 20 créations et 100 modifications, environ
+7 $ au plus (≈ 4 300 FCFA). Plafonds retenus pour TOUTE la prévisualisation : 15 000
+FCFA dans Y-COM (`AI_PLATFORM_MONTHLY_CAP_XOF`, réservations atomiques, voir docs/18)
+et 25 $ de limite dans la console Anthropic si le compte le permet. Les coûts réels sont
+mesurés par le banc d'essai (`infra/preview/ai-trial`) ; ces estimations seront
+remplacées par les chiffres mesurés.
 
 ## 3. Secteurs et fonctionnalités
 
@@ -88,7 +90,7 @@ conditions réelles.
 | Secteur (démo) | Site public et parcours client | Tableau de bord métier | Assistant IA « Mon site » |
 |---|---|---|---|
 | Commerce (Sunu Marché, Boutique Aïda) | Opérationnel : catalogue, panier, commande, suivi | Opérationnel : commandes, stock, livraisons, encaissements | À tester avec une vraie clé (vérifié en simulation) |
-| **Mode et vêtements** (pas de démo dédiée) | Opérationnel via le moteur commerce : variantes taille, couleur, matière avec stock par variante ; section lookbook ; habillage « Atelier Naya » | Opérationnel (commun au commerce) | À tester avec une vraie clé |
+| **Mode et vêtements** (Atelier Naya) | Opérationnel : variantes taille × couleur avec stock par variante, guide des tailles sur la fiche produit, lookbook, habillage « Atelier Naya » | Opérationnel : commandes, stock, guides des tailles modifiables (par catégorie, remplaçables par produit) | À tester avec une vraie clé |
 | Immobilier (Almadies Immobilier) | Opérationnel | Opérationnel : biens, visites, baux, loyers | Pas d'assistant IA (éditeur manuel) |
 | Voyage (Baobab Voyages) | Opérationnel | Opérationnel : offres, départs, voyageurs, encaissements | Pas d'assistant IA |
 | Salon (Maison Adja) | Opérationnel : prise de rendez-vous | Opérationnel : prestations, disponibilités, rendez-vous | Pas d'assistant IA |
@@ -113,20 +115,17 @@ conditions réelles.
 Tests exécutés au 1er octobre 2026 : base de données 361, application web 403, tous
 réussis.
 
-### Couverture Mode et vêtements
+### Couverture Mode et vêtements (mise à jour du 1er octobre 2026)
 
-- **Présent** : secteur « Mode et vêtements » proposé à l'inscription, avec des modules
-  par défaut ; variantes par taille, couleur et matière avec stock propre ; section
-  lookbook ; habillage éditorial « Atelier Naya » ; assistant IA (même moteur que le
-  commerce).
-- **Manque** :
-  1. aucune démo au secteur `fashion` : Boutique Aïda porte l'habillage mode mais son
-     secteur est « commerce » et son catalogue est mixte (mode, accessoires, maison,
-     beauté) ;
-  2. le guide des tailles n'existe que dans les maquettes statiques, l'entreprise ne
-     peut pas le remplir ;
-  3. les modules « Variantes avancées » et « Lookbook » ne changent rien de spécifique
-     (le lookbook est disponible pour tout commerce).
-- **Proposition** (après validation) : une démo dédiée « mode » au secteur `fashion`, un
-  guide des tailles modifiable par produit ou par catégorie, et un test de l'assistant
-  IA sur cette démo.
+- **Démo dédiée « Atelier Naya »**, secteur `fashion` : 15 articles (robes, ensembles,
+  boubous et caftans, chemises homme, chaussures, accessoires), variantes taille ×
+  couleur avec stock, 4 guides des tailles, commandes réelles par les moteurs ; 5 photos
+  de démonstration et 10 illustrations originales (scripts/demo-visuals/mode.py).
+- **Guide des tailles modifiable** : tableau libre (2 à 6 colonnes, 1 à 30 lignes,
+  conseil), rattaché à une catégorie et remplaçable par produit ; affiché sur la fiche
+  produit (feuille en bas d'écran sur téléphone) seulement si un guide s'applique.
+  Vérifié : tests PostgreSQL (validation, résolution, isolation) et navigateur à 390 et
+  1440 px (édition, rattachement, affichage boutique).
+- **Reste** : le module « Lookbook » n'active rien de spécifique (la section existe pour
+  tout commerce) ; pas de filtre par taille dans le catalogue ; pas de génération de
+  photos portées (voir docs/18, section 5).
