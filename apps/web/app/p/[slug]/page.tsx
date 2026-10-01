@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { withTenant, getProductBySlugForTenant } from "@yamacommerce/database";
+import { withTenant, getProductBySlugForTenant, resolveProductSizeGuide } from "@yamacommerce/database";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { resolveStore } from "@/lib/storefront/store-context";
 import { loadProductCards } from "@/lib/storefront/catalog-view";
 import { StoreShell } from "@/components/store/store-shell";
 import { AddToCart } from "@/components/store/add-to-cart";
+import { SizeGuideButton } from "@/components/store/size-guide-button";
 import { ProductCard } from "@/components/store/product-card";
 import { IconPhone, IconTruck, IconWallet } from "@/components/yc/icons";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
@@ -30,6 +31,7 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
   const { store } = resolution;
   const product = await withTenant(store.tenantId, (tx) => getProductBySlugForTenant(tx, store.tenantId, params.slug, "PUBLISHED"));
   if (!product) notFound();
+  const sizeGuide = await withTenant(store.tenantId, (tx) => resolveProductSizeGuide(tx, store.tenantId, product.id));
   const suggestions = (await loadProductCards(store.tenantId, { categoryId: product.categoryId ?? undefined, excludeSlug: product.slug, limit: 12 })).slice(0, 4);
   const variants = product.variants.map((v) => ({ id: v.id, name: v.name, price: v.price, available: v.inventoryItems.reduce((s, i) => s + i.availableQuantity, 0) }));
   const images = product.images.length ? product.images : [];
@@ -59,7 +61,8 @@ export default async function ProductDetailPage({ params }: { params: { slug: st
             {product.compareAtPrice && product.compareAtPrice > product.basePrice && (
               <p className="mt-1 text-sm text-[var(--color-text-muted)]">Au lieu de <span className="line-through">{new Intl.NumberFormat("fr-SN").format(product.compareAtPrice)} FCFA</span></p>
             )}
-            <div className="mt-6"><AddToCart variants={variants} /></div>
+            {sizeGuide && <div className="mt-5"><SizeGuideButton guide={sizeGuide} /></div>}
+            <div className={sizeGuide ? "mt-3" : "mt-6"}><AddToCart variants={variants} /></div>
             {product.description && <p className="mt-8 leading-relaxed text-[var(--color-text-secondary)]">{product.description}</p>}
             <ul className="mt-8 grid gap-3 rounded-[var(--radius-lg)] bg-[var(--color-surface)] p-5 text-sm">
               <li className="flex items-center gap-3"><IconTruck size={18} className="shrink-0 text-[var(--color-primary)]" />{product.isDeliverable ? "Livraison au Sénégal — tarif calculé selon votre zone" : "Disponible uniquement en retrait en boutique"}</li>

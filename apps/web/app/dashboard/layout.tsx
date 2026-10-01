@@ -156,6 +156,8 @@ export default async function DashboardLayout({ children }: { children: ReactNod
       { href: "/dashboard/stocks", label: "Stocks", icon: "stock", permission: "products.view" },
       { href: "/dashboard/categories", label: "Catégories", icon: "categories", permission: "products.view" },
     );
+    // Mode et vêtements (module « Variantes avancées ») : tableaux de tailles par catégorie.
+    if (modules.has("variants_advanced")) manage.push({ href: "/dashboard/guides-tailles", label: "Guides des tailles", icon: "categories", permission: "products.view" });
   } else if (membership && realEstate) {
     pilot.push(
       { href: "/dashboard/biens", label: "Biens", icon: "property", permission: "listings.view" },

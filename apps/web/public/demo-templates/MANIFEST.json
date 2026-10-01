@@ -882,6 +882,76 @@
    "height": 1000,
    "bytes": 28546,
    "source": "Illustration originale générée par scripts/demo-visuals/livraison.py (plan de ville imaginaire rendu par procédé, sans carte réelle ni donnée géographique tierce ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/boubou-blanc.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 54156,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/boubou-indigo.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 62702,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/caftan-wax-soleil.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 120208,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/chemise-bogolan.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 85400,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/chemise-lin-mao.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 61670,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/foulard-wax.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 115154,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/mules-brodees.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 71520,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/robe-lin-terracotta.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 66410,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/robe-wax-baobab.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 101494,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
+  },
+  {
+   "file": "demo-templates/mode/sandales-ngor.webp",
+   "width": 900,
+   "height": 1125,
+   "bytes": 55472,
+   "source": "Illustration originale générée par scripts/demo-visuals/mode.py (vêtement à plat et motif textile rendus par procédé, sans photographie ni motif tiers ; droits entiers)"
   }
  ]
 }

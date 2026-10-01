@@ -185,6 +185,7 @@ model Tenant {
   siteVersions             TenantSiteVersion[]
   pages                    Page[]
   mediaAssets              MediaAsset[]
+  sizeGuides               SizeGuide[]
 
   @@index([status])
 }
@@ -1267,19 +1268,42 @@ model Shop {
 }
 
 model Category {
-  id       String     @id @default(uuid())
-  tenantId String
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  name     String
-  slug     String
-  parentId String?
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  imageUrl String?
+  id          String     @id @default(uuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  name        String
+  slug        String
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  imageUrl    String?
+  /// Guide des tailles appliqué aux produits de la catégorie (même entreprise : clé
+  /// étrangère composite écrite dans la migration 20261017000000_size_guides).
+  sizeGuideId String?
 
   products Product[]
 
   @@unique([tenantId, slug])
+}
+
+/// Guide des tailles modifiable par l'entreprise (colonnes et lignes libres : tailles,
+/// mesures en cm, pointures…). Rattaché à une catégorie, remplaçable par produit.
+model SizeGuide {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  /// En-têtes ; la première colonne nomme la taille (« Taille », « Pointure »…).
+  columns   String[]
+  /// Lignes de cellules texte, autant que de colonnes : [["S","86-90","70-74"], …].
+  rows      Json
+  /// Conseil affiché sous le tableau (« Entre deux tailles, prenez la plus grande »).
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, name])
 }
 
 enum ProductStatus {
@@ -1316,6 +1340,8 @@ model Product {
   /// Vrai = ajoute `DeliveryZone.bulkySurcharge` au montant de livraison si présent
   /// dans le panier au moment du checkout.
   isBulky           Boolean       @default(false)
+  /// Guide des tailles propre au produit ; sinon celui de sa catégorie.
+  sizeGuideId       String?
   createdBy         String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt

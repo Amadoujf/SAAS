@@ -11,7 +11,7 @@ const pw = process.env.DATABASE_URL.match(/yamacommerce_app:([^@]+)@/)[1];
 p.\$executeRawUnsafe('ALTER ROLE yamacommerce_app PASSWORD ' + \"'\" + pw.replace(/'/g, \"''\") + \"'\").then(() => p.\$disconnect());
 "
 pnpm exec tsx src/seed.ts
-for demo in commerce real-estate travel salon hotel restaurant auto education courier; do
+for demo in commerce fashion real-estate travel salon hotel restaurant auto education courier; do
   echo "Démonstration : $demo"
   pnpm exec tsx "src/seed-$demo-demo.ts"
 done
