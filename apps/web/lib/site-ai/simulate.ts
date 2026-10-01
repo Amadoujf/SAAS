@@ -215,6 +215,11 @@ export function simulateEdit(message: string, state: SiteState, selectedSectionI
     const target = state.blocks.find((b) => kind[2].includes(b.sectionKey));
     if (target && hero && target.id !== hero.id) (ops.push({ op: "move_section", sectionId: target.id, to: "after", relativeTo: hero.id }), replies.push("Section remontée juste après l'ouverture."));
   }
+  if (/minimalis|épur|epur|dépouill|depouill/.test(text) && !ops.some((o) => o.op === "set_spacing")) {
+    for (const b of state.blocks) ops.push({ op: "set_spacing", sectionId: b.id, density: "airy" });
+    ops.push({ op: "set_animation", level: "discreet", mobile: "unchanged" });
+    replies.push("Version plus minimaliste : plus d'espace entre les sections et des animations plus discrètes, la direction reste la même.");
+  }
   const cream = /crème|creme/.test(text);
   if (cream) {
     if (selected && ["immersive_hero", "scroll_story"].includes(selected.sectionKey)) ops.push({ op: "set_section_background", sectionId: selected.id, color: "#F4EDE1" });
@@ -232,7 +237,7 @@ export function simulateEdit(message: string, state: SiteState, selectedSectionI
   if (!ops.length) {
     return {
       reply:
-        "Mode simulé : je comprends les demandes courantes (ajouter une galerie, un récit, un manifeste ou une pièce signature ; changer la typographie, les formes, l'espacement ; remplacer un texte entre « guillemets » sur la section sélectionnée ; nouveautés en premier ; version plus luxueuse ; fond crème ; animations sur téléphone). Une vraie IA comprendra toutes les formulations une fois la clé du fournisseur configurée.",
+        "Mode simulé : je comprends les demandes courantes (ajouter une galerie, un récit, un manifeste ou une pièce signature ; changer la typographie, les formes, l'espacement ; remplacer un texte entre « guillemets » sur la section sélectionnée ; nouveautés en premier ; version plus luxueuse ou plus minimaliste ; fond crème ; animations sur téléphone). Une vraie IA comprendra toutes les formulations une fois la clé du fournisseur configurée.",
       operations: [],
     };
   }

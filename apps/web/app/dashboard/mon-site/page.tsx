@@ -70,7 +70,6 @@ export default async function MySitePage() {
     const canPublish = Boolean(await requireTenantPermission(tenantId, "site.publish"));
     return (
       <>
-        <PageHeader eyebrow="Gestion" title="Mon site" />
         <SiteStudio initial={studio} canPublish={canPublish} siteUrl={siteUrl} advanced={advanced} />
       </>
     );

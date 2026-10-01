@@ -222,6 +222,8 @@ export async function generateDirections(raw: unknown): Promise<StudioResult<{ j
             archetypeLabel: archetype.label,
             typography: d.typography,
             shape: d.shape,
+            // Vignette de l'onglet : la première photo réellement mise en scène.
+            cover: firstImage(compiled.blocks),
             // Plan en mots simples, d'après les sections RÉELLEMENT composées.
             outline: archetype.slots.flatMap((slot, k) => (compiled.blocks.some((b) => b.id === slot.id) ? [archetype.outline[k] ?? slot.id] : [])),
             compiled,
@@ -461,3 +463,15 @@ export async function publishStudioDraft(): Promise<StudioResult<{ versionNumber
 }
 
 export { draftSignature };
+
+/** Première image d'une composition (ouverture d'abord), pour la vignette d'une direction. */
+function firstImage(blocks: CompiledSite["blocks"]): string | null {
+  const find = (value: unknown, key = ""): string | null => {
+    if (typeof value === "string") return /url|image/i.test(key) && /^(\/|https:\/\/)\S+\.(webp|jpe?g|png|avif)(\?|$)/i.test(value) ? value : null;
+    if (Array.isArray(value)) for (const v of value) { const hit = find(v, key); if (hit) return hit; }
+    else if (value && typeof value === "object") for (const [k, v] of Object.entries(value)) { const hit = find(v, k); if (hit) return hit; }
+    return null;
+  };
+  for (const b of blocks) { const hit = find(b.params); if (hit) return hit; }
+  return null;
+}

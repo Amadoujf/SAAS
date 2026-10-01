@@ -68,6 +68,8 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
   const [fullscreen, setFullscreen] = useState(false);
   // Téléphone et tablette : l'assistant s'ouvre en panneau par-dessus l'aperçu.
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Direction affichée à l'étape des directions (onglet, plein écran, demande).
+  const [activeDirection, setActiveDirection] = useState(0);
   useEffect(() => {
     if (!menuOpen) return;
     const close = (e: MouseEvent | KeyboardEvent) => {
@@ -148,43 +150,77 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
     }
   };
 
+  const directionNames = ((studio.directions as unknown as { directions?: DirectionCard[] } | null)?.directions ?? []).map((x) => x.archetypeLabel ?? x.name);
+  const chooseDirection = (index: number) =>
+    run("write", async () => {
+      await post("choose", { jobId: studio.directions!.jobId, index });
+      await refresh();
+      setMode("studio");
+      setNotice("Votre brouillon est prêt. Ajustez-le en conversation, puis publiez quand vous le souhaitez.");
+    });
+
   const aiBlocked = !studio.ai.available ? studio.ai.reason : studio.ai.usage.limit !== null && studio.ai.usage.used >= studio.ai.usage.limit ? "Quota IA du mois atteint." : null;
 
   return (
     <div id="site-studio" className={`grid scroll-mt-20 gap-5 ${templateFontVariables}`}>
       {/* Barre de l'atelier — toujours visible : état, appareil, plein écran, publication. */}
-      <div className="z-20 -mx-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-yc-ink/[0.06] bg-[#F6F7FB]/90 px-4 py-2.5 backdrop-blur sm:-mx-6 sm:px-6 md:sticky md:top-16 lg:top-[68px] lg:-mx-8 lg:px-8">
-        <p className="hidden items-center gap-1.5 text-[14px] font-semibold text-yc-ink sm:inline-flex"><IconSparkles size={14} className="text-yc-electric" /> Atelier de création</p>
-        <span role="status" className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[13px] font-semibold ${state.tone === "live" ? "bg-yc-success/12 text-yc-success" : state.tone === "busy" ? "bg-yc-electric/10 text-yc-electric" : state.tone === "pending" ? "bg-yc-warning/[0.14] text-[rgb(146_84_0)]" : "bg-yc-ink/[0.06] text-yc-ink-soft"}`}>
-          {state.tone === "busy" ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />}
-          {state.text}
-        </span>
+      <div className="z-20 -mx-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-yc-ink/[0.07] bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 md:sticky md:top-16 lg:top-[68px] lg:-mx-8 lg:px-8">
+        <h1 className="text-[19px] font-semibold tracking-[-0.01em] text-yc-ink sm:text-[21px]">Atelier de création</h1>
         {mode === "studio" && previewJobId && (
           <span className="hidden items-center gap-2 md:flex">
             <Button size="sm" loading={busy === "write"} onClick={() => applyProposal(previewJobId)}>Appliquer</Button>
             <Button size="sm" variant="ghost" onClick={() => setPreviewJobId(null)}>Revenir au brouillon</Button>
           </span>
         )}
-        {mode === "studio" && (
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden sm:block"><DeviceToggle device={device} onChange={setDevice} /></span>
-            <button type="button" onClick={() => setFullscreen(true)} aria-label="Aperçu plein écran" title="Plein écran" className="grid h-10 w-10 place-items-center rounded-full bg-white text-yc-ink ring-1 ring-inset ring-yc-ink/10 hover:ring-yc-ink/25">
-              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+        {mode !== "onboarding" && (
+          <span className="hidden items-center gap-1 sm:flex lg:ml-6">
+            <DeviceToggle device={device} onChange={setDevice} />
+            <button type="button" onClick={() => setFullscreen(true)} aria-label="Aperçu plein écran" title="Plein écran" className="grid h-11 w-11 place-items-center rounded-xl text-yc-ink-soft hover:bg-[#F1F3F7] hover:text-yc-ink">
+              <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
             </button>
+          </span>
+        )}
+        {mode !== "onboarding" && (
+          <div className="ml-auto flex items-center gap-3">
+            <span role="status" className={`hidden items-center gap-2 text-[13px] md:inline-flex ${mode === "directions" ? "text-yc-ink-soft" : state.tone === "live" ? "text-yc-success" : state.tone === "pending" ? "text-[rgb(146_84_0)]" : "text-yc-ink-soft"}`}>
+              {state.tone === "busy" ? (
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" />
+              ) : (
+                <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="m8.5 12.2 2.4 2.3 4.6-4.8" /></svg>
+              )}
+              {mode === "directions" && state.tone !== "busy" ? "Trois directions prêtes" : state.text}
+            </span>
             {confirmPublish ? (
               <span className="flex items-center gap-2 rounded-full bg-white py-1 pl-3 pr-1 ring-1 ring-yc-ink/10">
-                <span className="text-[13px] text-yc-ink">Mettre en ligne ?</span>
-                <Button size="sm" loading={busy === "publish"} onClick={() => run("publish", async () => { const r = await post<{ versionNumber: number | null }>("publish"); setConfirmPublish(false); await refresh(); setNotice(`Site publié${r.versionNumber ? ` (version ${r.versionNumber})` : ""}. Il est en ligne.`); })}>Publier</Button>
+                <span className="text-[13px] text-yc-ink">{mode === "directions" ? `Mettre en ligne « ${directionNames[activeDirection] ?? "cette direction"} » ?` : "Mettre en ligne ?"}</span>
+                <Button
+                  size="sm"
+                  loading={busy === "publish"}
+                  onClick={() =>
+                    run("publish", async () => {
+                      // Depuis les directions : la direction affichée devient le brouillon, puis elle est publiée.
+                      if (mode === "directions" && studio.directions) await post("choose", { jobId: studio.directions.jobId, index: activeDirection });
+                      const r = await post<{ versionNumber: number | null }>("publish");
+                      setConfirmPublish(false);
+                      await refresh();
+                      if (mode === "directions") setModeState("studio");
+                      setNotice(`Site publié${r.versionNumber ? ` (version ${r.versionNumber})` : ""}. Il est en ligne.`);
+                    })
+                  }
+                >
+                  Publier
+                </Button>
                 <Button size="sm" variant="ghost" onClick={() => setConfirmPublish(false)}>Pas encore</Button>
               </span>
             ) : (
               <div data-publish-menu className="relative flex">
                 {canPublish && (
-                  <button type="button" disabled={!publishable || busy !== null} onClick={() => setConfirmPublish(true)} title={publishable ? undefined : "Rien de nouveau à publier"} className="min-h-10 rounded-l-full bg-yc-night-950 pl-5 pr-4 text-[14px] font-semibold text-white hover:bg-yc-night-900 disabled:bg-yc-night-950/40">
+                  <button type="button" disabled={(mode === "studio" && !publishable) || busy !== null} onClick={() => setConfirmPublish(true)} title={mode === "directions" ? "Publier la direction affichée" : publishable ? undefined : "Rien de nouveau à publier"} className="inline-flex min-h-11 items-center gap-2 rounded-l-xl bg-yc-night-950 pl-4 pr-4 text-[15px] font-semibold text-white hover:bg-yc-night-900 disabled:bg-yc-night-950/45 sm:pl-5">
+                    <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 20h14" /></svg>
                     Publier
                   </button>
                 )}
-                <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Plus d'actions" onClick={() => setMenuOpen((o) => !o)} className={`grid min-h-10 w-10 place-items-center text-white ${canPublish ? "rounded-r-full border-l border-white/15" : "rounded-full"} bg-yc-night-950 hover:bg-yc-night-900`}>
+                <button type="button" aria-haspopup="menu" aria-expanded={menuOpen} aria-label="Plus d'actions" onClick={() => setMenuOpen((o) => !o)} className={`grid min-h-11 w-11 place-items-center text-white ${canPublish ? "rounded-r-xl border-l border-white/15" : "rounded-xl"} bg-yc-night-950 hover:bg-yc-night-900`}>
                   <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                 </button>
                 {menuOpen && (
@@ -193,7 +229,8 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
                     {studio.canUndo && !previewJobId && (
                       <button role="menuitem" type="button" disabled={busy !== null} onClick={() => { setMenuOpen(false); run("write", async () => { const r = await post<{ label: string }>("undo"); await refresh(); setNotice(`Annulé : ${r.label}`); }); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB] disabled:opacity-50">Annuler la dernière modification</button>
                     )}
-                    <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setPicker({ kind: "logo" }); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">{studio.draft.snapshot.settings.identity.logoUrl ? "Changer le logo" : "Ajouter un logo"}</button>
+                    <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setFullscreen(true); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">Aperçu plein écran</button>
+                    {mode === "studio" && <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setPicker({ kind: "logo" }); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">{studio.draft.snapshot.settings.identity.logoUrl ? "Changer le logo" : "Ajouter un logo"}</button>}
                     <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setMode("onboarding"); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">Recréer avec l&apos;IA</button>
                     <a role="menuitem" href="#reglages-avances" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 hover:bg-[#F6F7FB]">Réglages avancés</a>
                   </div>
@@ -233,21 +270,32 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           simulated={Boolean((studio.directions as { simulated?: boolean }).simulated)}
           unavailableReason={aiBlocked}
           busy={busy !== null}
-          onBack={() => setMode("onboarding")}
-          onRegenerate={() => studio.brief && generateDirections(studio.brief)}
-          onChoose={(index) =>
-            run("write", async () => {
+          device={device}
+          active={activeDirection}
+          onActive={setActiveDirection}
+          request={studio.brief?.activity ?? null}
+          initial={(studio.tenantName.trim()[0] ?? "Y").toUpperCase()}
+          onAsk={(index, message) =>
+            // La demande porte sur la direction affichée : elle devient le brouillon,
+            // puis la modification est proposée (à appliquer ou ignorer).
+            run("generate", async () => {
               await post("choose", { jobId: studio.directions!.jobId, index });
               await refresh();
-              setMode("studio");
-              setNotice("Votre brouillon est prêt. Ajustez-le en conversation, puis publiez quand vous le souhaitez.");
+              setModeState("studio");
+              const { jobId } = await post<{ jobId: string }>("propose", { message });
+              const data = await refresh();
+              const item = data?.conversation.find((c) => c.jobId === jobId) as ConversationItem | undefined;
+              showProposal(item?.changes?.length ? jobId : null);
             })
           }
+          onBack={() => setMode("onboarding")}
+          onRegenerate={() => studio.brief && generateDirections(studio.brief)}
+          onChoose={chooseDirection}
         />
       )}
 
       {mode === "studio" && (
-        <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_400px]">
           <div id="studio-apercu" className="grid min-w-0 scroll-mt-24 content-start gap-3">
             <StudioPreview
               src={previewJobId ? `/editeur/site?job=${previewJobId}` : `/editeur/site?v=${studio.draft.signature}`}
@@ -274,6 +322,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
             <div className="min-h-0 flex-1 max-xl:[&>section]:rounded-none max-xl:[&>section]:shadow-none max-xl:[&>section]:ring-0">
             <StudioAssistant
               mode={studio.catalog.mode}
+              initial={(studio.tenantName.trim()[0] ?? "Y").toUpperCase()}
               items={studio.conversation as ConversationItem[]}
               available={studio.ai.available}
               simulated={studio.ai.simulated}
@@ -313,7 +362,23 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           <IconSparkles size={15} /> Directeur artistique
         </button>
       )}
-      {fullscreen && (
+      {fullscreen && mode === "directions" && studio.directions && (
+        <PreviewOverlay
+          src={`/editeur/site?job=${studio.directions.jobId}&d=${activeDirection}`}
+          label="Direction"
+          initialDevice={device}
+          tabs={(studio.directions as unknown as { directions: DirectionCard[] }).directions.map((x) => x.archetypeLabel ?? x.name)}
+          activeTab={activeDirection}
+          onTab={setActiveDirection}
+          onClose={() => setFullscreen(false)}
+          actions={
+            <button type="button" disabled={busy !== null} onClick={() => { setFullscreen(false); chooseDirection(activeDirection); }} className="min-h-10 rounded-full bg-white px-4 text-[13px] font-semibold text-[#101114] disabled:opacity-50">
+              Choisir cette direction
+            </button>
+          }
+        />
+      )}
+      {fullscreen && mode === "studio" && (
         <PreviewOverlay
           src={previewJobId ? `/editeur/site?job=${previewJobId}` : `/editeur/site?v=${studio.draft.signature}`}
           label={previewJobId ? "Proposition — non appliquée" : "Brouillon"}

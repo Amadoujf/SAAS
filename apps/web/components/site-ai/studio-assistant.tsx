@@ -4,6 +4,7 @@ import { vocabularyOf, type StudioMode } from "@/lib/site-ai/vocabulary";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/yc/button";
 import { IconCheck, IconSparkles, IconX } from "@/components/yc/icons";
+import { SlidersIcon } from "./studio-directions";
 
 export interface ConversationItem {
   jobId: string;
@@ -49,7 +50,10 @@ export function StudioAssistant({
   onClearSelection,
   onReplaceImage,
   mode = "commerce",
+  initial = "Y",
 }: {
+  /** Initiale affichée à côté des messages de l'entreprise. */
+  initial?: string;
   mode?: StudioMode;
   items: ConversationItem[];
   available: boolean;
@@ -82,11 +86,11 @@ export function StudioAssistant({
   };
 
   return (
-    <section aria-labelledby="assistant" className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl bg-white shadow-yc ring-1 ring-yc-ink/[0.06]">
-      <header className="flex items-center justify-between gap-3 border-b border-yc-ink/[0.06] px-5 py-4">
+    <section aria-labelledby="assistant" className="flex h-full min-h-[420px] flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-yc-ink/[0.07]">
+      <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-5">
         <div>
-          <h2 id="assistant" className="flex items-center gap-2.5 text-[15px] font-semibold text-yc-ink"><span className="grid h-8 w-8 place-items-center rounded-full bg-yc-night-950 text-white" aria-hidden="true"><IconSparkles size={14} /></span> Votre directeur artistique</h2>
-          <p className="text-[12px] text-yc-ink-soft">{usage.limit === null ? `${usage.used} demande${usage.used > 1 ? "s" : ""} ce mois` : `${usage.used} / ${usage.limit} demandes ce mois`}</p>
+          <h2 id="assistant" className="flex items-center gap-2.5 text-[16px] font-semibold text-yc-ink"><IconSparkles size={20} className="text-yc-electric" /> Votre directeur artistique</h2>
+          <p className="mt-0.5 pl-[30px] text-[12px] text-yc-ink-soft">{usage.limit === null ? `${usage.used} demande${usage.used > 1 ? "s" : ""} ce mois` : `${usage.used} / ${usage.limit} demandes ce mois`}</p>
         </div>
         {simulated && <span className="rounded-full bg-yc-warning/[0.14] px-2.5 py-1 text-[11px] font-semibold text-[rgb(146_84_0)]" title="Le fournisseur IA n'est pas configuré : réponses produites par des règles locales de développement.">Simulation</span>}
       </header>
@@ -129,14 +133,19 @@ export function StudioAssistant({
           const previewing = previewJobId === item.jobId;
           return (
             <li key={item.jobId} className="grid gap-2">
-              <p className="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-yc-night-900 px-3.5 py-2 text-[14px] text-white">{item.request}</p>
+              <div className="flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#5C6B8A] text-[13px] font-semibold text-white" aria-hidden="true">{initial}</span>
+                <p className="rounded-2xl rounded-tl-md bg-[#EEF2FA] px-4 py-2.5 text-[14px] leading-relaxed text-yc-ink">{item.request}</p>
+              </div>
               {item.status === "failed" ? (
                 <p className="max-w-[92%] rounded-2xl rounded-bl-md bg-yc-danger/[0.08] px-3.5 py-2 text-[13px] text-yc-danger">{item.error ?? "La demande a échoué."} Votre site n&apos;a pas été modifié.</p>
               ) : item.status !== "completed" ? (
                 <p className="text-[13px] text-yc-ink-soft">En cours…</p>
               ) : (
-                <div className="max-w-[92%] rounded-2xl rounded-bl-md bg-[#F3F4F8] px-3.5 py-3 text-[14px] text-yc-ink">
-                  <p className="leading-relaxed">{item.reply}</p>
+                <div className="flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#EAF0FF] text-yc-electric" aria-hidden="true"><IconSparkles size={15} /></span>
+                <div className="min-w-0 flex-1 pt-1 text-[14px] text-yc-ink">
+                  <p className="text-[15px] leading-relaxed">{item.reply}</p>
                   {item.simulated && <p className="mt-1.5 text-[11px] font-semibold text-[rgb(146_84_0)]">Réponse simulée (règles locales), pas une génération IA</p>}
                   {hasChanges && (
                     <ul className="mt-2.5 grid gap-1 text-[13px]">
@@ -167,6 +176,7 @@ export function StudioAssistant({
                     </div>
                   )}
                 </div>
+                </div>
               )}
             </li>
           );
@@ -182,12 +192,12 @@ export function StudioAssistant({
         {!available && <p className="mb-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">{unavailableReason ?? "Assistant indisponible."}</p>}
         {quotaReached && <p className="mb-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">Quota IA du mois atteint. Vous pouvez toujours modifier le site à la main (réglages avancés, éditeur).</p>}
         <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          <button type="button" disabled={disabled} onClick={onImprove} className="shrink-0 whitespace-nowrap rounded-full bg-yc-electric/10 px-3 py-2 text-[13px] font-semibold text-yc-electric hover:bg-yc-electric/15 disabled:opacity-40">Améliorer mon site avec l&apos;IA</button>
+          <button type="button" disabled={disabled} onClick={onImprove} className="shrink-0 whitespace-nowrap rounded-lg bg-yc-electric/10 px-3 py-2 text-[13px] font-semibold text-yc-electric hover:bg-yc-electric/15 disabled:opacity-40">Améliorer mon site avec l&apos;IA</button>
           {(selected ? SELECTED_SUGGESTIONS : vocabularyOf(mode).suggestions).map((s) => (
-            <button key={s} type="button" disabled={disabled} onClick={() => send(s)} className="shrink-0 whitespace-nowrap rounded-full bg-white px-3 py-2 text-[13px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">{s}</button>
+            <button key={s} type="button" disabled={disabled} onClick={() => send(s)} className="shrink-0 whitespace-nowrap rounded-lg bg-white px-3 py-2 text-[13px] text-yc-ink ring-1 ring-inset ring-yc-ink/15 hover:ring-yc-ink/35 disabled:opacity-40">{s}</button>
           ))}
         </div>
-        <form className="flex items-end gap-2" onSubmit={(e) => { e.preventDefault(); send(message); }}>
+        <form className="relative" onSubmit={(e) => { e.preventDefault(); send(message); }}>
           <label className="sr-only" htmlFor="assistant-message">Votre demande</label>
           <textarea
             id="assistant-message"
@@ -197,11 +207,16 @@ export function StudioAssistant({
             disabled={disabled}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(message); } }}
-            placeholder={selected ? "Que changer dans cette section ?" : "Ex. : mets la vitrine juste après l'ouverture"}
-            className="min-h-11 flex-1 resize-none rounded-xl bg-[#F6F7FB] px-3.5 py-2.5 text-[15px] text-yc-ink placeholder:text-yc-ink-soft/70 focus:bg-white focus:outline-none focus:ring-2 focus:ring-yc-electric disabled:opacity-60"
+            placeholder={selected ? "Que changer dans cette section ?" : "Décrivez votre modification…"}
+            className="block min-h-14 w-full resize-none rounded-2xl bg-white py-3.5 pl-4 pr-14 text-[15px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 placeholder:text-yc-ink-soft/80 focus:outline-none focus:ring-2 focus:ring-yc-electric disabled:opacity-60"
           />
-          <Button type="submit" disabled={disabled || !message.trim()} aria-label="Envoyer">Envoyer</Button>
+          <button type="submit" disabled={disabled || !message.trim()} aria-label="Envoyer" className="absolute bottom-2 right-2 grid h-10 w-10 place-items-center rounded-full bg-yc-electric text-white transition hover:bg-[#1F3FD1] disabled:bg-yc-electric/40">
+            <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" /></svg>
+          </button>
         </form>
+        <a href="#reglages-avances" className="mt-3 inline-flex items-center gap-2 px-1 text-[13px] text-yc-ink-soft hover:text-yc-ink">
+          <SlidersIcon /> Réglages avancés
+        </a>
       </div>
     </section>
   );

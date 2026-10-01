@@ -1,12 +1,11 @@
 "use client";
 
 import { vocabularyOf, type StudioMode } from "@/lib/site-ai/vocabulary";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { IconArrowRight, IconSparkles } from "@/components/yc/icons";
 import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
-import { FONT_PAIRS, SHAPES, isFontPair, isShape } from "@/lib/storefront/brand-kit";
-import { DeviceToggle, PreviewOverlay, StudioPreview, type Device } from "./studio-preview";
+import { StudioPreview, type Device } from "./studio-preview";
 
 export interface DirectionCard {
   name: string;
@@ -16,16 +15,26 @@ export interface DirectionCard {
   typography?: string;
   shape?: string;
   outline?: string[];
+  cover?: string | null;
   compiled: { notes: string[] };
 }
 
+/** Première proposition du pitch (« Contemporain et affirmé : … » → « Contemporain et affirmé. »). */
+export function shortPitch(pitch: string): string {
+  const head = pitch.split(/\s?[:—–]\s|\.\s/)[0]!.trim().replace(/[.,;]$/, "");
+  return head.length > 64 ? `${head.slice(0, 61).trimEnd()}…` : `${head}.`;
+}
+
+const pad = (i: number) => String(i + 1).padStart(2, "0");
+
 /**
  * Atelier de création — étape des directions. Chaque direction est un site complet
- * (structure, typographie, formes, palette) rendu par le moteur du site avec les vrais
- * contenus de l'entreprise. Un onglet par direction, un GRAND aperçu (ordinateur ou
- * téléphone, plein écran), et à côté le « directeur artistique » qui présente la
- * direction affichée et les autres. Choisir crée le brouillon — rien n'est en ligne
- * avant la publication.
+ * rendu avec les vrais contenus de l'entreprise. Onglets illustrés, grand aperçu
+ * (l'appareil se choisit dans la barre de l'atelier), et la colonne du « directeur
+ * artistique » : la demande de l'entreprise, la direction affichée, les autres
+ * directions, et un champ pour demander un ajustement. Écrire une demande choisit la
+ * direction affichée puis prépare la modification — rien n'est en ligne avant la
+ * publication.
  */
 export function StudioDirections({
   jobId,
@@ -34,7 +43,13 @@ export function StudioDirections({
   simulated,
   unavailableReason,
   busy,
+  device,
+  active,
+  onActive,
+  request,
+  initial,
   onChoose,
+  onAsk,
   onRegenerate,
   onBack,
   mode = "commerce",
@@ -46,125 +61,145 @@ export function StudioDirections({
   simulated: boolean;
   unavailableReason: string | null;
   busy: boolean;
+  device: Device;
+  active: number;
+  onActive: (i: number) => void;
+  /** Ce que l'entreprise a décrit (bulle de départ de la conversation). */
+  request: string | null;
+  initial: string;
   onChoose: (index: number) => void;
+  onAsk: (index: number, message: string) => void;
   onRegenerate: () => void;
   onBack: () => void;
 }) {
   const reduced = usePrefersReducedMotion();
-  const [active, setActive] = useState(0);
-  const [device, setDevice] = useState<Device>("desktop");
-  const [fullscreen, setFullscreen] = useState(false);
+  const [message, setMessage] = useState("");
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (window.matchMedia?.("(max-width: 767px)").matches) setDevice("phone");
-  }, []);
+    if (!menu) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !menuRef.current?.contains(e.target as Node)) setMenu(false);
+    };
+    window.addEventListener("mousedown", close);
+    window.addEventListener("keydown", close);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", close);
+    };
+  }, [menu]);
   const d = directions[active] ?? directions[0]!;
-  const src = (i: number) => `/editeur/site?job=${jobId}&d=${i}`;
   const names = directions.map((x) => x.archetypeLabel ?? x.name);
+  const blocked = busy || Boolean(unavailableReason);
+  const ask = (text: string) => {
+    const value = text.trim();
+    if (!value || blocked) return;
+    onAsk(active, value);
+    setMessage("");
+  };
 
   return (
-    <section aria-labelledby="directions" className="grid gap-4">
-      {/* En-tête compact : le site passe avant le texte. */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="min-w-0">
-          <p className="inline-flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.16em] text-yc-electric"><IconSparkles size={13} /> Atelier de création</p>
-          <h2 id="directions" className="mt-1 font-display text-[clamp(1.35rem,2.2vw,1.75rem)] font-semibold leading-tight tracking-[-0.02em] text-yc-ink">Trois directions, composées avec vos {vocabularyOf(mode).items}</h2>
+    <section aria-labelledby="directions" className="grid grid-cols-1 gap-6 pb-20 md:pb-0 xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid min-w-0 content-start gap-5">
+        <header>
+          <h2 id="directions" className="font-[family-name:var(--font-tpl-serif)] text-[clamp(2rem,3.6vw,3rem)] font-medium leading-[1.02] tracking-[-0.035em] text-yc-ink">
+            Votre marque. Votre univers.
+          </h2>
+          <p className="mt-2 text-[16px] text-yc-ink-soft">Trois directions, une identité qui vous appartient — composées avec vos {vocabularyOf(mode).items}.</p>
+          {simulated && <p className="mt-3 w-fit rounded-full bg-yc-warning/[0.14] px-3 py-1 text-[12px] font-semibold text-[rgb(146_84_0)]">Simulation locale — directions produites par des règles de développement, pas par l&apos;IA</p>}
+          {unavailableReason && <p className="mt-3 rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">{unavailableReason} Vous pouvez choisir une direction déjà proposée ou modifier le site à la main.</p>}
+        </header>
+
+        {/* Onglets illustrés : numéro, nom et la photo qui ouvre la direction. */}
+        <div role="tablist" aria-label="Directions proposées" className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:px-0">
+          {directions.map((x, i) => {
+            const selected = i === active;
+            return (
+              <button
+                key={i}
+                type="button"
+                role="tab"
+                id={`direction-tab-${i}`}
+                aria-selected={selected}
+                aria-controls="direction-panel"
+                onClick={() => onActive(i)}
+                className={`group relative flex h-[64px] min-w-[270px] items-center overflow-hidden text-left transition sm:min-w-0 ${selected ? "bg-[#EAF0FF] shadow-[inset_0_-2px_0_#2749E8]" : "bg-[#F2F2EF] hover:bg-[#ECECE8]"}`}
+              >
+                <span className="relative z-10 flex items-baseline gap-3 pl-4 pr-2">
+                  <span className={`font-[family-name:var(--font-tpl-serif)] text-[20px] ${selected ? "text-yc-ink" : "text-yc-ink-soft"}`}>{pad(i)}</span>
+                  <span className="text-[15px] font-medium text-yc-ink">{names[i]}</span>
+                </span>
+                {x.cover && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={x.cover} alt="" aria-hidden="true" className="ml-auto h-full w-[42%] object-cover transition-transform duration-500 group-hover:scale-105" />
+                )}
+              </button>
+            );
+          })}
         </div>
-        <div className="flex items-center gap-2">
-          <DeviceToggle device={device} onChange={setDevice} />
-          <button type="button" onClick={() => setFullscreen(true)} aria-label="Plein écran" className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-3.5 text-[13px] font-semibold text-yc-ink ring-1 ring-inset ring-yc-ink/10 hover:ring-yc-ink/25 sm:px-4">
-            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
-            <span className="hidden sm:inline">Plein écran</span>
-          </button>
+
+        <div id="direction-panel" role="tabpanel" aria-labelledby={`direction-tab-${active}`}>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={`${active}-${device}`} initial={reduced ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -6 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
+              <StudioPreview src={`/editeur/site?job=${jobId}&d=${active}`} device={device} label={`${pad(active)} — ${names[active]}`} />
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
-      {simulated && <p className="w-fit rounded-full bg-yc-warning/[0.14] px-3 py-1 text-[12px] font-semibold text-[rgb(146_84_0)]">Simulation locale — directions produites par des règles de développement, pas par l&apos;IA</p>}
-      {unavailableReason && <p className="rounded-xl bg-yc-warning/[0.12] px-3 py-2 text-[13px] text-yc-ink">{unavailableReason} Vous pouvez choisir une direction déjà proposée ou modifier le site à la main.</p>}
 
-      <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="grid min-w-0 content-start gap-3">
-          {/* Onglets : numéro, nom, échantillon typographique et palette. */}
-          <div role="tablist" aria-label="Directions proposées" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:px-0">
-            {directions.map((x, i) => {
-              const pair = isFontPair(x.typography) ? FONT_PAIRS[x.typography] : null;
-              const selected = i === active;
-              return (
-                <button
-                  key={i}
-                  type="button"
-                  role="tab"
-                  id={`direction-tab-${i}`}
-                  aria-selected={selected}
-                  aria-controls="direction-panel"
-                  onClick={() => setActive(i)}
-                  className={`group flex min-w-[230px] items-center gap-3 rounded-2xl p-2.5 pr-4 text-left transition sm:min-w-0 ${selected ? "bg-yc-night-950 text-white shadow-yc-float" : "bg-white text-yc-ink ring-1 ring-inset ring-yc-ink/[0.08] hover:ring-yc-ink/25"}`}
-                >
-                  <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[22px] leading-none ring-1 ring-inset ring-black/5" style={{ background: x.palette.background, color: x.palette.primary, fontFamily: pair?.headingFont }} aria-hidden="true">
-                    Aa
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className={`block font-mono text-[11px] ${selected ? "text-white/55" : "text-yc-ink-soft"}`}>{String(i + 1).padStart(2, "0")}</span>
-                    <span className="block truncate text-[15px] font-semibold leading-tight">{names[i]}</span>
-                  </span>
-                  <span className="flex -space-x-1" aria-hidden="true">
-                    {[x.palette.primary, x.palette.accent].map((c) => <span key={c} className={`h-4 w-4 rounded-full ring-2 ${selected ? "ring-yc-night-950" : "ring-white"}`} style={{ background: c }} />)}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div id="direction-panel" role="tabpanel" aria-labelledby={`direction-tab-${active}`} className="relative">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div key={`${active}-${device}`} initial={reduced ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? undefined : { opacity: 0, y: -8 }} transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}>
-                <StudioPreview src={src(active)} device={device} label={`${String(active + 1).padStart(2, "0")} — ${names[active]}`} />
-              </motion.div>
-            </AnimatePresence>
+      {/* Le directeur artistique. */}
+      <aside aria-label="Votre directeur artistique" className="flex flex-col rounded-2xl bg-white ring-1 ring-yc-ink/[0.07] xl:sticky xl:top-[136px] xl:h-[calc(100vh-152px)]">
+        <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
+          <IconSparkles size={20} className="text-yc-electric" />
+          <p className="flex-1 text-[16px] font-semibold text-yc-ink">Votre directeur artistique</p>
+          <div ref={menuRef} className="relative">
+            <button type="button" aria-label="Plus d'options" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((o) => !o)} className="grid h-9 w-9 place-items-center rounded-full text-yc-ink-soft hover:bg-yc-ink/5 hover:text-yc-ink">
+              <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+            </button>
+            {menu && (
+              <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-30 grid w-60 gap-0.5 rounded-2xl bg-white p-1.5 text-[14px] text-yc-ink shadow-yc-float ring-1 ring-yc-ink/[0.08]">
+                <button role="menuitem" type="button" disabled={blocked} onClick={() => { setMenu(false); onRegenerate(); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB] disabled:opacity-50">Trois autres propositions</button>
+                <button role="menuitem" type="button" disabled={Boolean(unavailableReason)} onClick={() => { setMenu(false); onBack(); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB] disabled:opacity-50">Modifier mes réponses</button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Le directeur artistique présente la direction affichée. */}
-        <aside aria-label="Votre directeur artistique" className="grid content-start gap-4 xl:sticky xl:top-[136px]">
-          <div className="overflow-hidden rounded-2xl bg-white shadow-yc ring-1 ring-yc-ink/[0.06]">
-            <div className="flex items-center gap-3 border-b border-yc-ink/[0.06] px-5 py-4">
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-yc-night-950 text-white" aria-hidden="true"><IconSparkles size={15} /></span>
-              <div>
-                <p className="text-[15px] font-semibold text-yc-ink">Votre directeur artistique</p>
-                <p className="text-[12px] text-yc-ink-soft">{simulated ? "Simulation locale" : "Propositions composées pour vous"}</p>
-              </div>
-            </div>
-            <div className="grid gap-4 p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
+          <ol className="grid gap-4">
+            {request && (
+              <li className="flex items-start gap-3">
+                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#5C6B8A] text-[13px] font-semibold text-white" aria-hidden="true">{initial}</span>
+                <p className="rounded-2xl rounded-tl-md bg-[#EEF2FA] px-4 py-3 text-[14px] leading-relaxed text-yc-ink">{request}</p>
+              </li>
+            )}
+            <li className="flex items-start gap-3">
+              <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#EAF0FF] text-yc-electric" aria-hidden="true"><IconSparkles size={15} /></span>
               <AnimatePresence mode="wait" initial={false}>
-                <motion.div key={active} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduced ? undefined : { opacity: 0 }} transition={{ duration: 0.25 }} className="grid gap-4">
-                  <div className="rounded-2xl rounded-tl-md bg-[#F3F4F8] px-4 py-3 text-[14px] leading-relaxed text-yc-ink">
-                    <p className="mb-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-yc-ink-soft">{String(active + 1).padStart(2, "0")} · {names[active]}</p>
-                    {d.pitch}
+                <motion.div key={active} initial={reduced ? false : { opacity: 0 }} animate={{ opacity: 1 }} exit={reduced ? undefined : { opacity: 0 }} transition={{ duration: 0.2 }} className="min-w-0 flex-1">
+                  <p className="pt-1 text-[15px] leading-relaxed text-yc-ink">{d.pitch}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" disabled={blocked} onClick={() => ask("Version plus minimaliste.")} className="min-h-10 rounded-lg bg-white px-3.5 text-[13px] font-medium text-yc-ink ring-1 ring-inset ring-yc-ink/15 hover:ring-yc-ink/35 disabled:opacity-40">Plus minimaliste</button>
+                    <button type="button" onClick={() => onActive((active + 1) % directions.length)} className="min-h-10 rounded-lg bg-white px-3.5 text-[13px] font-medium text-yc-ink ring-1 ring-inset ring-yc-ink/15 hover:ring-yc-ink/35">Changer l&apos;ambiance</button>
                   </div>
-                  <DirectionTraits d={d} />
+                  <button type="button" disabled={busy} onClick={() => onChoose(active)} className="mt-2 inline-flex min-h-10 items-center gap-1.5 text-[13px] font-semibold text-yc-electric hover:underline disabled:opacity-50">
+                    Choisir « {names[active]} » et l&apos;ajuster <IconArrowRight size={14} />
+                  </button>
                 </motion.div>
               </AnimatePresence>
-              <button type="button" onClick={() => onChoose(active)} disabled={busy} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-yc-night-950 px-5 text-[15px] font-semibold text-white transition hover:bg-yc-night-900 disabled:opacity-50">
-                Choisir « {names[active]} » <IconArrowRight size={16} />
-              </button>
-              <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={onRegenerate} disabled={busy || Boolean(unavailableReason)} className="min-h-10 rounded-full bg-white px-3.5 text-[13px] font-medium text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">Trois autres propositions</button>
-                <button type="button" onClick={onBack} disabled={Boolean(unavailableReason)} className="min-h-10 rounded-full bg-white px-3.5 text-[13px] font-medium text-yc-ink ring-1 ring-inset ring-yc-ink/12 hover:ring-yc-ink/30 disabled:opacity-40">Modifier mes réponses</button>
-              </div>
-            </div>
-          </div>
+            </li>
+          </ol>
 
-          <div className="rounded-2xl bg-white p-4 shadow-yc ring-1 ring-yc-ink/[0.06]">
-            <p className="px-1 text-[12px] font-semibold uppercase tracking-[0.12em] text-yc-ink-soft">Autres directions proposées</p>
-            <ul className="mt-2 grid gap-1">
+          <div className="mt-6 border-t border-yc-ink/[0.07] pt-5">
+            <p className="text-[14px] text-yc-ink-soft">Autres directions proposées</p>
+            <ul className="mt-3 grid grid-cols-2 gap-3">
               {directions.map((x, i) =>
                 i === active ? null : (
                   <li key={i}>
-                    <button type="button" onClick={() => setActive(i)} className="flex w-full items-center gap-3 rounded-xl p-2 text-left hover:bg-[#F6F7FB]">
-                      <span className="h-10 w-10 shrink-0 rounded-lg ring-1 ring-inset ring-black/5" style={{ background: `linear-gradient(135deg, ${x.palette.background} 0 50%, ${x.palette.primary} 50% 100%)` }} aria-hidden="true" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[14px] font-semibold text-yc-ink">{String(i + 1).padStart(2, "0")} · {names[i]}</span>
-                        <span className="line-clamp-1 block text-[12px] text-yc-ink-soft">{x.pitch}</span>
-                      </span>
-                      <IconArrowRight size={14} className="shrink-0 text-yc-ink-soft" />
+                    <button type="button" onClick={() => onActive(i)} className="group block w-full rounded-xl bg-white p-1.5 text-left ring-1 ring-yc-ink/[0.08] transition hover:-translate-y-0.5 hover:shadow-yc-float" aria-label={`Afficher la direction ${pad(i)} ${names[i]}`}>
+                      <StudioPreview src={`/editeur/site?job=${jobId}&d=${i}`} device="phone" label={names[i]!} compact="portrait" />
+                      <span className="mt-2 block px-1 text-[14px] font-medium text-yc-ink">{pad(i)} {names[i]}</span>
+                      <span className="block px-1 pb-1 text-[12px] leading-snug text-yc-ink-soft">{shortPitch(x.pitch)}</span>
                     </button>
                   </li>
                 ),
@@ -173,71 +208,50 @@ export function StudioDirections({
           </div>
 
           {(advice.length > 0 || d.compiled.notes.length > 0) && (
-            <details className="rounded-2xl bg-white px-5 py-4 text-[13px] text-yc-ink-soft shadow-yc ring-1 ring-yc-ink/[0.06]">
-              <summary className="cursor-pointer font-semibold text-yc-ink">Conseils et ajustements ({advice.length + d.compiled.notes.length})</summary>
+            <details className="mt-5 text-[13px] text-yc-ink-soft">
+              <summary className="cursor-pointer font-medium text-yc-ink">Conseils et ajustements ({advice.length + d.compiled.notes.length})</summary>
               <ul className="mt-2 grid gap-1 pl-4">{[...advice, ...d.compiled.notes].map((n) => <li key={n} className="list-disc">{n}</li>)}</ul>
             </details>
           )}
-        </aside>
-      </div>
+        </div>
+
+        <div className="border-t border-yc-ink/[0.07] p-4">
+          <form className="relative" onSubmit={(e) => { e.preventDefault(); ask(message); }}>
+            <label htmlFor="direction-message" className="sr-only">Décrivez votre modification</label>
+            <input
+              id="direction-message"
+              value={message}
+              maxLength={500}
+              disabled={blocked}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Décrivez votre modification…"
+              className="h-14 w-full rounded-2xl bg-white pl-4 pr-14 text-[15px] text-yc-ink ring-1 ring-inset ring-yc-ink/12 placeholder:text-yc-ink-soft/80 focus:outline-none focus:ring-2 focus:ring-yc-electric disabled:opacity-60"
+            />
+            <button type="submit" disabled={blocked || !message.trim()} aria-label="Envoyer" className="absolute right-2 top-2 grid h-10 w-10 place-items-center rounded-full bg-yc-electric text-white transition hover:bg-[#1F3FD1] disabled:bg-yc-electric/40">
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" /></svg>
+            </button>
+          </form>
+          <p className="mt-2 px-1 text-[12px] text-yc-ink-soft">Votre demande s&apos;applique à la direction affichée ({names[active]}).</p>
+          <a href="#reglages-avances" className="mt-3 inline-flex items-center gap-2 px-1 text-[13px] text-yc-ink-soft hover:text-yc-ink">
+            <SlidersIcon /> Réglages avancés
+          </a>
+        </div>
+      </aside>
 
       {/* Téléphone : le choix reste à portée de pouce. */}
       <div className="fixed inset-x-3 bottom-[76px] z-40 flex items-center gap-2 rounded-2xl bg-yc-night-950 p-2 pl-4 text-white shadow-yc-float md:hidden">
-        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{String(active + 1).padStart(2, "0")} · {names[active]}</span>
+        <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{pad(active)} · {names[active]}</span>
         <button type="button" disabled={busy} onClick={() => onChoose(active)} className="min-h-10 rounded-xl bg-white px-4 text-[13px] font-semibold text-yc-night-950 disabled:opacity-50">Choisir</button>
       </div>
-
-      {fullscreen && (
-        <PreviewOverlay
-          src={src(active)}
-          label={names[active]!}
-          initialDevice={device}
-          tabs={names}
-          activeTab={active}
-          onTab={setActive}
-          onClose={() => setFullscreen(false)}
-          actions={
-            <button type="button" disabled={busy} onClick={() => { setFullscreen(false); onChoose(active); }} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-semibold text-[#101114] disabled:opacity-50">
-              Choisir <span className="hidden sm:inline">« {names[active]} »</span> <IconArrowRight size={14} />
-            </button>
-          }
-        />
-      )}
     </section>
   );
 }
 
-function DirectionTraits({ d }: { d: DirectionCard }) {
-  const pair = isFontPair(d.typography) ? FONT_PAIRS[d.typography] : null;
-  const shape = isShape(d.shape) ? SHAPES[d.shape] : null;
+export function SlidersIcon() {
   return (
-    <dl className="grid gap-3 text-[13px]">
-      <div className="flex items-center justify-between gap-3">
-        <dt className="text-yc-ink-soft">Typographie</dt>
-        <dd className="text-right font-semibold text-yc-ink" style={{ fontFamily: pair?.headingFont }}>{pair ? pair.label : "Celle du style"}</dd>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <dt className="text-yc-ink-soft">Palette</dt>
-        <dd className="flex gap-1.5">
-          {[d.palette.primary, d.palette.accent, d.palette.background].map((c) => <span key={c} title={c} className="h-5 w-5 rounded-full ring-1 ring-inset ring-black/10" style={{ background: c }} />)}
-        </dd>
-      </div>
-      {shape && (
-        <div className="flex items-center justify-between gap-3">
-          <dt className="text-yc-ink-soft">Formes</dt>
-          <dd className="text-right font-semibold text-yc-ink">{shape.label}</dd>
-        </div>
-      )}
-      {d.outline && d.outline.length > 0 && (
-        <div>
-          <dt className="text-yc-ink-soft">Plan de la page</dt>
-          <dd>
-            <ol className="mt-1.5 flex flex-wrap gap-1.5">
-              {d.outline.map((s, k) => <li key={k} className="rounded-full bg-[#F3F4F8] px-2.5 py-1 text-[12px] text-yc-ink">{s}</li>)}
-            </ol>
-          </dd>
-        </div>
-      )}
-    </dl>
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12" />
+      <circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" />
+    </svg>
   );
 }

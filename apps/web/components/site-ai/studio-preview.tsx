@@ -4,9 +4,9 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ycFontVariables } from "@/lib/yc-fonts";
 
-export type Device = "desktop" | "phone";
+export type Device = "desktop" | "tablet" | "phone";
 
-const LOGICAL = { desktop: { width: 1280, height: 820 }, phone: { width: 390, height: 780 } } as const;
+const LOGICAL = { desktop: { width: 1280, height: 820 }, tablet: { width: 820, height: 1100 }, phone: { width: 390, height: 780 } } as const;
 
 /**
  * Grand aperçu RÉEL du site (iframe du brouillon ou d'une proposition), mis à l'échelle
@@ -29,8 +29,8 @@ export function StudioPreview({
   tone?: "draft" | "proposal";
   highlight?: string | null;
   onSelect?: (sectionId: string) => void;
-  /** Vignette : true = bandeau, « tall » = format portrait qui montre plusieurs sections. */
-  compact?: boolean | "tall";
+  /** Vignette : true = bandeau, « tall » = format haut, « portrait » = page téléphone sans cadre. */
+  compact?: boolean | "tall" | "portrait";
   /** Plein écran : l'aperçu prend toute la hauteur disponible (barre du haut déduite). */
   fill?: boolean;
 }) {
@@ -40,10 +40,21 @@ export function StudioPreview({
   const [viewportHeight, setViewportHeight] = useState(900);
   const [loading, setLoading] = useState(true);
   const logical = LOGICAL[device];
-  const available = device === "phone" ? Math.min(width, 420) : width;
+  const available = compact === "portrait" ? width : device === "phone" ? Math.min(width, 420) : device === "tablet" ? Math.min(width, 860) : width;
   const scale = available > 0 ? Math.min(1, available / logical.width) : 0;
   // Grand aperçu : il occupe la hauteur de l'écran (barres du tableau de bord déduites).
-  const height = compact === "tall" ? Math.round(logical.width * 1.05) : compact ? Math.round(logical.width * 0.62) : device === "phone" ? (fill ? Math.max(logical.height, Math.round((viewportHeight - 110) / scale)) : logical.height) : Math.round(Math.max(520, viewportHeight - (fill ? 100 : 230)) / scale);
+  const height =
+    compact === "portrait"
+      ? Math.round(logical.width * 1.42)
+      : compact === "tall"
+        ? Math.round(logical.width * 1.05)
+        : compact
+          ? Math.round(logical.width * 0.62)
+          : device === "phone"
+            ? fill ? Math.max(logical.height, Math.round((viewportHeight - 110) / scale)) : logical.height
+            : device === "tablet"
+              ? Math.round(Math.max(640, viewportHeight - (fill ? 100 : 200)) / scale)
+              : Math.round(Math.max(560, viewportHeight - (fill ? 100 : 200)) / scale);
 
   useEffect(() => {
     const update = () => setViewportHeight(window.innerHeight);
@@ -86,16 +97,11 @@ export function StudioPreview({
     <div ref={box} className="w-full min-w-0 overflow-hidden">
       {scale > 0 && (
       <div
-        className={`relative mx-auto overflow-hidden bg-white ${device === "phone" ? "rounded-[34px] ring-[10px] ring-yc-night-900 shadow-yc-float" : "rounded-2xl ring-1 ring-yc-ink/10 shadow-yc-float"}`}
+        className={`relative mx-auto overflow-hidden bg-white ${compact === "portrait" ? "rounded-xl ring-1 ring-yc-ink/10" : device === "phone" ? "rounded-[34px] ring-[10px] ring-yc-night-900 shadow-yc-float" : device === "tablet" ? "rounded-[26px] ring-[8px] ring-yc-night-900 shadow-yc-float" : "rounded-xl ring-1 ring-yc-ink/10 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.35)]"}`}
         style={{ width: logical.width * scale, height: height * scale }}
       >
-        {device === "desktop" && !compact && (
-          <div className="flex h-8 items-center gap-1.5 border-b border-yc-ink/[0.06] bg-[#F4F5F8] px-3" aria-hidden="true">
-            <span className="h-2.5 w-2.5 rounded-full bg-yc-ink/15" />
-            <span className="h-2.5 w-2.5 rounded-full bg-yc-ink/15" />
-            <span className="h-2.5 w-2.5 rounded-full bg-yc-ink/15" />
-            <span className={`ml-3 truncate rounded-md px-2 py-0.5 text-[11px] font-medium ${tone === "proposal" ? "bg-yc-electric/10 text-yc-electric" : "bg-white text-yc-ink-soft"}`}>{label}</span>
-          </div>
+        {tone === "proposal" && !compact && (
+          <span className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-yc-electric px-3 py-1 text-[12px] font-semibold text-white shadow-yc-float">{label}</span>
         )}
         <iframe
           ref={frame}
@@ -106,7 +112,7 @@ export function StudioPreview({
           // Vignette (compact) : le clic va au bouton qui l'entoure (« Voir en grand »),
           // jamais au site miniature affiché dedans.
           className={`block origin-top-left border-0 bg-white ${compact ? "pointer-events-none" : ""}`}
-          style={{ width: logical.width, height: (height - (device === "desktop" && !compact ? 32 / scale : 0)), transform: `scale(${scale})` }}
+          style={{ width: logical.width, height, transform: `scale(${scale})` }}
           tabIndex={compact ? -1 : 0}
         />
         {loading && (
@@ -184,7 +190,7 @@ export function PreviewOverlay({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3 sm:px-6 sm:py-5">
-        <div className={device === "phone" ? "mx-auto w-full max-w-[420px]" : "mx-auto w-full max-w-[1480px]"}>
+        <div className={device === "phone" ? "mx-auto w-full max-w-[420px]" : device === "tablet" ? "mx-auto w-full max-w-[860px]" : "mx-auto w-full max-w-[1480px]"}>
           <StudioPreview key={`${src}-${device}`} src={src} device={device} label={label} fill />
         </div>
       </div>
@@ -193,22 +199,25 @@ export function PreviewOverlay({
   );
 }
 
-/** Bascule ordinateur / téléphone, en clair (studio) ou en sombre (plein écran). */
+/** Bascule ordinateur / tablette / téléphone (icônes ; libellés en clair en plein écran). */
 export function DeviceToggle({ device, onChange, tone = "light" }: { device: Device; onChange: (d: Device) => void; tone?: "light" | "dark" }) {
+  const names: Record<Device, string> = { desktop: "Ordinateur", tablet: "Tablette", phone: "Téléphone" };
   return (
-    <div role="group" aria-label="Appareil de l'aperçu" className={`flex rounded-full p-1 ${tone === "dark" ? "bg-white/[0.08]" : "bg-white ring-1 ring-inset ring-yc-ink/10"}`}>
-      {(["desktop", "phone"] as const).map((d) => (
+    <div role="group" aria-label="Appareil de l'aperçu" className={`flex rounded-xl p-1 ${tone === "dark" ? "bg-white/[0.08]" : "bg-[#F1F3F7]"}`}>
+      {(["desktop", "tablet", "phone"] as const).map((d) => (
         <button
           key={d}
           type="button"
           aria-pressed={device === d}
+          aria-label={names[d]}
+          title={names[d]}
           onClick={() => onChange(d)}
-          className={`inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold ${device === d ? (tone === "dark" ? "bg-white text-[#101114]" : "bg-yc-night-950 text-white") : tone === "dark" ? "text-white/65 hover:text-white" : "text-yc-ink-soft hover:text-yc-ink"}`}
+          className={`inline-flex min-h-9 min-w-10 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[13px] font-semibold transition ${device === d ? (tone === "dark" ? "bg-white text-[#101114]" : "bg-white text-yc-electric shadow-sm ring-1 ring-yc-ink/[0.06]") : tone === "dark" ? "text-white/65 hover:text-white" : "text-yc-ink-soft hover:text-yc-ink"}`}
         >
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            {d === "desktop" ? <><rect x="2" y="4" width="20" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></> : <><rect x="7" y="2" width="10" height="20" rx="2" /><path d="M11 18h2" /></>}
+          <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            {d === "desktop" ? <><rect x="2.5" y="4" width="19" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></> : d === "tablet" ? <><rect x="5" y="2.5" width="14" height="19" rx="2" /><path d="M11 18h2" /></> : <><rect x="7.5" y="2.5" width="9" height="19" rx="2" /><path d="M11 18h2" /></>}
           </svg>
-          <span className={tone === "light" ? "max-[400px]:sr-only" : ""}>{d === "desktop" ? "Ordinateur" : "Téléphone"}</span>
+          {tone === "dark" && <span className="hidden sm:inline">{names[d]}</span>}
         </button>
       ))}
     </div>
