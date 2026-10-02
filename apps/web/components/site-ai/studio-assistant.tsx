@@ -24,6 +24,8 @@ export interface SelectedSection {
   id: string;
   label: string;
   images: { field: string; label: string; url: string | null }[];
+  /** Ouverture de collection : produit présenté (id) et produits possibles. */
+  hero?: { productId: string | null; candidates: { id: string; name: string; imageUrl: string }[] };
 }
 
 const SELECTED_SUGGESTIONS = ["Remplace ce fond par une couleur crème.", "Centre le texte de cette section.", "Présente-la en carrousel.", "Retire cette section."];
@@ -49,6 +51,7 @@ export function StudioAssistant({
   onApply,
   onClearSelection,
   onReplaceImage,
+  onChooseHeroProduct,
   mode = "commerce",
   initial = "Y",
 }: {
@@ -69,6 +72,7 @@ export function StudioAssistant({
   onApply: (jobId: string) => void;
   onClearSelection: () => void;
   onReplaceImage: (sectionId: string, field: string) => void;
+  onChooseHeroProduct?: (sectionId: string, productId: string) => void;
 }) {
   const [message, setMessage] = useState("");
   const list = useRef<HTMLOListElement>(null);
@@ -101,6 +105,28 @@ export function StudioAssistant({
             <p className="min-w-0 truncate text-[13px] text-yc-ink"><span className="text-yc-ink-soft">Section : </span><span className="font-semibold">{selected.label}</span></p>
             <button type="button" onClick={onClearSelection} aria-label="Désélectionner la section" className="grid h-8 w-8 place-items-center rounded-full text-yc-ink-soft hover:bg-yc-ink/5"><IconX size={14} /></button>
           </div>
+          {selected.hero && selected.hero.candidates.length > 0 && onChooseHeroProduct && (
+            <div className="mt-2">
+              <p className="text-[12px] text-yc-ink-soft">Produit présenté — sa photo s&apos;affiche et le bouton ouvre sa fiche</p>
+              <ul className="mt-1.5 flex gap-2 overflow-x-auto pb-1" aria-label="Produit présenté">
+                {selected.hero.candidates.map((p) => {
+                  const on = p.id === selected.hero!.productId;
+                  return (
+                    <li key={p.id} className="shrink-0">
+                      <button type="button" aria-pressed={on} disabled={busy} onClick={() => !on && onChooseHeroProduct(selected.id, p.id)} title={p.name} className={`group flex w-[92px] flex-col gap-1 text-left disabled:opacity-60`}>
+                        <span className={`relative block h-[72px] w-full overflow-hidden rounded-lg ring-2 ${on ? "ring-yc-electric" : "ring-transparent hover:ring-yc-ink/20"}`}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                          {on && <span className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-yc-electric text-white"><IconCheck size={11} /></span>}
+                        </span>
+                        <span className={`truncate text-[11px] ${on ? "font-semibold text-yc-ink" : "text-yc-ink-soft"}`}>{p.name}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
           {selected.images.length > 0 && (
             <ul className="mt-2 flex gap-2 overflow-x-auto pb-1">
               {selected.images.map((img) => (

@@ -446,6 +446,10 @@ export const sectionParamSchemas = {
     secondaryMedia: mediaSchema.optional(),
     /** Variante « stage » : photos suivantes du diaporama (3 au plus). */
     slides: z.array(mediaSchema).max(3).optional(),
+    /** Produit présenté (choisi par l'entreprise ou l'IA). Résolu au rendu : photos et
+     *  lien vers SA fiche ; absent ou retiré de la vente → premier produit publié
+     *  photographié. */
+    productId: z.string().trim().min(1).max(64).optional(),
     ctaLabel: z.string().trim().max(40).optional(),
     ctaHref: actionHrefSchema.optional(),
     secondaryCtaLabel: z.string().trim().max(40).optional(),

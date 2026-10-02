@@ -52,6 +52,9 @@ export interface SiteAiContext {
   categories: CatalogCategory[];
   /** Images de la médiathèque (hors produits), utilisables pour une grande photographie. */
   libraryImages: { url: string; alt: string | null; width: number | null }[];
+  /** Démonstration uniquement : produit principal imposé par direction (maquette validée).
+   *  Jamais renseigné pour une vraie entreprise. */
+  demoHeroProducts?: Partial<Record<string, string>>;
 }
 
 /** Identité du site (source unique : « Mon site »), telle que l'assistant peut la proposer. */

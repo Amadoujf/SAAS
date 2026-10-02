@@ -130,7 +130,10 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
   // Photos disponibles : sélection demandée d'abord, puis les plus récentes.
   const illustrated = context.products.filter((p) => p.imageUrl);
   const featured = uniqueProducts([...pickIllustrated(context.products, direction.featuredProductIds, 12), ...newestFirst(illustrated)]);
-  const heroProduct = pickIllustrated(context.products, [direction.heroProductId], 1)[0] ?? featured[0];
+  // Produit principal : celui de la DÉMONSTRATION pour cette direction (jamais sur un vrai
+  // site), sinon celui choisi par l'IA, sinon le premier produit photographié retenu.
+  const demoHero = context.demoHeroProducts?.[direction.archetype];
+  const heroProduct = pickIllustrated(context.products, [demoHero ?? "", direction.heroProductId], 1)[0] ?? featured[0];
   const signatureProduct = pickIllustrated(context.products, [direction.signatureProductId], 1)[0] ?? featured.find((p) => p.id !== heroProduct?.id) ?? heroProduct;
   if (direction.heroProductId && !byId.get(direction.heroProductId)?.imageUrl) notes.push("Le produit proposé pour l'ouverture n'a pas de photo : une autre pièce photographiée a été retenue.");
   const libraryHero = context.libraryImages.find((i) => (i.width ?? 0) >= 1200);
@@ -370,24 +373,33 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         const lead = nextPhoto(heroProduct);
         if (!lead) return build({ ...slot, kind: "immersive_hero", variant: "centered" });
         const second = slot.variant === "cover" ? nextPhoto() : undefined;
-        // Diaporama : jusqu'à trois autres pièces photographiées, jamais deux fois la même.
-        const slides = slot.variant === "stage" ? [nextPhoto(), nextPhoto()].filter((p): p is CatalogProduct => Boolean(p)).map(photo) : undefined;
+        // « stage » : le diaporama montre les photos du produit présenté (lues au rendu) et
+        // le bouton principal ouvre SA fiche ; le lien secondaire mène au catalogue.
+        const stage = slot.variant === "stage" && !outsideStore;
+        // Le surtitre ne contredit jamais la pièce : un nom d'univers qui n'est pas le sien
+        // est remplacé par celui de la pièce présentée.
+        const proposed = text(copy.heroEyebrow, "surtitre");
+        const eyebrow = proposed && lead.category && context.categories.some((c) => c.name === proposed) && proposed !== lead.category ? lead.category : proposed;
         const word = [context.tenantName, ...context.tenantName.split(/\s+/)].map((w) => w.trim()).find((w) => w.length >= 2 && w.length <= 12);
         return {
           id: slot.id,
           sectionKey: "collection_hero",
           variant: slot.variant,
           params: {
-            eyebrow: text(copy.heroEyebrow, "surtitre"),
+            eyebrow,
             title: (heroTitle.length <= 70 ? heroTitle : context.tenantName).slice(0, 70),
             subtitle: text(copy.heroSubtitle, "sous-titre")?.slice(0, 220),
             wordmark: slot.variant === "wordmark" || slot.variant === "plinth" ? word : undefined,
             media: photo(lead),
             secondaryMedia: second ? photo(second) : undefined,
-            slides: slides?.length ? slides : undefined,
-            ctaLabel: cta.slice(0, 40),
-            ctaHref: catalogHref,
-            ...(outsideStore ? { secondaryCtaLabel: sector!.secondary.label, secondaryCtaHref: sector!.secondary.href } : { secondaryCtaLabel: lead.name.slice(0, 40), secondaryCtaHref: itemHref(lead) }),
+            productId: outsideStore ? undefined : lead.id,
+            ctaLabel: stage ? "Découvrir la pièce" : cta.slice(0, 40),
+            ctaHref: stage ? itemHref(lead) : catalogHref,
+            ...(outsideStore
+              ? { secondaryCtaLabel: sector!.secondary.label, secondaryCtaHref: sector!.secondary.href }
+              : stage
+                ? { secondaryCtaLabel: "Toute la collection", secondaryCtaHref: catalogHref }
+                : { secondaryCtaLabel: lead.name.slice(0, 40), secondaryCtaHref: itemHref(lead) }),
           },
         };
       }

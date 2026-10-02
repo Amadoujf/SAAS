@@ -106,8 +106,9 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
 
   const selected = useMemo(() => {
     const s = studio.draft.sections.find((x) => x.id === selectedId);
-    return s ? { id: s.id, label: s.label, images: s.images } : null;
-  }, [studio.draft.sections, selectedId]);
+    if (!s) return null;
+    return { id: s.id, label: s.label, images: s.images, hero: s.sectionKey === "collection_hero" ? { productId: s.productId, candidates: studio.heroCandidates } : undefined };
+  }, [studio.draft.sections, studio.heroCandidates, selectedId]);
 
   const hs = studio.homeStatus;
   const state =
@@ -333,6 +334,13 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
               previewJobId={previewJobId}
               onClearSelection={() => setSelectedId(null)}
               onReplaceImage={(sectionId, field) => setPicker({ kind: "image", sectionId, field })}
+              onChooseHeroProduct={(sectionId, productId) =>
+                run("write", async () => {
+                  await post("manual", { kind: "hero_product", sectionId, productId });
+                  await refresh();
+                  setNotice("Produit présenté mis à jour dans le brouillon : photo et bouton suivent ce produit.");
+                })
+              }
               onPreview={showProposal}
               onSend={(message) =>
                 run("generate", async () => {

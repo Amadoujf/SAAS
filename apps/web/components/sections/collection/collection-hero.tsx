@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import type { z } from "zod";
 import type { sectionParamSchemas } from "@yamacommerce/templates";
 import { useAnimationLevel } from "@/lib/motion/animation-level-context";
+import type { ResolvedHeroProductContent } from "../content-types";
 
 export type CollectionHeroParams = z.infer<typeof sectionParamSchemas.collection_hero>;
 
@@ -35,13 +36,38 @@ export function RisingWords({ text, delay = 0.1, step = 0.07 }: { text: string; 
  *   pause, suivant), titre posé sur un dégradé clair qui garantit la lecture.
  * Lisibilité : texte jamais posé directement sur une photo sans aplat, tailles bornées.
  */
-export function CollectionHeroSection({ variant, params }: { variant: string; params: CollectionHeroParams }) {
+export function CollectionHeroSection({ variant, params: raw, content }: { variant: string; params: CollectionHeroParams; content?: ResolvedHeroProductContent }) {
   const level = useAnimationLevel();
   const motion = level === "none" ? "off" : "on";
+  const params = withProduct(raw, variant, content);
   if (variant === "plinth") return <PlinthHero params={params} motion={motion} />;
   if (variant === "stage") return <StageHero params={params} motion={motion} />;
   if (variant === "wordmark") return <WordmarkHero params={params} motion={motion} />;
   return <CoverHero params={params} motion={motion} />;
+}
+
+/**
+ * Applique le produit présenté, lu au rendu : lien vers SA fiche réelle ; pour « stage »,
+ * ses photos en diaporama et le bouton principal vers sa fiche. Produit choisi encore en
+ * vente : l'image choisie dans l'éditeur reste en tête. Repli (aucun choix, ou produit
+ * retiré) : photos du premier produit publié photographié.
+ */
+function withProduct(params: CollectionHeroParams, variant: string, content?: ResolvedHeroProductContent): CollectionHeroParams {
+  const product = content?.product;
+  if (!product) return params;
+  if (variant !== "stage") {
+    // Lien secondaire « nom du produit » : seulement s'il désigne bien ce produit.
+    return content.fallback || !params.productId ? params : { ...params, secondaryCtaLabel: product.name.slice(0, 40), secondaryCtaHref: product.href };
+  }
+  const images = product.images.map((i) => ({ url: i.url, alt: i.alt ?? product.name }));
+  const lead = content.fallback ? images[0]! : params.media;
+  return {
+    ...params,
+    media: lead,
+    slides: images.filter((i) => i.url !== lead.url).slice(0, 3),
+    ctaHref: product.href,
+    ctaLabel: params.ctaLabel ?? "Découvrir la pièce",
+  };
 }
 
 function Actions({ params, tone }: { params: CollectionHeroParams; tone: "ink" | "light" | "pill" }) {
@@ -188,15 +214,20 @@ function StageHero({ params, motion }: { params: CollectionHeroParams; motion: "
     <section data-motion={motion} aria-roledescription="carrousel" aria-label={params.title} className="relative overflow-hidden" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
       <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--color-surface-muted)] sm:aspect-[16/10] lg:aspect-auto lg:h-[min(86vh,820px)]">
         {slides.map((m, i) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            key={`${m.url}-${i}`}
-            src={m.url}
-            alt={i === index ? (m.alt ?? "") : ""}
-            aria-hidden={i === index ? undefined : true}
-            loading={i === 0 ? "eager" : "lazy"}
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out ${i === index ? "opacity-100" : "opacity-0"} ${i === index && motion === "on" ? "ycc-kenburns" : ""}`}
-          />
+          <Fragment key={`${m.url}-${i}`}>
+            {/* Grand écran : la photo ENTIÈRE à droite (jamais agrandie au point de ne montrer
+                qu'un détail), prolongée à gauche par elle-même, floutée. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={m.url} alt="" aria-hidden="true" loading={i === 0 ? "eager" : "lazy"} className={`absolute inset-0 hidden h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[1200ms] lg:block ${i === index ? "opacity-100" : "opacity-0"}`} />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={m.url}
+              alt={i === index ? (m.alt ?? "") : ""}
+              aria-hidden={i === index ? undefined : true}
+              loading={i === 0 ? "eager" : "lazy"}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out lg:left-auto lg:right-0 lg:w-auto lg:max-w-[74%] lg:[mask-image:linear-gradient(90deg,transparent,#000_16%)] ${i === index ? "opacity-100" : "opacity-0"} ${i === index && motion === "on" ? "ycc-kenburns" : ""}`}
+            />
+          </Fragment>
         ))}
         {/* Dégradé de la couleur du fond : le titre reste lisible quelle que soit la photo. */}
         <div aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-[62%] bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-background)_92%,transparent)_0%,color-mix(in_srgb,var(--color-background)_70%,transparent)_45%,transparent_100%)] lg:block" />

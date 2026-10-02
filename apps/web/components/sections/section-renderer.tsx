@@ -48,6 +48,7 @@ import type {
   ResolvedPromotionsContent,
   ResolvedLookbookContent,
   ResolvedDesignersContent,
+  ResolvedHeroProductContent,
 } from "./content-types";
 
 /**
@@ -63,6 +64,7 @@ export type ResolvedContentBySectionId = Record<
   | ResolvedPromotionsContent
   | ResolvedLookbookContent
   | ResolvedDesignersContent
+  | ResolvedHeroProductContent
   /** Réservoir des produits et fiches publiés (clé `SHOWCASE_POOL_KEY`) — voir lib/showcase. */
   | ShowcasePool
 >;
@@ -314,7 +316,7 @@ function renderByKey(
       return <ScrollStorySection variant={instance.variant} params={sectionParamSchemas.scroll_story.parse(instance.params)} />;
 
     case "collection_hero":
-      return <CollectionHeroSection variant={instance.variant} params={sectionParamSchemas.collection_hero.parse(instance.params)} />;
+      return <CollectionHeroSection variant={instance.variant} params={sectionParamSchemas.collection_hero.parse(instance.params)} content={resolvedContent?.[instance.id] as ResolvedHeroProductContent | undefined} />;
 
     case "product_lineup": {
       const content = resolvedContent?.[instance.id] as ResolvedProductsContent | undefined;

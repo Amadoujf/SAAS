@@ -127,6 +127,13 @@ async function main() {
     });
   });
 
+  // Démonstration uniquement : la direction « Sculptural » s'ouvre sur le sac Kora cognac
+  // (maquette validée). Lu seulement pour une entreprise de démonstration (isDemo).
+  await withSuperAdminAccess(async (tx) => {
+    const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId } });
+    await tx.tenant.update({ where: { id: tenantId }, data: { branding: { ...(t.branding as object), demoHeroProducts: { sculptural: ids["sac-kora-cognac"]! } } } });
+  });
+
   // Quelques commandes réelles (moteurs du panier et des commandes), à des stades variés.
   const zones = await withTenant(tenantId, (tx) => tx.deliveryZone.findMany({ where: { tenantId }, orderBy: { fee: "asc" } }));
   const actor = { userId: null, type: "owner" as const };

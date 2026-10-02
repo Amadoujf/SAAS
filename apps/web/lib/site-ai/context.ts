@@ -124,7 +124,7 @@ async function loadEducationContext(tx: Prisma.TransactionClient, tenantId: stri
 }
 
 export async function loadSiteAiContext(tx: Prisma.TransactionClient, tenantId: string, tenantName: string, logoUrl: string | null): Promise<SiteAiContext> {
-  const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { sectorKey: true } });
+  const t = await tx.tenant.findUniqueOrThrow({ where: { id: tenantId }, select: { sectorKey: true, isDemo: true, branding: true } });
   const restaurant = (await tx.tenantModule.count({ where: { tenantId, moduleKey: { in: ["qr_ordering", "table_reservations"] }, isEnabled: true } })) === 2;
   if (restaurant) return loadRestaurantContext(tx, tenantId, tenantName, logoUrl, t.sectorKey ?? "restaurant");
   const automobile = (await tx.tenantModule.count({ where: { tenantId, moduleKey: { in: ["listings", "test_drive_appointments"] }, isEnabled: true } })) === 2;
@@ -166,5 +166,15 @@ export async function loadSiteAiContext(tx: Prisma.TransactionClient, tenantId: 
     }),
     categories: categories.map((c) => ({ id: c.id, name: c.name, slug: c.slug, productCount: c._count.products, hasVisual: Boolean(c.imageUrl) || products.some((p) => p.categoryId === c.id && p.images[0]?.url) })),
     libraryImages: media.filter((m) => !productMediaIds.has(m.id)).map((m) => ({ url: `/api/media/${m.id}/file`, alt: m.altText, width: m.width })),
+    demoHeroProducts: demoHeroProducts(t),
   };
+}
+
+/** Produits principaux imposés par direction, lus UNIQUEMENT sur une entreprise de
+ *  démonstration (réglage posé par son script de démo) ; une vraie entreprise : rien. */
+function demoHeroProducts(t: { isDemo: boolean; branding: unknown }): Partial<Record<string, string>> | undefined {
+  if (!t.isDemo) return undefined;
+  const raw = (t.branding as { demoHeroProducts?: unknown } | null)?.demoHeroProducts;
+  if (!raw || typeof raw !== "object") return undefined;
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === "string"));
 }

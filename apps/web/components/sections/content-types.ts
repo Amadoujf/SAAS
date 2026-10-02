@@ -87,3 +87,10 @@ export interface ResolvedDesignersContent {
   title?: string;
   designers: DesignerCardData[];
 }
+
+/** Produit présenté par une ouverture de collection (résolu au rendu, jamais inventé). */
+export interface ResolvedHeroProductContent {
+  product: { id: string; name: string; href: string; images: { url: string; alt: string | null }[] } | null;
+  /** true : le produit choisi n'est plus disponible (ou aucun choisi) — repli appliqué. */
+  fallback: boolean;
+}

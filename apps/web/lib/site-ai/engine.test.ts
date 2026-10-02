@@ -321,3 +321,31 @@ describe("création assistée : concession automobile (le stock tient lieu de ca
     expect(items.map((i) => i.href)).toEqual(["/vehicules/vehicule-4", "/vehicules/vehicule-3", "/vehicules/vehicule-2"]);
   });
 });
+
+describe("produit principal de l'ouverture « stage »", () => {
+  const directions = directionsOutputSchema.parse(simulateDirections(brief, context)).directions;
+  const sculptural = directions.find((d) => d.archetype === "sculptural")!;
+  const hero = (ctx: SiteAiContext, d = sculptural) => compileDirection(d, ctx).blocks.find((b) => b.sectionKey === "collection_hero")!.params as { productId?: string; ctaHref?: string; secondaryCtaHref?: string; media: { url: string } };
+
+  it("vrai site : le produit choisi par l'IA, et le bouton ouvre SA fiche", () => {
+    const p = hero(context, { ...sculptural, heroProductId: "p3" });
+    expect(p.productId).toBe("p3");
+    expect(p.ctaHref).toBe("/p/produit-3");
+    expect(p.media.url).toBe("/img/3.webp");
+    expect(p.secondaryCtaHref).toBe("/catalogue");
+  });
+
+  it("démonstration : le produit imposé pour CETTE direction l'emporte, pas pour les autres", () => {
+    const demo = { ...context, demoHeroProducts: { sculptural: "p4" } };
+    expect(hero(demo, { ...sculptural, heroProductId: "p3" }).productId).toBe("p4");
+    const editorial = directions.find((d) => d.archetype === "editorial")!;
+    const cover = compileDirection({ ...editorial, heroProductId: "p2" }, demo).blocks[0]!.params as { productId?: string };
+    expect(cover.productId).toBe("p2");
+  });
+
+  it("aucun choix, ou produit sans photo : repli sur un produit publié photographié", () => {
+    const none = hero(context, { ...sculptural, heroProductId: "" });
+    expect(none.productId).toMatch(/^p[1-4]$/);
+    expect(hero(context, { ...sculptural, heroProductId: "p5" }).productId).not.toBe("p5");
+  });
+});

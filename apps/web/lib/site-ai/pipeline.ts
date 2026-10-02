@@ -129,7 +129,9 @@ export async function loadStudio() {
     return {
       tenantName: who.tenantName,
       ai: { available: ai.available, simulated: ai.kind === "simulated", reason: ai.reason ?? null, usage },
-      draft: { signature: draft.signature, snapshot: draft.snapshot, sections: draft.snapshot.blocks.map((b) => ({ id: b.id, label: sectionLabel(b), sectionKey: b.sectionKey, images: imageSlots(b) })) },
+      draft: { signature: draft.signature, snapshot: draft.snapshot, sections: draft.snapshot.blocks.map((b) => ({ id: b.id, label: sectionLabel(b), sectionKey: b.sectionKey, images: imageSlots(b), productId: b.sectionKey === "collection_hero" ? ((b.params as { productId?: string }).productId ?? null) : null })) },
+      // Produits que l'ouverture peut présenter : publiés et photographiés.
+      heroCandidates: ctx.mode && ctx.mode !== "commerce" ? [] : ctx.products.filter((p) => p.imageUrl).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl! })),
       homeStatus,
       audit: auditPhotos(ctx),
       catalog: {
@@ -380,6 +382,7 @@ export async function undoLastChange(): Promise<StudioResult<{ signature: string
 const manualSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("image"), sectionId: z.string().max(80), field: z.string().max(40), url: z.string().max(500), alt: z.string().max(140).optional() }),
   z.object({ kind: z.literal("logo"), url: z.string().max(500).nullable() }),
+  z.object({ kind: z.literal("hero_product"), sectionId: z.string().max(80), productId: z.string().max(64) }),
 ]);
 
 export async function manualChange(raw: unknown): Promise<StudioResult<{ signature: string }>> {
@@ -388,6 +391,7 @@ export async function manualChange(raw: unknown): Promise<StudioResult<{ signatu
   const input = manualSchema.safeParse(raw);
   if (!input.success) return { ok: false, status: 400, error: "Modification invalide." };
   const change = input.data;
+  if (change.kind === "hero_product") return setHeroProduct(who, change.sectionId, change.productId);
   const mediaIds = new Set<string>();
   const url = change.url ?? null;
   const problem = checkImage(url, mediaIds);
@@ -421,6 +425,39 @@ export async function manualChange(raw: unknown): Promise<StudioResult<{ signatu
         label = `${sectionLabel(block)} : image remplacée`;
       }
       await recordRevision(tx, who.tenantId, draft, { source: "manual", label, after: next, createdBy: who.userId });
+      return writeDraft(tx, draft, next);
+    });
+    return { ok: true, data: { signature } };
+  } catch (error) {
+    return { ok: false, status: 409, error: error instanceof Error ? error.message : "Modification impossible." };
+  }
+}
+
+/** Produit présenté par une ouverture de collection, choisi dans l'éditeur : un produit
+ *  PUBLIÉ et photographié de l'entreprise. Sa photo devient l'image principale et les
+ *  liens mènent à sa fiche ; le reste de la section ne change pas. */
+async function setHeroProduct(who: NonNullable<Awaited<ReturnType<typeof actor>>>, sectionId: string, productId: string): Promise<StudioResult<{ signature: string }>> {
+  try {
+    const signature = await withTenant(who.tenantId, async (tx) => {
+      const product = await tx.product.findFirst({ where: { tenantId: who.tenantId, id: productId, status: "PUBLISHED", deletedAt: null }, select: { id: true, name: true, slug: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true, altText: true } } } });
+      if (!product?.images[0]) throw new Error("Choisissez un produit publié et photographié.");
+      const draft = await loadDraft(tx, who.tenantId, who.tenantSiteId, true);
+      const index = draft.snapshot.blocks.findIndex((b) => b.id === sectionId);
+      const block = draft.snapshot.blocks[index];
+      if (!block || block.sectionKey !== "collection_hero") throw new Error("Cette section ne présente pas de produit.");
+      const params = { ...(block.params as Record<string, unknown>) };
+      const href = `/p/${product.slug}`;
+      params.productId = product.id;
+      params.media = { url: product.images[0].url, alt: product.images[0].altText ?? product.name };
+      delete params.slides;
+      if (block.variant === "stage") params.ctaHref = href;
+      else if (typeof params.secondaryCtaHref === "string" && params.secondaryCtaHref.startsWith("/p/")) {
+        params.secondaryCtaHref = href;
+        params.secondaryCtaLabel = product.name.slice(0, 40);
+      }
+      const updated = validateSectionInstance({ ...block, params });
+      const next: DraftSnapshot = { ...draft.snapshot, blocks: draft.snapshot.blocks.map((b, i) => (i === index ? updated : b)) };
+      await recordRevision(tx, who.tenantId, draft, { source: "manual", label: `${sectionLabel(block)} : produit présenté « ${product.name} »`, after: next, createdBy: who.userId });
       return writeDraft(tx, draft, next);
     });
     return { ok: true, data: { signature } };

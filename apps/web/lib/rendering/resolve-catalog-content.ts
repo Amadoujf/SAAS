@@ -3,6 +3,7 @@ import type { Prisma } from "@yamacommerce/database";
 import type { TemplateManifest } from "@yamacommerce/templates";
 import type { ProductCardData } from "@/components/ui/product-card";
 import type {
+  ResolvedHeroProductContent,
   ResolvedCategoriesContent,
   ResolvedProductsContent,
 } from "@/components/sections/content-types";
@@ -35,6 +36,27 @@ export async function resolveCatalogContentForManifest(
   // fiches publiés), la sélection de chacune est faite au rendu (lib/showcase).
   if (manifest.pages.some((page) => page.sections.some((section) => section.sectionKey === "immersive_showcase"))) {
     result[SHOWCASE_POOL_KEY] = await buildShowcasePool(tx, tenantId);
+  }
+
+  // Ouvertures de collection : le produit présenté, lu au rendu (fiche réelle, photos
+  // réelles). Choisi mais retiré de la vente, ou non choisi : premier produit publié
+  // photographié (le plus ancien — stable d'une visite à l'autre).
+  const heroSections = manifest.pages.flatMap((page) => page.sections.filter((section) => section.sectionKey === "collection_hero"));
+  if (heroSections.length > 0) {
+    const wanted = [...new Set(heroSections.map((s) => (s.params as { productId?: string }).productId).filter((id): id is string => Boolean(id)))];
+    const select = { id: true, name: true, slug: true, images: { orderBy: { position: "asc" as const }, take: 4, select: { url: true, altText: true } } };
+    const chosen = wanted.length ? await tx.product.findMany({ where: { tenantId, id: { in: wanted }, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, select }) : [];
+    const byHeroId = new Map(chosen.map((p) => [p.id, p]));
+    const needsFallback = heroSections.some((s) => !byHeroId.has((s.params as { productId?: string }).productId ?? ""));
+    const first = needsFallback ? await tx.product.findFirst({ where: { tenantId, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, orderBy: { createdAt: "asc" }, select }) : null;
+    for (const section of heroSections) {
+      const p = byHeroId.get((section.params as { productId?: string }).productId ?? "") ?? first;
+      const content: ResolvedHeroProductContent = {
+        product: p ? { id: p.id, name: p.name, href: `/p/${p.slug}`, images: p.images.map((i) => ({ url: i.url, alt: i.altText })) } : null,
+        fallback: !byHeroId.has((section.params as { productId?: string }).productId ?? ""),
+      };
+      result[section.id] = content;
+    }
   }
 
   const categorySections = manifest.pages.flatMap((page) =>
