@@ -73,27 +73,27 @@ export function isActive(pathname: string, href: string) {
   return href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(`${href}/`);
 }
 
-const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#8FB8FF]";
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-electric/50";
 
 function NavLinks({ groups, pathname, onNavigate }: { groups: NavGroup[]; pathname: string; onNavigate?: () => void }) {
   return (
     <nav aria-label="Navigation de l'espace entreprise" className="flex flex-col">
       {groups.map((group, gi) => (
-        <div key={group.label} className={gi > 0 ? "mt-4 border-t border-white/[0.12] pt-4" : ""}>
-          <p className="sr-only">{group.label}</p>
-          <ul className="flex flex-col gap-1">
+        <div key={group.label} className={gi > 0 ? "mt-5" : ""}>
+          <p className={gi > 0 ? "mb-1.5 px-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-yc-ink-soft/70" : "sr-only"}>{group.label}</p>
+          <ul className="flex flex-col gap-0.5">
             {group.items.map((item) => {
               const active = !item.external && isActive(pathname, item.href);
               const Icon = ICONS[item.icon];
-              const cls = `group flex items-center gap-3.5 rounded-lg px-3.5 py-2.5 text-[15px] transition-colors duration-200 ${focusRing} ${
-                active ? "bg-[rgb(44_84_170)] font-semibold text-white shadow-[inset_0_1px_0_rgb(255_255_255/0.08)]" : "text-white/85 hover:bg-white/[0.07] hover:text-white"
+              const cls = `group flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[15px] transition-colors duration-200 ${focusRing} ${
+                active ? "bg-[#EAF0FF] font-semibold text-yc-electric" : "text-yc-ink hover:bg-[#F4F5F8]"
               }`;
               const content = (
                 <>
-                  <span className={active ? "text-white" : "text-white/80 group-hover:text-white"}><Icon size={21} /></span>
+                  <span className={active ? "text-yc-electric" : "text-yc-ink/70 group-hover:text-yc-ink"}><Icon size={20} /></span>
                   <span className="flex-1">{item.label}</span>
                   {item.badge ? <span className="yc-num min-w-[22px] rounded-full bg-[#FF8A3D] px-1.5 py-0.5 text-center text-[11px] font-bold text-white">{item.badge}</span> : null}
-                  {item.external ? <IconArrowRight size={15} className="-rotate-45 text-white/50" /> : null}
+                  {item.external ? <IconArrowRight size={15} className="-rotate-45 text-yc-ink-soft" /> : null}
                 </>
               );
               return (
@@ -130,14 +130,14 @@ function TenantSwitcher({ tenantName, roleName, storeUrl }: { tenantName: string
   return (
     <div ref={ref} className="relative">
       <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}
-        className={`flex w-full items-center gap-3 rounded-lg border border-white/25 px-3.5 py-3 text-left text-white transition-colors hover:bg-white/[0.06] ${focusRing}`}>
+        className={`flex w-full items-center gap-3 rounded-xl border border-yc-ink/10 px-3.5 py-2.5 text-left text-yc-ink transition-colors hover:bg-[#F4F5F8] ${focusRing}`}>
         <IconBox size={20} />
         <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{tenantName}</span>
-        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${storeUrl ? "bg-[#4C8DFF]" : "bg-white/30"}`} title={storeUrl ? "Site en ligne" : "Site non publié"} aria-label={storeUrl ? "Site en ligne" : "Site non publié"} />
-        <IconChevronDown size={18} className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${storeUrl ? "bg-yc-success" : "bg-yc-ink/20"}`} title={storeUrl ? "Site en ligne" : "Site non publié"} aria-label={storeUrl ? "Site en ligne" : "Site non publié"} />
+        <IconChevronDown size={18} className={`shrink-0 text-yc-ink-soft transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-lg bg-white py-1.5 text-yc-ink shadow-[0_20px_50px_-20px_rgb(0_0_0/0.5)]">
+        <div className="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl bg-white py-1.5 text-yc-ink shadow-yc-float ring-1 ring-yc-ink/[0.08]">
           <p className="px-4 py-2 text-xs text-yc-ink-soft">{roleName === "OWNER" ? "Propriétaire" : roleName ?? "Membre"} de <span className="font-semibold text-yc-ink">{tenantName}</span></p>
           {storeUrl && <a href={storeUrl} target="_blank" rel="noreferrer" className="block px-4 py-2 text-sm hover:bg-yc-ivory-100">Voir mon site</a>}
           <Link href="/dashboard/facturation" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm hover:bg-yc-ivory-100">Abonnement</Link>
@@ -148,22 +148,15 @@ function TenantSwitcher({ tenantName, roleName, storeUrl }: { tenantName: string
 }
 
 function HelpCard({ supportUrl }: { supportUrl: string | null }) {
-  return (
-    <div className="rounded-xl border border-white/15 bg-white/[0.04] p-4 text-white">
-      <div className="flex items-start gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-[rgb(44_84_170)]"><IconPhone size={19} /></span>
-        <div>
-          <p className="text-[15px] font-semibold">Besoin d&apos;aide ?</p>
-          <p className="mt-1 text-[13px] leading-snug text-white/70">{supportUrl ? "Nos équipes sont là pour vous accompagner." : "Suivez les premiers pas pour être prêt à vendre."}</p>
-        </div>
-      </div>
-      {supportUrl ? (
-        <a href={supportUrl} target="_blank" rel="noreferrer" className={`mt-4 flex items-center justify-center gap-2 rounded-lg border border-white/60 py-2.5 text-sm font-semibold hover:bg-white/10 ${focusRing}`}>Centre d&apos;aide <IconArrowRight size={16} /></a>
-      ) : (
-        <Link href="/dashboard#premiers-pas" className={`mt-4 flex items-center justify-center gap-2 rounded-lg border border-white/60 py-2.5 text-sm font-semibold hover:bg-white/10 ${focusRing}`}>Premiers pas <IconArrowRight size={16} /></Link>
-      )}
-    </div>
+  const cls = `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[14px] text-yc-ink-soft transition-colors hover:bg-[#F4F5F8] hover:text-yc-ink ${focusRing}`;
+  const body = (
+    <>
+      <IconPhone size={18} />
+      <span className="flex-1">{supportUrl ? "Centre d'aide" : "Premiers pas"}</span>
+      <IconArrowRight size={15} className={supportUrl ? "-rotate-45" : ""} />
+    </>
   );
+  return supportUrl ? <a href={supportUrl} target="_blank" rel="noreferrer" className={cls}>{body}</a> : <Link href="/dashboard#premiers-pas" className={cls}>{body}</Link>;
 }
 
 export function DashboardSidebar({
@@ -199,16 +192,16 @@ export function DashboardSidebar({
     .map((h) => all.find((i) => i.href === h))
     .filter((i): i is NavItem => !!i)
     .slice(0, 3);
-  const panel = "bg-[linear-gradient(180deg,#0F2E70_0%,#0B2459_100%)]";
+  const panel = "bg-white";
 
   return (
     <>
       {/* Bureau */}
-      <aside className={`sticky top-0 hidden h-screen w-[268px] shrink-0 flex-col gap-6 overflow-y-auto px-4 py-6 lg:flex ${panel}`}>
-        <Link href="/dashboard" className={`rounded-lg px-2 text-white ${focusRing}`}><YcAppLogo /></Link>
+      <aside className={`sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-yc-ink/[0.07] px-3.5 py-6 lg:flex ${panel}`}>
+        <Link href="/dashboard" className={`rounded-lg px-2 text-yc-ink ${focusRing}`}><YcAppLogo /></Link>
         <TenantSwitcher tenantName={tenantName} roleName={roleName} storeUrl={storeUrl} />
         <NavLinks groups={groups} pathname={pathname} />
-        <div className="mt-auto flex flex-col gap-3">
+        <div className="mt-auto border-t border-yc-ink/[0.07] pt-3">
           <HelpCard supportUrl={supportUrl} />
         </div>
       </aside>
@@ -217,7 +210,7 @@ export function DashboardSidebar({
       <AnimatePresence>
         {open && (
           <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <button type="button" aria-label="Fermer le menu" className="absolute inset-0 bg-[#06122e]/60 backdrop-blur-sm" onClick={() => setOpen(false)} />
+            <button type="button" aria-label="Fermer le menu" className="absolute inset-0 bg-[#06122e]/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
             <motion.div
               role="dialog"
               aria-modal="true"
@@ -228,9 +221,9 @@ export function DashboardSidebar({
               exit={reduce ? { opacity: 0 } : { x: "-100%" }}
               transition={{ type: "spring", stiffness: 420, damping: 40 }}
             >
-              <div className="flex items-center justify-between text-white">
+              <div className="flex items-center justify-between text-yc-ink">
                 <YcAppLogo compact id="yc-app-mark-drawer" />
-                <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className={`grid h-10 w-10 place-items-center rounded-lg text-white/80 hover:text-white ${focusRing}`}>
+                <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className={`grid h-10 w-10 place-items-center rounded-lg text-yc-ink-soft hover:text-yc-ink ${focusRing}`}>
                   <IconX size={20} />
                 </button>
               </div>
@@ -239,7 +232,7 @@ export function DashboardSidebar({
               <div className="mt-auto flex flex-col gap-3">
                 <HelpCard supportUrl={supportUrl} />
                 <form action={signOut}>
-                  <button type="submit" className={`flex w-full items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm text-white/80 hover:bg-white/[0.07] hover:text-white ${focusRing}`}>
+                  <button type="submit" className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-yc-ink-soft hover:bg-[#F4F5F8] hover:text-yc-ink ${focusRing}`}>
                     <IconLogout size={18} /> Déconnexion
                   </button>
                 </form>

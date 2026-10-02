@@ -370,6 +370,8 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
         const lead = nextPhoto(heroProduct);
         if (!lead) return build({ ...slot, kind: "immersive_hero", variant: "centered" });
         const second = slot.variant === "cover" ? nextPhoto() : undefined;
+        // Diaporama : jusqu'à trois autres pièces photographiées, jamais deux fois la même.
+        const slides = slot.variant === "stage" ? [nextPhoto(), nextPhoto()].filter((p): p is CatalogProduct => Boolean(p)).map(photo) : undefined;
         const word = [context.tenantName, ...context.tenantName.split(/\s+/)].map((w) => w.trim()).find((w) => w.length >= 2 && w.length <= 12);
         return {
           id: slot.id,
@@ -382,6 +384,7 @@ export function compileSlots(direction: AiDirection, context: SiteAiContext, slo
             wordmark: slot.variant === "wordmark" || slot.variant === "plinth" ? word : undefined,
             media: photo(lead),
             secondaryMedia: second ? photo(second) : undefined,
+            slides: slides?.length ? slides : undefined,
             ctaLabel: cta.slice(0, 40),
             ctaHref: catalogHref,
             ...(outsideStore ? { secondaryCtaLabel: sector!.secondary.label, secondaryCtaHref: sector!.secondary.href } : { secondaryCtaLabel: lead.name.slice(0, 40), secondaryCtaHref: itemHref(lead) }),

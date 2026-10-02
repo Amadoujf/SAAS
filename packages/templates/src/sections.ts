@@ -444,6 +444,8 @@ export const sectionParamSchemas = {
     media: mediaSchema,
     /** Deuxième image (variante « cover » : vignette ; « wordmark » : arrière-plan). */
     secondaryMedia: mediaSchema.optional(),
+    /** Variante « stage » : photos suivantes du diaporama (3 au plus). */
+    slides: z.array(mediaSchema).max(3).optional(),
     ctaLabel: z.string().trim().max(40).optional(),
     ctaHref: actionHrefSchema.optional(),
     secondaryCtaLabel: z.string().trim().max(40).optional(),
@@ -521,7 +523,8 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   // « cover » : photographie dominante, titre en sérif, vignette décalée (éditorial) ;
   // « plinth » : pièce posée sur un socle, très grand titre grotesque (sculptural) ;
   // « wordmark » : nom de la marque en lettres géantes traversé par la photo (studio).
-  collection_hero: ["cover", "plinth", "wordmark"],
+  // « stage » : grande photo pleine largeur en diaporama, titre sur un dégradé clair.
+  collection_hero: ["cover", "plinth", "wordmark", "stage"],
   // « editorial » : grands portraits décalés ; « plinth » : pièces isolées sur socles ;
   // « index » : grille dense numérotée, survol en aplat de couleur.
   product_lineup: ["editorial", "plinth", "index"],

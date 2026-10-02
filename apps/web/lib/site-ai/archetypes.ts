@@ -65,11 +65,11 @@ export const ARCHETYPES: Record<ArchetypeKey, Archetype> = {
   },
   sculptural: {
     label: "Sculptural",
-    description: "La pièce au centre : posée dans une arche sur un socle de pierre, très grand titre grotesque, pièces isolées sur socles clairs. Pour des objets forts : maroquinerie, bijoux, design.",
-    outline: ["La pièce sur son socle, grand titre", "Les pièces isolées sur socles", "Le geste de la maison", "Univers"],
+    description: "La pièce au centre : grande photo pleine largeur en diaporama, très grand titre grotesque, pièces isolées sur socles clairs. Pour des objets forts : maroquinerie, bijoux, design.",
+    outline: ["Grande photo de la pièce, grand titre", "Les pièces isolées sur socles", "Le geste de la maison", "Univers"],
     frame: "sculptural",
     slots: [
-      { id: "ouverture", kind: "collection_hero", variant: "plinth" },
+      { id: "ouverture", kind: "collection_hero", variant: "stage" },
       { id: "pieces", kind: "lineup", variant: "plinth" },
       { id: "geste", kind: "brand_story", variant: "split" },
       { id: "univers", kind: "categories", variant: "grid" },

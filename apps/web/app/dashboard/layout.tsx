@@ -335,7 +335,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   }
 
   return (
-    <div className={`${ycFontVariables} min-h-screen bg-[#F6F7FB] font-ui text-yc-ink lg:flex`}>
+    <div className={`${ycFontVariables} min-h-screen bg-[#F7F7F5] font-ui text-yc-ink lg:flex`}>
       <DashboardSidebar
         groups={groups}
         tenantName={membership?.tenantName ?? "Y-COM"}

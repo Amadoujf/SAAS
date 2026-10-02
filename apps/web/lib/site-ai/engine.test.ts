@@ -43,7 +43,7 @@ describe("création assistée : trois directions vraiment différentes", () => {
     expect(sites.map((s) => s.identity.frame)).toEqual(["editorial", "sculptural", "studio"]);
     expect(new Set(sites.map((s) => s.identity.style)).size).toBe(3);
     expect(new Set(directions.map((d) => d.palette.primary)).size).toBe(3);
-    expect(sites.map((s) => `${s.blocks[0]!.sectionKey}:${s.blocks[0]!.variant}`)).toEqual(["collection_hero:cover", "collection_hero:plinth", "collection_hero:wordmark"]);
+    expect(sites.map((s) => `${s.blocks[0]!.sectionKey}:${s.blocks[0]!.variant}`)).toEqual(["collection_hero:cover", "collection_hero:stage", "collection_hero:wordmark"]);
     for (const site of sites) {
       const lineup = site.blocks.find((b) => b.sectionKey === "product_lineup");
       expect(lineup, "sélection de pièces").toBeTruthy();

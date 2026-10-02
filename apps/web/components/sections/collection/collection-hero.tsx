@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Fragment, type CSSProperties } from "react";
+import { Fragment, useEffect, useState, type CSSProperties } from "react";
 import type { z } from "zod";
 import type { sectionParamSchemas } from "@yamacommerce/templates";
 import { useAnimationLevel } from "@/lib/motion/animation-level-context";
@@ -30,13 +30,16 @@ export function RisingWords({ text, delay = 0.1, step = 0.07 }: { text: string; 
  * - « plinth » (sculptural) : la pièce dans une arche, posée sur un socle de pierre,
  *   flotte doucement ; très grand titre grotesque qui glisse au défilement ;
  * - « wordmark » (studio) : nom de la marque en lettres géantes sur aplat de couleur,
- *   traversé par la photo ; lettres levées une à une.
+ *   traversé par la photo ; lettres levées une à une ;
+ * - « stage » (sculptural) : grande photo pleine largeur en diaporama (précédent,
+ *   pause, suivant), titre posé sur un dégradé clair qui garantit la lecture.
  * Lisibilité : texte jamais posé directement sur une photo sans aplat, tailles bornées.
  */
 export function CollectionHeroSection({ variant, params }: { variant: string; params: CollectionHeroParams }) {
   const level = useAnimationLevel();
   const motion = level === "none" ? "off" : "on";
   if (variant === "plinth") return <PlinthHero params={params} motion={motion} />;
+  if (variant === "stage") return <StageHero params={params} motion={motion} />;
   if (variant === "wordmark") return <WordmarkHero params={params} motion={motion} />;
   return <CoverHero params={params} motion={motion} />;
 }
@@ -160,6 +163,77 @@ function WordmarkHero({ params, motion }: { params: CollectionHeroParams; motion
             <div className="ycc-fade" style={{ animationDelay: "0.65s" }}><Actions params={params} tone="pill" /></div>
           </div>
         </div>
+      </div>
+    </section>
+  );
+}
+
+/** Diaporama pleine largeur. Défilement automatique (7 s) seulement si les animations
+ *  sont permises ; jamais pendant le survol ou le focus clavier ; pause au clic. Sur
+ *  téléphone, le texte passe sous la photo (aucun texte sur l'image). */
+function StageHero({ params, motion }: { params: CollectionHeroParams; motion: "on" | "off" }) {
+  const slides = [params.media, ...(params.slides ?? [])];
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const [hold, setHold] = useState(false);
+  const auto = motion === "on" && slides.length > 1 && !paused && !hold;
+  useEffect(() => {
+    if (!auto) return;
+    const id = window.setTimeout(() => setIndex((i) => (i + 1) % slides.length), 7000);
+    return () => window.clearTimeout(id);
+  }, [auto, index, slides.length]);
+  const go = (step: number) => setIndex((i) => (i + step + slides.length) % slides.length);
+  const control = "grid h-11 w-11 place-items-center rounded-full bg-white/90 text-[var(--color-text-primary)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)] backdrop-blur transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]";
+  return (
+    <section data-motion={motion} aria-roledescription="carrousel" aria-label={params.title} className="relative overflow-hidden" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
+      <div className="relative aspect-[4/5] w-full overflow-hidden bg-[var(--color-surface-muted)] sm:aspect-[16/10] lg:aspect-auto lg:h-[min(86vh,820px)]">
+        {slides.map((m, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={`${m.url}-${i}`}
+            src={m.url}
+            alt={i === index ? (m.alt ?? "") : ""}
+            aria-hidden={i === index ? undefined : true}
+            loading={i === 0 ? "eager" : "lazy"}
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out ${i === index ? "opacity-100" : "opacity-0"} ${i === index && motion === "on" ? "ycc-kenburns" : ""}`}
+          />
+        ))}
+        {/* Dégradé de la couleur du fond : le titre reste lisible quelle que soit la photo. */}
+        <div aria-hidden="true" className="absolute inset-y-0 left-0 hidden w-[62%] bg-[linear-gradient(90deg,color-mix(in_srgb,var(--color-background)_92%,transparent)_0%,color-mix(in_srgb,var(--color-background)_70%,transparent)_45%,transparent_100%)] lg:block" />
+        <div className="absolute inset-y-0 left-0 hidden w-full max-w-[1440px] flex-col justify-center px-14 lg:flex">
+          <div className="max-w-[560px]">
+            {params.eyebrow && <p className="ycc-fade text-[12px] font-medium uppercase tracking-[0.24em] text-[var(--color-text-secondary)]">{params.eyebrow}</p>}
+            <h1 className="mt-5 font-[family-name:var(--font-heading)] text-[clamp(3rem,5.6vw,5.6rem)] font-semibold leading-[0.92] tracking-[-0.055em] text-[var(--color-text-primary)]">
+              <RisingWords text={params.title} step={0.08} />
+            </h1>
+            {params.subtitle && <p className="ycc-fade mt-6 max-w-md text-[16px] leading-relaxed text-[var(--color-text-secondary)]" style={{ animationDelay: "0.45s" }}>{params.subtitle}</p>}
+            <div className="ycc-fade" style={{ animationDelay: "0.6s" }}><Actions params={params} tone="ink" /></div>
+          </div>
+        </div>
+        {slides.length > 1 && (
+          <div className="absolute bottom-5 right-5 flex items-center gap-2 lg:bottom-10 lg:right-10">
+            <button type="button" onClick={() => go(-1)} aria-label="Photo précédente" className={control}>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            {motion === "on" && (
+              <button type="button" onClick={() => setPaused((p) => !p)} aria-label={paused ? "Reprendre le diaporama" : "Mettre le diaporama en pause"} aria-pressed={paused} className={control}>
+                <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">{paused ? <path d="M7 4.5v15l12-7.5z" /> : <path d="M6 4h4v16H6zM14 4h4v16h-4z" />}</svg>
+              </button>
+            )}
+            <button type="button" onClick={() => go(1)} aria-label="Photo suivante" className={control}>
+              <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
+            </button>
+          </div>
+        )}
+        <p className="sr-only" aria-live="polite">Photo {index + 1} sur {slides.length}</p>
+      </div>
+      {/* Téléphone et tablette : le texte sous la photo. */}
+      <div className="px-5 pb-12 pt-8 sm:px-10 lg:hidden">
+        {params.eyebrow && <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--color-text-secondary)]">{params.eyebrow}</p>}
+        {/* Un seul titre affiché à la fois (l'autre bloc est masqué) : un seul h1 lu. */}
+        <h1 className="mt-4 font-[family-name:var(--font-heading)] text-[clamp(2.4rem,9vw,3.6rem)] font-semibold leading-[0.95] tracking-[-0.05em]">{params.title}</h1>
+        {params.subtitle && <p className="mt-5 text-[15px] leading-relaxed text-[var(--color-text-secondary)]">{params.subtitle}</p>}
+        <Actions params={params} tone="ink" />
       </div>
     </section>
   );
