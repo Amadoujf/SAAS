@@ -127,72 +127,72 @@ export function CustomerDetailPanel({ customerId }: { customerId: string }) {
   }
 
   if (!customer) {
-    return <div className="p-4 text-sm text-gray-500">Chargement…</div>;
+    return <div role="status" aria-label="Chargement de la fiche client" className="space-y-4"><div className="yc-skeleton h-32 rounded-yc-lg" /><div className="yc-skeleton h-48 rounded-yc-lg" /></div>;
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 ">
       {message && <p className="text-sm text-red-600">{message}</p>}
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h2 className="text-base font-semibold text-gray-900">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h2 className="text-base font-semibold text-yc-ink">
           {customer.firstName} {customer.lastName ?? ""}
         </h2>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-yc-ink-soft">
           {[customer.phone, customer.email].filter(Boolean).join(" · ") || "Aucune coordonnée"}
         </p>
         <dl className="mt-3 grid grid-cols-3 gap-4 text-sm">
           <div>
-            <dt className="text-gray-500">Groupe</dt>
-            <dd className="font-medium text-gray-900">{customer.customerGroup}</dd>
+            <dt className="text-yc-ink-soft">Groupe</dt>
+            <dd className="font-medium text-yc-ink">{customer.customerGroup}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Commandes</dt>
-            <dd className="font-medium text-gray-900">{customer.ordersCount}</dd>
+            <dt className="text-yc-ink-soft">Commandes</dt>
+            <dd className="font-medium text-yc-ink">{customer.ordersCount}</dd>
           </div>
           <div>
-            <dt className="text-gray-500">Total dépensé</dt>
-            <dd className="font-medium text-gray-900">{customer.totalSpent.toLocaleString("fr-FR")} FCFA</dd>
+            <dt className="text-yc-ink-soft">Total dépensé</dt>
+            <dd className="font-medium text-yc-ink">{customer.totalSpent.toLocaleString("fr-FR")} FCFA</dd>
           </div>
         </dl>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-2 text-sm font-semibold text-gray-900">Notes internes</h3>
-        <p className="mb-2 text-xs text-gray-500">Visibles uniquement par votre équipe, jamais par le client.</p>
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h3 className="mb-2 text-sm font-semibold text-yc-ink">Notes internes</h3>
+        <p className="mb-2 text-xs text-yc-ink-soft">Visibles uniquement par votre équipe, jamais par le client.</p>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={3}
-          className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          className="w-full rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-2 text-sm"
         />
         <button
           type="button"
           onClick={() => void handleSaveNotes()}
-          className="mt-2 rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+          className="mt-2 rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
         >
           Enregistrer
         </button>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Adresses</h3>
+          <h3 className="text-sm font-semibold text-yc-ink">Adresses</h3>
           <button
             type="button"
             onClick={() => setShowAddressForm((v) => !v)}
-            className="rounded border border-gray-300 px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
+            className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1 text-xs text-yc-ink/80 hover:bg-yc-ivory-50"
           >
             Ajouter une adresse
           </button>
         </div>
 
         {showAddressForm && (
-          <div className="mb-3 flex flex-col gap-2 rounded border border-gray-200 p-3">
+          <div className="mb-3 flex flex-col gap-2 rounded-xl border border-yc-ink/10 p-3">
             <select
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             >
               {SENEGAL_REGIONS.map((r) => (
                 <option key={r} value={r}>
@@ -205,37 +205,37 @@ export function CustomerDetailPanel({ customerId }: { customerId: string }) {
               value={commune}
               onChange={(e) => setCommune(e.target.value)}
               placeholder="Commune"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             />
             <input
               type="text"
               value={street}
               onChange={(e) => setStreet(e.target.value)}
               placeholder="Rue / quartier"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             />
             <button
               type="button"
               onClick={() => void handleAddAddress()}
-              className="self-start rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+              className="self-start rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-1.5 text-sm font-medium text-white hover:bg-yc-night-800"
             >
               Ajouter
             </button>
           </div>
         )}
 
-        <ul className="divide-y divide-gray-200">
-          {customer.addresses.length === 0 && <li className="py-2 text-sm text-gray-500">Aucune adresse enregistrée.</li>}
+        <ul className="divide-y divide-yc-ink/[0.06]">
+          {customer.addresses.length === 0 && <li className="py-2 text-sm text-yc-ink-soft">Aucune adresse enregistrée.</li>}
           {customer.addresses.map((address) => (
             <li key={address.id} className="flex items-center justify-between py-2">
-              <p className="text-sm text-gray-900">
+              <p className="text-sm text-yc-ink">
                 {[address.street, address.neighborhood, address.commune, address.region].filter(Boolean).join(", ")}
-                {address.isDefault && <span className="ml-2 text-xs text-indigo-600">(par défaut)</span>}
+                {address.isDefault && <span className="ml-2 text-xs text-yc-electric">(par défaut)</span>}
               </p>
               <button
                 type="button"
                 onClick={() => void handleDeleteAddress(address.id)}
-                className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                className="rounded-xl border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
               >
                 Supprimer
               </button>
@@ -244,17 +244,17 @@ export function CustomerDetailPanel({ customerId }: { customerId: string }) {
         </ul>
       </section>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <h3 className="mb-2 text-sm font-semibold text-gray-900">Historique des commandes</h3>
-        <ul className="divide-y divide-gray-200">
+      <section className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0 p-4">
+        <h3 className="mb-2 text-sm font-semibold text-yc-ink">Historique des commandes</h3>
+        <ul className="divide-y divide-yc-ink/[0.06]">
           {customer.orders.length === 0 && (
-            <li className="py-2 text-sm text-gray-500">Aucune commande pour le moment.</li>
+            <li className="py-2 text-sm text-yc-ink-soft">Aucune commande pour le moment.</li>
           )}
           {customer.orders.map((order) => (
             <li key={order.id} className="flex items-center justify-between py-2 text-sm">
-              <span className="text-gray-900">{order.orderNumber}</span>
-              <span className="text-gray-500">{order.status}</span>
-              <span className="text-gray-900">
+              <span className="text-yc-ink">{order.orderNumber}</span>
+              <span className="text-yc-ink-soft">{order.status}</span>
+              <span className="text-yc-ink">
                 {order.total.toLocaleString("fr-FR")} {order.currency}
               </span>
             </li>

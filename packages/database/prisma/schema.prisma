@@ -46,33 +46,99 @@ enum TenantStatus {
 }
 
 model Tenant {
-  id               String       @id @default(uuid())
-  name             String
-  slug             String       @unique
-  businessType     BusinessType // legacy Phase 0 — conservé pour compatibilité d'affichage,
+  id                String       @id @default(uuid())
+  name              String
+  slug              String       @unique
+  businessType      BusinessType // legacy Phase 0 — conservé pour compatibilité d'affichage,
   // remplacé fonctionnellement par `sectorKey` (registre secteurs, voir docs/11).
-  sectorKey        String? // clé vers Sector.key — null tant que le tenant n'a pas terminé
+  sectorKey         String? // clé vers Sector.key — null tant que le tenant n'a pas terminé
   // l'assistant de création (choix du secteur, voir docs/09 Phase 1).
-  sector           Sector?      @relation(fields: [sectorKey], references: [key])
-  status           TenantStatus @default(PENDING)
-  branding         Json         @default("{}") // { logoUrl, primaryColor, secondaryColor, defaultMode }
-  currency         String       @default("XOF")
-  locale           String       @default("fr") // fr | en | wo
-  supportedLocales String[]     @default(["fr"])
-  timezone         String       @default("Africa/Dakar")
-  trialEndsAt      DateTime?
+  sector            Sector?      @relation(fields: [sectorKey], references: [key])
+  status            TenantStatus @default(PENDING)
+  branding          Json         @default("{}") // { logoUrl, primaryColor, secondaryColor, defaultMode }
+  currency          String       @default("XOF")
+  locale            String       @default("fr") // fr | en | wo
+  supportedLocales  String[]     @default(["fr"])
+  timezone          String       @default("Africa/Dakar")
+  trialEndsAt       DateTime?
   /// Dérogation Super Admin EXPLICITE pour un tenant antérieur à la facturation SaaS
   /// (voir docs/14, « aucune souscription = accès illimité » — corrigé le 22
   /// septembre 2026) : SEUL un tenant marqué ici échappe encore au blocage par défaut
   /// lorsqu'aucun `TenantSubscription` n'existe. `null` = aucune dérogation (nouveau
   /// tenant standard) — jamais l'inverse, jamais un défaut permissif.
   billingExemptedAt DateTime?
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-  deletedAt        DateTime?
+  /// Entreprise de DÉMONSTRATION (données fictives) — voir la migration
+  /// 20261006000000_tenant_demo_flag : modifiable uniquement en contexte Super Admin
+  /// (déclencheur `tenant_demo_guard`). Jamais une entreprise réelle.
+  isDemo            Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  deletedAt         DateTime?
 
   domains                  Domain[]
   users                    TenantUser[]
+  invitations              TenantInvitation[]
+  storefrontContent        StorefrontContent?
+  listings                 Listing[]
+  siteRevisions            SiteRevision[]
+  listingRevisions         ListingRevision[]
+  listingAvailabilities    ListingAvailability[]
+  reservations             Reservation[]
+  reservationHistory       ReservationStatusHistory[]
+  propertyDetails          PropertyDetails[]
+  leases                   Lease[]
+  rentPayments             RentPayment[]
+  travelPackages           TravelPackageDetails[]
+  travelItineraryDays      TravelItineraryDay[]
+  reservationTravelers     ReservationTraveler[]
+  travelerDocuments        TravelerDocument[]
+  reservationPayments      ReservationPayment[]
+  serviceDetails           ServiceDetails[]
+  serviceStaff             ServiceStaff[]
+  serviceStaffSkills       ServiceStaffSkill[]
+  staffWorkingHours        StaffWorkingHours[]
+  staffTimeOff             StaffTimeOff[]
+  serviceAppointments      ServiceAppointment[]
+  serviceBookingSettings   ServiceBookingSettings?
+  roomTypes                RoomTypeDetails[]
+  hotelRooms               HotelRoom[]
+  roomRates                RoomRate[]
+  hotelStays               HotelStay[]
+  hotelSettings            HotelSettings?
+  menuSections             MenuSection[]
+  dishes                   Dish[]
+  dishOptionGroups         DishOptionGroup[]
+  dishOptions              DishOption[]
+  diningTables             DiningTable[]
+  restaurantOrders         RestaurantOrder[]
+  restaurantOrderItems     RestaurantOrderItem[]
+  restaurantOrderEvents    RestaurantOrderEvent[]
+  restaurantPayments       RestaurantPayment[]
+  restaurantTableBookings  RestaurantTableBooking[]
+  restaurantSettings       RestaurantSettings?
+  vehicleDetails           VehicleDetails[]
+  vehicleTestDrives        VehicleTestDrive[]
+  vehicleSales             VehicleSale[]
+  leads                    Lead[]
+  leadEvents               LeadEvent[]
+  vehicleImports           VehicleImport[]
+  vehicleImportEvents      VehicleImportEvent[]
+  programDetails           ProgramDetails[]
+  classGroups              ClassGroup[]
+  students                 Student[]
+  familyAccesses           FamilyAccess[]
+  enrollmentDetails        EnrollmentDetails[]
+  enrollmentInstallments   EnrollmentInstallment[]
+  attendanceRecords        AttendanceRecord[]
+  assessments              Assessment[]
+  grades                   Grade[]
+  educationSettings        EducationSettings?
+  courierJobs              CourierJob[]
+  courierJobEvents         CourierJobEvent[]
+  courierRemittances       CourierRemittance[]
+  courierSettlements       CourierSettlement[]
+  courierSettings          CourierSettings?
+  autoSettings             AutoSettings?
   roles                    Role[]
   shops                    Shop[]
   categories               Category[]
@@ -101,6 +167,8 @@ model Tenant {
   paymentConfigs           PaymentProviderConfig[]
   whatsappConfig           WhatsAppConfig?
   deliveryZones            DeliveryZone[]
+  commerceSettings         CommerceSettings?
+  notificationLogs         NotificationLog[]
   deliverers               Deliverer[]
   counters                 Counter[]
   aiJobs                   AIGenerationJob[]
@@ -117,6 +185,7 @@ model Tenant {
   siteVersions             TenantSiteVersion[]
   pages                    Page[]
   mediaAssets              MediaAsset[]
+  sizeGuides               SizeGuide[]
 
   @@index([status])
 }
@@ -305,8 +374,11 @@ model SubscriptionPlan {
   /// secteur choisi — voir docs/11-secteurs-et-modules.md §11.1 et modèle TenantModule.
   includedModuleKeys String[] @default([])
 
-  features Json    @default("[]")
-  isActive Boolean @default(true)
+  features    Json    @default("[]")
+  isActive    Boolean @default(true)
+  /// Formule « sur devis » (ex. Sur mesure) : jamais souscrite en libre-service, jamais
+  /// envoyée au checkout — le prix est négocié et la formule attribuée par un Super Admin.
+  isQuoteOnly Boolean @default(false)
 
   /// Mode de renouvellement par défaut des abonnements souscrits à cette formule —
   /// copié sur `TenantSubscription.renewalMode` à la souscription (voir RenewalMode).
@@ -441,7 +513,7 @@ model SubscriptionEntitlement {
   id          String    @id @default(uuid())
   tenantId    String
   tenant      Tenant    @relation(fields: [tenantId], references: [id])
-  resourceKey String // "products" | "employees" | "domains" | "emails" | "whatsapp_messages" | ...
+  resourceKey String // "records" (fiches) | "employees" | "domains" | "emails" | "whatsapp_messages" | ...
   limitValue  Int? // null = illimité pour cette dérogation
   resetPeriod String    @default("none") // "monthly" | "none"
   reason      String?
@@ -521,6 +593,10 @@ model Sector {
   customFieldSchema      Json?
   isSystem               Boolean  @default(true)
   isActive               Boolean  @default(true)
+  /// Secteur réellement opérationnel (templates, fonctions métier et dashboard livrés
+  /// et testés) — seuls ceux-ci sont proposés à la création d'entreprise ; les autres
+  /// sont présentés « À venir », jamais vendus.
+  isAvailable            Boolean  @default(false)
   createdBy              String?
   createdAt              DateTime @default(now())
 
@@ -638,6 +714,9 @@ model TenantSiteVersion {
   scheduledAt  DateTime?
   publishedAt  DateTime?
   createdBy    String?
+  /// Identité (style, couleurs, logo) et animations PROPOSÉES par le brouillon ;
+  /// appliquées au site en ligne à la publication seulement. `null` = inchangées.
+  settings     Json?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
@@ -775,18 +854,19 @@ model MediaAsset {
 // ============================================================================
 
 model User {
-  id               String    @id @default(uuid())
-  email            String?   @unique
-  phone            String?   @unique
+  id               String       @id @default(uuid())
+  taughtClasses    ClassGroup[] @relation("ClassTeacher")
+  email            String?      @unique
+  phone            String?      @unique
   passwordHash     String
   fullName         String
-  isSuperAdmin     Boolean   @default(false)
-  preferredLocale  String    @default("fr")
-  twoFactorEnabled Boolean   @default(false)
+  isSuperAdmin     Boolean      @default(false)
+  preferredLocale  String       @default("fr")
+  twoFactorEnabled Boolean      @default(false)
   twoFactorSecret  String?
   lastLoginAt      DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   memberships      TenantUser[]
   impersonations   ImpersonationSession[] @relation("SuperAdminActor")
@@ -828,6 +908,313 @@ model TenantUser {
 
   @@unique([tenantId, userId])
   @@index([tenantId])
+}
+
+/// Contenus mis en avant sur l'accueil de la boutique (carrousel, univers, sélection,
+/// collections, bandeau) — structure validée côté serveur par un schéma Zod
+/// (apps/web/lib/storefront/home-content.ts) avant tout enregistrement.
+model StorefrontContent {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  content   Json
+  updatedBy String?
+  updatedAt DateTime @updatedAt
+}
+
+/// Fiche générique des secteurs hors commerce (bien immobilier, offre de voyage,
+/// prestation, chambre, véhicule, formation) — docs/04 §4.5.2. Porte UNIQUEMENT les
+/// champs communs à tous ces secteurs ; les données métier interrogeables vivent dans
+/// une table d'extension 1-1 typée par secteur (ajoutée avec chaque secteur), jamais
+/// dans un JSON fourre-tout. Une fiche non supprimée compte dans le quota « fiches »
+/// de la formule (voir subscription-usage.ts, RECORD_COUNTERS).
+model Listing {
+  id          String    @id @default(uuid())
+  tenantId    String
+  tenant      Tenant    @relation(fields: [tenantId], references: [id])
+  /// Module qui gère la fiche ("properties", "travel_offers", "services", …).
+  moduleKey   String
+  /// property | travel_package | service_offering | room | vehicle | course (CHECK en base).
+  type        String
+  /// draft | published | unavailable | archived (CHECK en base) — seul `published` est
+  /// visible et réservable sur le site public.
+  status      String    @default("draft")
+  title       String
+  slug        String
+  summary     String?
+  description String?
+  /// Prix en FCFA fixé par l'entreprise. Toute réservation le RELIT côté serveur :
+  /// un prix venu du navigateur n'est jamais utilisé.
+  price       Int?
+  /// total | per_person | per_night | per_month | per_session | on_request
+  priceUnit   String    @default("total")
+  currency    String    @default("XOF")
+  /// { region, commune, neighborhood } — affichage, pas de recherche fine dessus.
+  location    Json?
+  /// [{ url, alt, demo? }] — URLs de la médiathèque de l'entreprise.
+  media       Json      @default("[]")
+  featured    Boolean   @default(false)
+  createdBy   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  revisions      ListingRevision[]
+  availabilities ListingAvailability[]
+  reservations   Reservation[]
+  property       PropertyDetails?
+  travel         TravelPackageDetails?
+  service        ServiceDetails?
+  roomType       RoomTypeDetails?
+  vehicle        VehicleDetails?
+  testDrives     VehicleTestDrive[]
+  vehicleSales   VehicleSale[]
+  leads          Lead[]
+  imports        VehicleImport[]
+  program        ProgramDetails?
+  leases         Lease[]
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, moduleKey, status])
+}
+
+/// Instantané complet d'une fiche à chaque enregistrement — opposable en cas de litige
+/// (annonce modifiée après une réservation). IMMUABLE en base (REVOKE UPDATE/DELETE).
+model ListingRevision {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  listingId String
+  listing   Listing  @relation(fields: [listingId], references: [id])
+  snapshot  Json
+  changedBy String?
+  changedAt DateTime @default(now())
+
+  @@index([listingId, changedAt])
+}
+
+/// Créneau réservable d'une fiche : départ d'un circuit (places), créneau de rendez-vous,
+/// nuitée, créneau de visite. `reservedCount` n'est JAMAIS modifié hors du registre des
+/// réservations, et une contrainte CHECK interdit de dépasser `capacity`.
+model ListingAvailability {
+  id            String    @id @default(uuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  listingId     String
+  listing       Listing   @relation(fields: [listingId], references: [id])
+  startAt       DateTime  @db.Timestamptz(3)
+  endAt         DateTime? @db.Timestamptz(3)
+  capacity      Int       @default(1)
+  reservedCount Int       @default(0)
+  /// open | closed (CHECK en base) — un créneau fermé n'accepte plus de réservation.
+  status        String    @default("open")
+  /// Prix spécifique à ce créneau (haute saison, départ spécial) ; sinon prix de la fiche.
+  priceOverride Int?
+  label         String?
+  createdAt     DateTime  @default(now())
+
+  reservations     Reservation[]
+  restaurantOrders RestaurantOrder[]
+  leads            Lead[]
+  vehicleImports   VehicleImport[]
+  leases           Lease[]
+
+  @@unique([listingId, startAt])
+  @@index([tenantId, startAt])
+}
+
+/// Réservation commune (visite, rendez-vous, place sur un départ, séjour, essai).
+/// Montant calculé par le serveur ; statut changé UNIQUEMENT par
+/// `transitionReservationStatus` (reservation-registry.ts), historisé.
+model Reservation {
+  id             String               @id @default(uuid())
+  tenantId       String
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  reference      String // RES-2026-000123, séquentiel par entreprise et par année
+  listingId      String?
+  listing        Listing?             @relation(fields: [listingId], references: [id])
+  availabilityId String?
+  availability   ListingAvailability? @relation(fields: [availabilityId], references: [id])
+  customerId     String
+  customer       Customer             @relation(fields: [customerId], references: [id])
+  moduleKey      String
+  /// requested | confirmed | completed | canceled | no_show (CHECK en base)
+  status         String               @default("requested")
+  startAt        DateTime             @db.Timestamptz(3)
+  endAt          DateTime?            @db.Timestamptz(3)
+  /// Nombre de places / personnes / nuits réservées selon la fiche.
+  quantity       Int                  @default(1)
+  unitPrice      Int?
+  totalAmount    Int?
+  currency       String               @default("XOF")
+  customerNote   String?
+  internalNote   String?
+  channel        String               @default("web")
+  /// Jeton opaque : le client invité revoit SA réservation sans compte (même principe
+  /// que `Order.accessToken`) — jamais celle d'un autre.
+  accessToken    String               @unique @default(uuid())
+  confirmedAt    DateTime?
+  canceledAt     DateTime?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  history      ReservationStatusHistory[]
+  travelers    ReservationTraveler[]
+  payments     ReservationPayment[]
+  appointment  ServiceAppointment?
+  stay         HotelStay?
+  tableBooking RestaurantTableBooking?
+  testDrive    VehicleTestDrive?
+  vehicleSale  VehicleSale?
+  enrollment   EnrollmentDetails?
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, moduleKey, startAt])
+  @@index([tenantId, status])
+}
+
+/// Historique IMMUABLE des statuts de réservation (REVOKE UPDATE/DELETE en base).
+model ReservationStatusHistory {
+  id            String      @id @default(uuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  fromStatus    String?
+  toStatus      String
+  changedBy     String?
+  changedByType String // owner | employee | system | customer
+  note          String?
+  createdAt     DateTime    @default(now())
+
+  @@index([reservationId, createdAt])
+}
+
+/// Extension typée IMMOBILIER d'une fiche (docs/04 §4.5.2) : champs interrogeables
+/// (recherche par type, transaction, pièces, surface), jamais dans un JSON.
+model PropertyDetails {
+  listingId        String   @id
+  listing          Listing  @relation(fields: [listingId], references: [id])
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  /// apartment | house | villa | land | commercial | office (CHECK en base)
+  propertyType     String
+  /// sale | rent (CHECK en base)
+  dealType         String
+  bedrooms         Int?
+  bathrooms        Int?
+  surfaceM2        Int?
+  landSurfaceM2    Int?
+  furnished        Boolean  @default(false)
+  /// Équipements (piscine, gardien, climatisation…) — liste courte, filtrable.
+  amenities        String[] @default([])
+  /// Référence interne de l'agence (ex. ALM-0042).
+  agencyReference  String?
+  customAttributes Json?
+
+  @@index([tenantId, propertyType, dealType, bedrooms, surfaceM2])
+}
+
+/// Bail d'un bien en location (docs/04 §4.5.3). Un seul bail actif par bien (index
+/// unique partiel en base). Les loyers sont des lignes `RentPayment`, jamais un solde.
+model Lease {
+  id                 String    @id @default(uuid())
+  tenantId           String
+  tenant             Tenant    @relation(fields: [tenantId], references: [id])
+  reference          String // BAIL-2026-0001
+  listingId          String
+  listing            Listing   @relation(fields: [listingId], references: [id])
+  /// Locataire : un client de l'agence.
+  occupantCustomerId String
+  occupant           Customer  @relation(fields: [occupantCustomerId], references: [id])
+  /// Propriétaire bailleur (mandat de gestion) — nom et contact, pas un compte.
+  landlordName       String?
+  landlordPhone      String?
+  startDate          DateTime  @db.Date
+  endDate            DateTime? @db.Date
+  monthlyRent        Int
+  charges            Int       @default(0)
+  depositAmount      Int       @default(0)
+  /// Jour d'échéance du loyer dans le mois (1 à 28).
+  dueDay             Int       @default(5)
+  /// active | ended | terminated (CHECK en base)
+  status             String    @default("active")
+  notes              String?
+  createdBy          String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  endedAt            DateTime?
+
+  rentPayments          RentPayment[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, status])
+}
+
+/// Échéance de loyer. `paid` UNIQUEMENT quand l'agence enregistre un encaissement réel
+/// (montant, moyen, référence) — jamais déduit, jamais simulé. « En retard » se calcule
+/// (échéance passée et non payée), il n'est pas stocké.
+model RentPayment {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  leaseId          String
+  lease            Lease     @relation(fields: [leaseId], references: [id])
+  /// Mois concerné, format AAAA-MM.
+  period           String
+  dueDate          DateTime  @db.Date
+  amountDue        Int
+  amountPaid       Int       @default(0)
+  /// pending | paid | canceled (CHECK en base)
+  status           String    @default("pending")
+  /// cash | wave | orange_money | bank_transfer | check
+  method           String?
+  paymentReference String?
+  paidAt           DateTime?
+  recordedBy       String?
+  receiptNumber    String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([leaseId, period])
+  @@index([tenantId, status, dueDate])
+}
+
+/// Invitation d'un membre de l'équipe. Le jeton n'est JAMAIS stocké en clair (seule
+/// son empreinte SHA-256) ; une invitation en attente compte dans le quota
+/// d'utilisateurs de la formule, comme un membre actif.
+model TenantInvitation {
+  id         String    @id @default(uuid())
+  tenantId   String
+  tenant     Tenant    @relation(fields: [tenantId], references: [id])
+  email      String
+  roleName   String
+  tokenHash  String    @unique
+  invitedBy  String?
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([tenantId, email])
+}
+
+/// Demande de devis (formule Sur mesure) ou de contact commercial — donnée PLATEFORME,
+/// visible uniquement par le Super Admin (RLS), jamais par une entreprise.
+model PlatformInquiry {
+  id          String   @id @default(uuid())
+  kind        String   @default("custom_plan") // custom_plan | contact
+  fullName    String
+  email       String
+  phone       String?
+  companyName String?
+  sectorKey   String?
+  message     String
+  status      String   @default("new") // new | contacted | closed
+  createdAt   DateTime @default(now())
+
+  @@index([status, createdAt])
 }
 
 model ImpersonationSession {
@@ -881,19 +1268,42 @@ model Shop {
 }
 
 model Category {
-  id       String     @id @default(uuid())
-  tenantId String
-  tenant   Tenant     @relation(fields: [tenantId], references: [id])
-  name     String
-  slug     String
-  parentId String?
-  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
-  children Category[] @relation("CategoryTree")
-  imageUrl String?
+  id          String     @id @default(uuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id])
+  name        String
+  slug        String
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+  imageUrl    String?
+  /// Guide des tailles appliqué aux produits de la catégorie (même entreprise : clé
+  /// étrangère composite écrite dans la migration 20261017000000_size_guides).
+  sizeGuideId String?
 
   products Product[]
 
   @@unique([tenantId, slug])
+}
+
+/// Guide des tailles modifiable par l'entreprise (colonnes et lignes libres : tailles,
+/// mesures en cm, pointures…). Rattaché à une catégorie, remplaçable par produit.
+model SizeGuide {
+  id        String   @id @default(uuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  name      String
+  /// En-têtes ; la première colonne nomme la taille (« Taille », « Pointure »…).
+  columns   String[]
+  /// Lignes de cellules texte, autant que de colonnes : [["S","86-90","70-74"], …].
+  rows      Json
+  /// Conseil affiché sous le tableau (« Entre deux tailles, prenez la plus grande »).
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([id, tenantId])
+  @@unique([tenantId, name])
 }
 
 enum ProductStatus {
@@ -930,6 +1340,8 @@ model Product {
   /// Vrai = ajoute `DeliveryZone.bulkySurcharge` au montant de livraison si présent
   /// dans le panier au moment du checkout.
   isBulky           Boolean       @default(false)
+  /// Guide des tailles propre au produit ; sinon celui de sa catégorie.
+  sizeGuideId       String?
   createdBy         String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
@@ -1089,11 +1501,20 @@ model Customer {
   internalNotes String?
   createdAt     DateTime @default(now())
 
-  addresses CustomerAddress[]
-  orders    Order[]
-  wishlists Wishlist[]
-  reviews   Review[]
-  carts     Cart[]
+  addresses          CustomerAddress[]
+  orders             Order[]
+  wishlists          Wishlist[]
+  reviews            Review[]
+  carts              Cart[]
+  reservations       Reservation[]
+  Lease              Lease[]
+  RestaurantOrder    RestaurantOrder[]
+  Lead               Lead[]
+  VehicleImport      VehicleImport[]
+  students           Student[]
+  familyAccess       FamilyAccess?
+  courierJobs        CourierJob[]        @relation("CourierSender")
+  courierSettlements CourierSettlement[] @relation("CourierSettlementSender")
 
   @@unique([tenantId, phone])
   @@index([tenantId])
@@ -1297,6 +1718,12 @@ model Order {
   /// propre confirmation de commande sans authentification — voir le storefront.
   accessToken          String        @unique @default(uuid())
   notes                String?
+  /// Moyen de paiement CHOISI au checkout (`cod`, `online`, `manual_wave`,
+  /// `manual_orange_money`) — affichage et tri uniquement. Le statut réel du paiement
+  /// reste `paymentStatus` + les lignes `Payment`, jamais ce champ.
+  paymentMethod        String        @default("cod")
+  /// Notes internes de l'équipe — jamais exposées au client (storefront, suivi).
+  internalNotes        String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -1357,13 +1784,20 @@ model OrderStatusHistory {
 // ============================================================================
 
 model PaymentProviderConfig {
-  id        String  @id @default(uuid())
-  tenantId  String
-  tenant    Tenant  @relation(fields: [tenantId], references: [id])
-  provider  String // paydunya | paytech | cod | wave_direct | orange_money_direct
-  isEnabled Boolean @default(false)
-  mode      String  @default("sandbox") // sandbox | live
-  label     String?
+  id                 String  @id @default(uuid())
+  tenantId           String
+  tenant             Tenant  @relation(fields: [tenantId], references: [id])
+  provider           String // paydunya | paytech | cod | wave_direct | orange_money_direct
+  isEnabled          Boolean @default(false)
+  mode               String  @default("sandbox") // sandbox | live
+  label              String?
+  /// Paiement MANUEL (`wave_direct`, `orange_money_direct`) — numéro du portefeuille
+  /// marchand affiché au client pour qu'il envoie le montant exact. Donnée publique
+  /// (le client doit la voir), jamais un secret : ne remplace pas les identifiants
+  /// chiffrés ci-dessous, réservés aux prestataires automatiques (PSP).
+  accountNumber      String?
+  accountHolderName  String?
+  publicInstructions String?
 
   // Identifiants du compte marchand du tenant, chiffrés au repos (AES-256-GCM).
   // Adjustement #4 : chaque entreprise peut connecter son propre compte marchand ;
@@ -1402,6 +1836,17 @@ model Payment {
   // Rapprochement commande ↔ paiement ↔ facture (adjustement #3)
   reconciliationStatus  String          @default("pending") // pending | matched | mismatched
   reconciledAt          DateTime?
+  /// Paiement MANUEL (Wave/Orange Money direct) — preuve déclarée par le client,
+  /// jamais une confirmation : seul un membre de l'équipe du tenant avec
+  /// `payments.view` + `orders.update_status` peut valider (voir
+  /// `manual-payment-registry.ts`). Une preuve déposée laisse la commande
+  /// `AWAITING_PAYMENT`, jamais `PAID`.
+  proofReference        String?
+  proofImageUrl         String?
+  proofSubmittedAt      DateTime?
+  reviewedByUserId      String?
+  reviewedAt            DateTime?
+  reviewNote            String?
   createdAt             DateTime        @default(now())
 
   @@index([tenantId, status])
@@ -1550,19 +1995,31 @@ model Refund {
 // ============================================================================
 
 model DeliveryZone {
-  id             String  @id @default(uuid())
-  tenantId       String
-  tenant         Tenant  @relation(fields: [tenantId], references: [id])
-  region         String
-  department     String?
-  commune        String?
-  neighborhood   String?
-  fee            Int
-  freeThreshold  Int?
+  id                  String   @id @default(uuid())
+  tenantId            String
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  /// Nom affiché au client (ex. « Dakar Plateau — express »). Null = libellé dérivé
+  /// de la région/commune.
+  name                String?
+  isActive            Boolean  @default(true)
+  /// Catégories exclues de cette zone (ex. produits fragiles ou encombrants non
+  /// livrables hors Dakar) : un panier contenant un article d'une de ces catégories
+  /// ne peut pas choisir cette zone — recalculé côté serveur (`quoteDelivery`).
+  excludedCategoryIds String[] @default([])
+  region              String
+  department          String?
+  commune             String?
+  neighborhood        String?
+  fee                 Int
+  freeThreshold       Int?
   /// Supplément ajouté au montant de livraison si le panier contient au moins un
   /// article `Product.isBulky` — voir étape 2.
-  bulkySurcharge Int     @default(0)
-  estimatedDays  Int?
+  bulkySurcharge      Int      @default(0)
+  estimatedDays       Int?
+
+  courierJobs CourierJob[]
+
+  @@unique([id, tenantId])
 }
 
 model Deliverer {
@@ -1570,11 +2027,19 @@ model Deliverer {
   tenantId    String
   tenant      Tenant  @relation(fields: [tenantId], references: [id])
   userId      String?
+  /// Nom affiché (secteur livraison) ; les livreurs de boutique n'en ont pas toujours.
+  name        String?
   phone       String
   vehicleType String?
   isActive    Boolean @default(true)
+  /// Lien personnel de l'espace livreur (révocable) — ses courses uniquement.
+  accessToken String  @unique @default(uuid())
 
-  deliveries Delivery[]
+  deliveries  Delivery[]
+  courierJobs CourierJob[]
+  remittances CourierRemittance[]
+
+  @@unique([id, tenantId])
 }
 
 model Delivery {
@@ -1609,6 +2074,16 @@ model DelivererRemittance {
 // IA (adjustement #8 : quotas par formule, historique, validation humaine)
 // ============================================================================
 
+/// Budget IA de TOUTE la plateforme, par mois (FCFA estimés). Réservations atomiques :
+/// `spentXOF + reservedXOF` ne dépasse jamais le plafond `AI_PLATFORM_MONTHLY_CAP_XOF`,
+/// même avec des appels simultanés. Accessible uniquement en Super Admin (RLS).
+model AIPlatformBudget {
+  periodMonth String   @id // "2026-10"
+  spentXOF    Int      @default(0)
+  reservedXOF Int      @default(0)
+  updatedAt   DateTime @default(now()) @updatedAt
+}
+
 model AIGenerationJob {
   id              String    @id @default(uuid())
   tenantId        String
@@ -1620,6 +2095,19 @@ model AIGenerationJob {
   model           String?
   imagesCount     Int       @default(0)
   costEstimateXOF Int       @default(0)
+  /// Jetons facturés par le fournisseur (0 pour une génération simulée).
+  inputTokens     Int       @default(0)
+  outputTokens    Int       @default(0)
+  /// Génération SIMULÉE (développement, sans fournisseur IA) : jamais présentée
+  /// comme une vraie génération. Voir apps/web/lib/ai/provider.ts.
+  simulated       Boolean   @default(false)
+  /// Coût maximal réservé sur le budget de la plateforme pendant l'appel (FCFA) ;
+  /// remis à 0 quand le coût réel est imputé. Voir `ai-platform-budget.ts`.
+  reservedXOF     Int       @default(0)
+  /// Mois du budget de la plateforme sur lequel la réservation a été faite.
+  budgetPeriod    String?
+  errorMessage    String?
+  finishedAt      DateTime?
   createdBy       String?
   createdAt       DateTime  @default(now())
   // Aucun contenu IA n'est publiable sans validation humaine explicite.
@@ -1628,6 +2116,7 @@ model AIGenerationJob {
   approved        Boolean   @default(false)
 
   @@index([tenantId, createdAt])
+  @@index([tenantId, type, createdAt])
 }
 
 /// Compteur d'utilisation IA par tenant et par période mensuelle (YYYY-MM),
@@ -1644,6 +2133,26 @@ model AIUsageRecord {
   updatedAt            DateTime @updatedAt
 
   @@unique([tenantId, periodMonth])
+}
+
+/// Historique des modifications du brouillon (assistant IA ou manuelles) — voir la
+/// migration 20261007010000_site_draft_settings_revisions.
+model SiteRevision {
+  id                  String    @id @default(uuid())
+  tenantId            String
+  tenant              Tenant    @relation(fields: [tenantId], references: [id])
+  tenantSiteVersionId String
+  source              String // ai | manual
+  label               String
+  before              Json
+  after               Json
+  afterSignature      String
+  aiJobId             String?
+  createdBy           String?
+  undoneAt            DateTime?
+  createdAt           DateTime  @default(now())
+
+  @@index([tenantId, createdAt])
 }
 
 model ImportJob {
@@ -1727,4 +2236,1216 @@ model ErrorLog {
   createdAt DateTime @default(now())
 
   @@index([level, createdAt])
+}
+
+/// Réglages de vente d'un tenant — retrait en boutique, instructions, commande
+/// invitée, fenêtre de paiement manuel. Une ligne au plus par tenant ; absente =
+/// valeurs par défaut (voir `getCommerceSettings`).
+model CommerceSettings {
+  id                       String   @id @default(uuid())
+  tenantId                 String   @unique
+  tenant                   Tenant   @relation(fields: [tenantId], references: [id])
+  pickupEnabled            Boolean  @default(true)
+  pickupAddress            String?
+  pickupInstructions       String?
+  deliveryInstructions     String?
+  guestCheckoutEnabled     Boolean  @default(true)
+  /// Durée (heures) pendant laquelle le stock reste réservé pour une commande en
+  /// paiement manuel (Wave/Orange Money) avant expiration automatique.
+  manualPaymentWindowHours Int      @default(24)
+  updatedAt                DateTime @updatedAt
+}
+
+/// Journal HONNÊTE des notifications — distingue « événement créé / mis en file »
+/// (`queued`) d'une livraison réellement réussie (`sent`), échouée (`failed`) ou
+/// impossible faute de fournisseur configuré (`not_sent_no_provider`). Jamais un
+/// envoi présenté comme réussi sans réponse positive d'un fournisseur réel.
+model NotificationLog {
+  id        String    @id @default(uuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id])
+  orderId   String?
+  event     String
+  channel   String
+  recipient String?
+  status    String    @default("queued")
+  attempts  Int       @default(0)
+  lastError String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sentAt    DateTime?
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, orderId])
+}
+
+/// Extension typée VOYAGE d'une fiche (`type = "travel_package"`) : champs
+/// interrogeables (type de voyage, destination, durée), jamais dans un JSON. Les
+/// départs sont des `ListingAvailability` (places), les réservations des `Reservation`.
+model TravelPackageDetails {
+  listingId          String               @id
+  listing            Listing              @relation(fields: [listingId], references: [id])
+  tenantId           String
+  tenant             Tenant               @relation(fields: [tenantId], references: [id])
+  /// circuit | stay | pilgrimage | excursion | cruise (CHECK en base)
+  tripType           String
+  destinationCountry String
+  destinationCity    String?
+  durationDays       Int
+  durationNights     Int                  @default(0)
+  /// Prestations incluses — liste fermée (vols, hôtel, transferts, repas, guide…).
+  included           String[]             @default([])
+  /// Ce qui n'est pas compris, en clair pour le client.
+  excludedNote       String?
+  /// Acompte demandé à la confirmation, en % du total (0 = règlement complet à la confirmation).
+  depositPercent     Int                  @default(30)
+  /// Pièces demandées à chaque voyageur (passeport, visa, fièvre jaune…).
+  requiredDocuments  String[]             @default([])
+  meetingPoint       String?
+  itinerary          TravelItineraryDay[]
+
+  @@index([tenantId, tripType, destinationCountry, durationDays])
+}
+
+/// Programme jour par jour d'un voyage.
+model TravelItineraryDay {
+  id          String               @id @default(uuid())
+  tenantId    String
+  tenant      Tenant               @relation(fields: [tenantId], references: [id])
+  listingId   String
+  travel      TravelPackageDetails @relation(fields: [listingId], references: [listingId])
+  dayNumber   Int
+  title       String
+  description String?
+
+  @@unique([listingId, dayNumber])
+}
+
+/// Voyageur nominatif d'une réservation (autant de voyageurs que de places). Le numéro
+/// de passeport est CHIFFRÉ au repos ; seuls les 4 derniers caractères sont lisibles.
+model ReservationTraveler {
+  id             String             @id @default(uuid())
+  tenantId       String
+  tenant         Tenant             @relation(fields: [tenantId], references: [id])
+  reservationId  String
+  reservation    Reservation        @relation(fields: [reservationId], references: [id])
+  position       Int
+  firstName      String
+  lastName       String
+  birthDate      DateTime?          @db.Date
+  nationality    String?
+  passportCipher Json?
+  passportLast4  String?
+  passportExpiry DateTime?          @db.Date
+  isLead         Boolean            @default(false)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  documents      TravelerDocument[]
+
+  @@unique([reservationId, position])
+  @@index([tenantId, reservationId])
+}
+
+/// Suivi d'une pièce d'un voyageur (passeport, visa, carnet de vaccination…). Le statut
+/// reflète ce que l'agence a réellement reçu ou obtenu — jamais déduit.
+model TravelerDocument {
+  id         String              @id @default(uuid())
+  tenantId   String
+  tenant     Tenant              @relation(fields: [tenantId], references: [id])
+  travelerId String
+  traveler   ReservationTraveler @relation(fields: [travelerId], references: [id])
+  /// passport | id_card | visa | yellow_fever | photo | travel_insurance (CHECK en base)
+  kind       String
+  /// missing | received | submitted | approved | refused (CHECK en base)
+  status     String              @default("missing")
+  note       String?
+  updatedBy  String?
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([travelerId, kind])
+  @@index([tenantId, kind, status])
+}
+
+/// Encaissement RÉEL enregistré par l'agence sur une réservation (acompte, solde).
+/// Jamais simulé, jamais Chariow (réservé aux abonnements Y-COM). Immuable : une erreur
+/// se corrige par annulation motivée (`voidedAt`), jamais par modification.
+model ReservationPayment {
+  id            String      @id @default(uuid())
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  reservationId String
+  reservation   Reservation @relation(fields: [reservationId], references: [id])
+  receiptNumber String
+  /// deposit | balance | other (CHECK en base)
+  kind          String
+  amount        Int
+  /// cash | wave | orange_money | bank_transfer | card_terminal (CHECK en base)
+  method        String
+  reference     String?
+  paidAt        DateTime    @db.Timestamptz(3)
+  recordedBy    String?
+  voidedAt      DateTime?   @db.Timestamptz(3)
+  voidReason    String?
+  createdAt     DateTime    @default(now())
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId, reservationId])
+}
+
+// ============================================================================
+// SERVICES / SALONS (secteur `services`) — étape 6
+// ============================================================================
+
+/// Extension typée SERVICE d'une fiche (`type = "service_offering"`) : une prestation
+/// (coupe, tresses, soin, manucure…) avec sa durée réelle. Le prix reste celui de la
+/// fiche ; `priceFrom` l'affiche « à partir de » (prix final fixé au salon).
+model ServiceDetails {
+  listingId       String  @id
+  listing         Listing @relation(fields: [listingId], references: [id])
+  tenantId        String
+  tenant          Tenant  @relation(fields: [tenantId], references: [id])
+  /// Rubrique libre affichée sur le site (« Coiffure », « Ongles », « Soins »…).
+  category        String
+  /// Durée de la prestation, en minutes (5 à 600, CHECK en base).
+  durationMinutes Int
+  /// Temps de préparation/nettoyage après la prestation, bloqué dans l'agenda.
+  bufferMinutes   Int     @default(0)
+  priceFrom       Boolean @default(false)
+  /// Réservable en ligne ; sinon affichée sur le site avec « sur rendez-vous par téléphone ».
+  onlineBooking   Boolean @default(true)
+  position        Int     @default(0)
+
+  skills       ServiceStaffSkill[]
+  appointments ServiceAppointment[]
+
+  @@index([tenantId, category, position])
+}
+
+/// Membre de l'équipe qui réalise des prestations (pas forcément un utilisateur du
+/// tableau de bord). Jamais supprimé s'il a des rendez-vous : on le désactive.
+model ServiceStaff {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  displayName   String
+  title         String?
+  bio           String?
+  photoUrl      String?
+  isActive      Boolean  @default(true)
+  /// Proposé au choix sur le site (sinon : réservable uniquement par l'équipe).
+  acceptsOnline Boolean  @default(true)
+  position      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  skills       ServiceStaffSkill[]
+  hours        StaffWorkingHours[]
+  timeOff      StaffTimeOff[]
+  appointments ServiceAppointment[]
+
+  @@index([tenantId, isActive, position])
+}
+
+/// Prestations qu'un membre de l'équipe sait réaliser.
+model ServiceStaffSkill {
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  staffId   String
+  staff     ServiceStaff   @relation(fields: [staffId], references: [id])
+  listingId String
+  service   ServiceDetails @relation(fields: [listingId], references: [listingId])
+
+  @@id([staffId, listingId])
+  @@index([tenantId, listingId])
+}
+
+/// Horaires de travail hebdomadaires (plusieurs plages par jour possibles, ex. 9 h–13 h
+/// et 15 h–20 h). Minutes depuis minuit, heure locale du salon (`Tenant.timezone`).
+model StaffWorkingHours {
+  id          String       @id @default(uuid())
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  staffId     String
+  staff       ServiceStaff @relation(fields: [staffId], references: [id])
+  /// 0 = dimanche … 6 = samedi
+  weekday     Int
+  startMinute Int
+  endMinute   Int
+
+  @@index([tenantId, staffId, weekday])
+}
+
+/// Absence (congé, formation, fermeture) : aucun rendez-vous ne peut y être placé.
+model StaffTimeOff {
+  id        String       @id @default(uuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  staffId   String
+  staff     ServiceStaff @relation(fields: [staffId], references: [id])
+  startAt   DateTime     @db.Timestamptz(3)
+  endAt     DateTime     @db.Timestamptz(3)
+  reason    String?
+  createdAt DateTime     @default(now())
+
+  @@index([tenantId, staffId, startAt])
+}
+
+/// Rendez-vous : la réservation commune + la personne qui l'assure et la plage bloquée
+/// dans son agenda (prestation + temps de préparation). Une contrainte d'EXCLUSION en
+/// base interdit deux plages actives qui se chevauchent pour une même personne, même
+/// sous des réservations simultanées. `active` suit le statut de la réservation
+/// (déclencheur en base) : une annulation libère la plage.
+model ServiceAppointment {
+  reservationId String         @id
+  reservation   Reservation    @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  staffId       String
+  staff         ServiceStaff   @relation(fields: [staffId], references: [id])
+  listingId     String
+  service       ServiceDetails @relation(fields: [listingId], references: [listingId])
+  startAt       DateTime       @db.Timestamptz(3)
+  /// Fin de la prestation (affichée au client).
+  endAt         DateTime       @db.Timestamptz(3)
+  /// Fin de la plage bloquée (fin + temps de préparation).
+  blockedUntil  DateTime       @db.Timestamptz(3)
+  active        Boolean        @default(true)
+
+  @@index([tenantId, staffId, startAt])
+  @@index([tenantId, startAt])
+}
+
+/// Règles de prise de rendez-vous en ligne propres au salon.
+model ServiceBookingSettings {
+  tenantId          String   @id
+  tenant            Tenant   @relation(fields: [tenantId], references: [id])
+  /// Pas entre deux horaires proposés (10, 15, 20, 30 ou 60 min).
+  slotStepMinutes   Int      @default(15)
+  /// Délai minimal avant un rendez-vous pris en ligne.
+  minLeadMinutes    Int      @default(60)
+  /// Jusqu'à combien de jours à l'avance on peut réserver en ligne.
+  maxAdvanceDays    Int      @default(45)
+  /// Le client peut annuler en ligne jusqu'à N heures avant.
+  cancelCutoffHours Int      @default(3)
+  /// Un rendez-vous pris en ligne sur un horaire libre est confirmé tout de suite ;
+  /// sinon il attend la confirmation du salon (la plage reste bloquée).
+  autoConfirm       Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}
+
+// ============================================================================
+// HÔTELS ET LOCATIONS (secteur `hospitality`) — étape 7
+// ============================================================================
+
+/// Extension typée HÔTEL d'une fiche (`type = "room"`) : un TYPE de chambre (ou de
+/// logement) avec sa capacité et ses règles. Le prix de la fiche est le prix par nuit
+/// de base ; les `RoomRate` le remplacent sur des périodes (saison, fêtes).
+model RoomTypeDetails {
+  listingId      String   @id
+  listing        Listing  @relation(fields: [listingId], references: [id])
+  tenantId       String
+  tenant         Tenant   @relation(fields: [tenantId], references: [id])
+  maxAdults      Int
+  maxChildren    Int      @default(0)
+  /// « 1 grand lit », « 2 lits simples »…
+  bedSummary     String
+  sizeM2         Int?
+  amenities      String[] @default([])
+  minNights      Int      @default(1)
+  /// Heures d'arrivée / de départ (minutes depuis minuit, heure locale).
+  checkInMinute  Int      @default(840)
+  checkOutMinute Int      @default(720)
+  /// Acompte demandé à la confirmation (0 = règlement sur place).
+  depositPercent Int      @default(0)
+  position       Int      @default(0)
+
+  rooms HotelRoom[]
+  rates RoomRate[]
+  stays HotelStay[]
+
+  @@index([tenantId, position])
+}
+
+/// Chambre physique (numéro) d'un type. Son état de ménage est suivi ; une chambre
+/// « hors service » n'est jamais attribuée.
+model HotelRoom {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  listingId    String
+  roomType     RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  number       String
+  floor        String?
+  /// clean | dirty | inspected | out_of_service (CHECK en base)
+  housekeeping String          @default("clean")
+  note         String?
+  isActive     Boolean         @default(true)
+  updatedAt    DateTime        @updatedAt
+
+  stays HotelStay[]
+
+  @@unique([tenantId, number])
+  @@index([tenantId, listingId])
+}
+
+/// Prix par nuit sur une période [startDate, endDate) — jamais deux périodes qui se
+/// chevauchent pour un même type (contrainte d'exclusion en base).
+model RoomRate {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  listingId    String
+  roomType     RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  startDate    DateTime        @db.Date
+  endDate      DateTime        @db.Date
+  nightlyPrice Int
+  label        String?
+
+  @@index([tenantId, listingId, startDate])
+}
+
+/// Séjour : la réservation commune + la chambre attribuée et les nuits [arrival,
+/// departure). Une contrainte d'EXCLUSION interdit deux séjours actifs qui se
+/// chevauchent dans une même chambre, même sous des réservations simultanées.
+/// `active` suit le statut de la réservation (déclencheur en base).
+model HotelStay {
+  reservationId String          @id
+  reservation   Reservation     @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  listingId     String
+  roomType      RoomTypeDetails @relation(fields: [listingId], references: [listingId])
+  roomId        String
+  room          HotelRoom       @relation(fields: [roomId], references: [id])
+  arrival       DateTime        @db.Date
+  departure     DateTime        @db.Date
+  nights        Int
+  adults        Int
+  children      Int             @default(0)
+  /// Détail du prix nuit par nuit [{ date, price }] calculé par le serveur.
+  nightly       Json            @default("[]")
+  active        Boolean         @default(true)
+  checkedInAt   DateTime?
+  checkedOutAt  DateTime?
+
+  @@index([tenantId, arrival])
+  @@index([tenantId, roomId, arrival])
+}
+
+/// Règles de réservation en ligne propres à l'établissement.
+model HotelSettings {
+  tenantId        String   @id
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  /// Une demande en ligne sur une chambre libre est confirmée tout de suite.
+  autoConfirm     Boolean  @default(true)
+  /// Annulation en ligne possible jusqu'à N heures avant l'arrivée.
+  cancelFreeHours Int      @default(48)
+  /// Réservable en ligne jusqu'à N jours à l'avance.
+  maxAdvanceDays  Int      @default(365)
+  maxNights       Int      @default(30)
+  updatedAt       DateTime @updatedAt
+}
+
+// ============================================================================
+// RESTAURATION (secteur `restaurant`) — étape 8
+// ============================================================================
+
+/// Rubrique de la carte (Entrées, Plats, Grillades, Boissons…), éventuellement servie
+/// seulement sur une plage horaire (petit déjeuner).
+model MenuSection {
+  id            String  @id @default(uuid())
+  tenantId      String
+  tenant        Tenant  @relation(fields: [tenantId], references: [id])
+  name          String
+  description   String?
+  position      Int     @default(0)
+  isActive      Boolean @default(true)
+  /// Plage de service (minutes, heure locale) ; null = toute la journée d'ouverture.
+  availableFrom Int?
+  availableTo   Int?
+
+  dishes Dish[]
+
+  @@index([tenantId, position])
+}
+
+/// Plat ou boisson de la carte. Prix en FCFA fixé par le restaurant ; « épuisé » se
+/// bascule en un geste (pas de gestion de stock).
+model Dish {
+  id          String      @id @default(uuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  sectionId   String
+  section     MenuSection @relation(fields: [sectionId], references: [id])
+  name        String
+  description String?
+  price       Int
+  imageUrl    String?
+  imageDemo   Boolean     @default(false)
+  /// signature | spicy | vegetarian | new (affichage)
+  badges      String[]    @default([])
+  isAvailable Boolean     @default(true)
+  isActive    Boolean     @default(true)
+  position    Int         @default(0)
+  prepMinutes Int         @default(15)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  optionGroups DishOptionGroup[]
+  orderItems   RestaurantOrderItem[]
+
+  @@index([tenantId, sectionId, position])
+}
+
+/// Groupe d'options d'un plat : « Accompagnement » (1 choix obligatoire), « Suppléments »
+/// (0 à 3)… Les bornes sont vérifiées par le serveur à la commande.
+model DishOptionGroup {
+  id         String @id @default(uuid())
+  tenantId   String
+  tenant     Tenant @relation(fields: [tenantId], references: [id])
+  dishId     String
+  dish       Dish   @relation(fields: [dishId], references: [id])
+  name       String
+  minChoices Int    @default(0)
+  maxChoices Int    @default(1)
+  position   Int    @default(0)
+
+  options DishOption[]
+
+  @@index([tenantId, dishId])
+}
+
+model DishOption {
+  id          String          @id @default(uuid())
+  tenantId    String
+  tenant      Tenant          @relation(fields: [tenantId], references: [id])
+  groupId     String
+  group       DishOptionGroup @relation(fields: [groupId], references: [id])
+  name        String
+  /// Supplément (FCFA) ajouté au prix du plat ; 0 = inclus.
+  priceDelta  Int             @default(0)
+  isAvailable Boolean         @default(true)
+  position    Int             @default(0)
+
+  @@index([tenantId, groupId])
+}
+
+/// Table de la salle. Son QR code mène à la carte en mode « sur place » pour CETTE
+/// table (jeton opaque, régénérable).
+model DiningTable {
+  id       String  @id @default(uuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id])
+  label    String
+  seats    Int
+  zone     String?
+  qrToken  String  @unique @default(uuid())
+  isActive Boolean @default(true)
+  position Int     @default(0)
+
+  orders   RestaurantOrder[]
+  bookings RestaurantTableBooking[]
+
+  @@unique([tenantId, label])
+}
+
+/// Commande : sur place (table), à emporter (heure de retrait) ou en livraison. Montants
+/// recalculés par le serveur depuis la carte ; statut changé uniquement par le registre,
+/// historisé dans `RestaurantOrderEvent` (immuable).
+model RestaurantOrder {
+  id              String       @id @default(uuid())
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  number          String
+  /// dine_in | takeaway | delivery (CHECK en base)
+  mode            String
+  tableId         String?
+  table           DiningTable? @relation(fields: [tableId], references: [id])
+  customerId      String?
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  customerName    String
+  customerPhone   String?
+  /// new | accepted | preparing | ready | completed | canceled (CHECK en base)
+  status          String       @default("new")
+  /// Heure de retrait / livraison souhaitée (null = dès que possible).
+  requestedFor    DateTime?    @db.Timestamptz(3)
+  deliveryAddress String?
+  note            String?
+  subtotal        Int
+  deliveryFee     Int          @default(0)
+  total           Int
+  channel         String       @default("web")
+  accessToken     String       @unique @default(uuid())
+  acceptedAt      DateTime?    @db.Timestamptz(3)
+  readyAt         DateTime?    @db.Timestamptz(3)
+  completedAt     DateTime?    @db.Timestamptz(3)
+  canceledAt      DateTime?    @db.Timestamptz(3)
+  createdAt       DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime     @updatedAt
+
+  items                 RestaurantOrderItem[]
+  events                RestaurantOrderEvent[]
+  payments              RestaurantPayment[]
+  ListingAvailability   ListingAvailability?   @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, number])
+  @@index([tenantId, status, createdAt])
+}
+
+model RestaurantOrderItem {
+  id           String          @id @default(uuid())
+  tenantId     String
+  tenant       Tenant          @relation(fields: [tenantId], references: [id])
+  orderId      String
+  order        RestaurantOrder @relation(fields: [orderId], references: [id])
+  dishId       String
+  dish         Dish            @relation(fields: [dishId], references: [id])
+  nameSnapshot String
+  /// Ordre de saisie (la cuisine lit les lignes dans l'ordre de la commande).
+  position     Int             @default(0)
+  /// Prix unitaire = prix du plat + suppléments choisis (au moment de la commande).
+  unitPrice    Int
+  quantity     Int
+  /// [{ group, option, priceDelta }] — instantané des options choisies.
+  options      Json            @default("[]")
+  note         String?
+  total        Int
+
+  @@index([tenantId, orderId])
+}
+
+/// Historique IMMUABLE des changements de statut d'une commande (REVOKE UPDATE/DELETE).
+model RestaurantOrderEvent {
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  orderId       String
+  order         RestaurantOrder @relation(fields: [orderId], references: [id])
+  fromStatus    String?
+  toStatus      String
+  changedBy     String?
+  changedByType String
+  note          String?
+  createdAt     DateTime        @default(now())
+
+  @@index([tenantId, orderId])
+}
+
+/// Encaissement RÉEL d'une commande (espèces, Wave, Orange Money, carte…). Jamais simulé,
+/// jamais Chariow. Immuable : une erreur s'annule avec un motif.
+model RestaurantPayment {
+  id            String          @id @default(uuid())
+  tenantId      String
+  tenant        Tenant          @relation(fields: [tenantId], references: [id])
+  orderId       String
+  order         RestaurantOrder @relation(fields: [orderId], references: [id])
+  receiptNumber String
+  amount        Int
+  method        String
+  reference     String?
+  paidAt        DateTime        @default(now()) @db.Timestamptz(3)
+  recordedBy    String?
+  voidedAt      DateTime?       @db.Timestamptz(3)
+  voidReason    String?
+
+  @@unique([tenantId, receiptNumber])
+  @@index([tenantId, orderId])
+}
+
+/// Réservation de table : la réservation commune + le nombre de couverts et, une fois
+/// placés, la table. La capacité en couverts par créneau est vérifiée sous verrou.
+model RestaurantTableBooking {
+  reservationId String       @id
+  reservation   Reservation  @relation(fields: [reservationId], references: [id])
+  tenantId      String
+  tenant        Tenant       @relation(fields: [tenantId], references: [id])
+  partySize     Int
+  tableId       String?
+  table         DiningTable? @relation(fields: [tableId], references: [id])
+  occasion      String?
+
+  @@index([tenantId])
+}
+
+/// Réglages du restaurant : horaires de service, commandes, réservations.
+model RestaurantSettings {
+  tenantId           String   @id
+  tenant             Tenant   @relation(fields: [tenantId], references: [id])
+  /// [{ weekday, startMinute, endMinute }] — plages d'ouverture (heure locale).
+  openingHours       Json     @default("[]")
+  acceptTakeaway     Boolean  @default(true)
+  acceptDelivery     Boolean  @default(true)
+  acceptDineInQr     Boolean  @default(true)
+  deliveryFee        Int      @default(1000)
+  minDeliveryOrder   Int      @default(5000)
+  /// Temps de préparation annoncé (minutes) pour le premier créneau de retrait.
+  prepMinutes        Int      @default(25)
+  acceptBookings     Boolean  @default(true)
+  /// Couverts servis au plus par créneau de réservation.
+  maxCoversPerSlot   Int      @default(30)
+  bookingSlotMinutes Int      @default(30)
+  /// Durée d'occupation d'une table réservée (minutes).
+  bookingDuration    Int      @default(90)
+  maxPartySize       Int      @default(10)
+  updatedAt          DateTime @updatedAt
+}
+
+// ============================================================================
+// AUTOMOBILE (secteur `automobile`) — étape 9
+// ============================================================================
+
+/// Fiche technique d'un véhicule : un véhicule EST une fiche commune (`Listing`,
+/// type « vehicle ») + ces caractéristiques. Le prix reste celui de la fiche.
+model VehicleDetails {
+  listingId    String   @id
+  listing      Listing  @relation(fields: [listingId], references: [id])
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  make         String
+  model        String
+  version      String?
+  year         Int
+  mileageKm    Int      @default(0)
+  /// essence | diesel | hybride | electrique | gpl (CHECK en base)
+  fuel         String
+  /// manuelle | automatique (CHECK en base)
+  transmission String
+  /// citadine | berline | break | suv | 4x4 | pickup | monospace | coupe | utilitaire
+  bodyType     String
+  color        String?
+  engine       String?
+  seats        Int?
+  /// new | used | imported_used (« venant », déjà roulé à l'étranger) — CHECK en base
+  condition    String
+  /// incoming (en arrivage) | available | reserved | sold — changé par le registre
+  stockStatus  String   @default("available")
+  features     String[] @default([])
+  negotiable   Boolean  @default(false)
+  /// Informations internes, jamais affichées sur le site.
+  vin          String?
+  plate        String?
+  position     Int      @default(0)
+
+  @@index([tenantId, stockStatus])
+}
+
+/// Essai d'un véhicule : une réservation commune + le créneau ; jamais deux essais
+/// actifs qui se chevauchent pour un même véhicule (contrainte d'exclusion).
+model VehicleTestDrive {
+  reservationId    String      @id
+  reservation      Reservation @relation(fields: [reservationId], references: [id])
+  tenantId         String
+  tenant           Tenant      @relation(fields: [tenantId], references: [id])
+  listingId        String
+  listing          Listing     @relation(fields: [listingId], references: [id])
+  startAt          DateTime    @db.Timestamptz(3)
+  endAt            DateTime    @db.Timestamptz(3)
+  active           Boolean     @default(true)
+  /// Le client déclare avoir un permis valide (vérifié au showroom).
+  licenseConfirmed Boolean     @default(false)
+
+  @@index([tenantId, startAt])
+}
+
+/// Dossier de vente : une réservation commune (montant = prix convenu − reprise) ; les
+/// encaissements (acompte, solde) passent par le service commun des réservations.
+/// Un seul dossier actif par véhicule.
+model VehicleSale {
+  reservationId      String      @id
+  reservation        Reservation @relation(fields: [reservationId], references: [id])
+  tenantId           String
+  tenant             Tenant      @relation(fields: [tenantId], references: [id])
+  listingId          String
+  listing            Listing     @relation(fields: [listingId], references: [id])
+  leadId             String?
+  lead               Lead?       @relation(fields: [leadId], references: [id])
+  agreedPrice        Int
+  tradeInValue       Int         @default(0)
+  tradeInDescription String?
+  active             Boolean     @default(true)
+  deliveredAt        DateTime?   @db.Timestamptz(3)
+
+  @@index([tenantId, listingId])
+}
+
+/// Prospect : une demande (achat, essai, reprise, financement, importation) suivie
+/// jusqu'à la vente ou l'abandon. Historique immuable dans `LeadEvent`.
+model Lead {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  customerId   String
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  listingId    String?
+  listing      Listing?  @relation(fields: [listingId], references: [id])
+  /// web | phone | whatsapp | walk_in (CHECK en base)
+  source       String    @default("web")
+  /// purchase | test_drive | trade_in | financing | import_request (CHECK en base)
+  interest     String    @default("purchase")
+  /// new | contacted | test_drive | negotiation | won | lost (CHECK en base)
+  status       String    @default("new")
+  message      String?
+  budget       Int?
+  lostReason   String?
+  assignedTo   String?
+  nextActionAt DateTime? @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt
+
+  events                LeadEvent[]
+  sales                 VehicleSale[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@index([tenantId, status, createdAt])
+}
+
+model LeadEvent {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  leadId        String
+  lead          Lead     @relation(fields: [leadId], references: [id])
+  /// created | status | note | request (CHECK en base)
+  kind          String
+  fromStatus    String?
+  toStatus      String?
+  body          String?
+  createdBy     String?
+  createdByType String
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, leadId])
+}
+
+/// Importation d'un véhicule (achat à l'étranger jusqu'à la disponibilité au Sénégal),
+/// suivie par étapes ; le client qui l'a commandé la suit avec son lien (jeton).
+model VehicleImport {
+  id           String    @id @default(uuid())
+  tenantId     String
+  tenant       Tenant    @relation(fields: [tenantId], references: [id])
+  reference    String
+  listingId    String
+  listing      Listing   @relation(fields: [listingId], references: [id])
+  customerId   String?
+  customer     Customer? @relation(fields: [customerId], references: [id])
+  origin       String
+  /// purchased | shipped | at_port | customs | ready | canceled (CHECK en base)
+  stage        String    @default("purchased")
+  eta          DateTime? @db.Date
+  vessel       String?
+  containerRef String?
+  note         String?
+  accessToken  String    @unique @default(uuid())
+  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt
+
+  events                VehicleImportEvent[]
+  ListingAvailability   ListingAvailability? @relation(fields: [listingAvailabilityId], references: [id])
+  listingAvailabilityId String?
+
+  @@unique([tenantId, reference])
+  @@index([tenantId, stage])
+}
+
+model VehicleImportEvent {
+  id        String        @id @default(uuid())
+  tenantId  String
+  tenant    Tenant        @relation(fields: [tenantId], references: [id])
+  importId  String
+  import    VehicleImport @relation(fields: [importId], references: [id])
+  fromStage String?
+  toStage   String
+  note      String?
+  createdBy String?
+  createdAt DateTime      @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, importId])
+}
+
+/// Réglages du showroom : horaires, essais, acompte.
+model AutoSettings {
+  tenantId         String   @id
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  openingHours     Json     @default("[]")
+  testDriveMinutes Int      @default(45)
+  slotStepMinutes  Int      @default(30)
+  maxAdvanceDays   Int      @default(30)
+  /// Acompte conseillé pour réserver un véhicule (pourcentage du prix).
+  depositPercent   Int      @default(10)
+  updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// ÉDUCATION (secteur `education`) — écoles, centres de formation, cours du soir.
+// Une formation EST une fiche commune (`Listing`, type « program ») ; une inscription
+// EST une réservation commune (module « enrollments ») dont les encaissements passent
+// par le service commun (`ReservationPayment`) et dont les échéances sont planifiées
+// ici. Présences et notes ne portent que sur des élèves réellement inscrits dans la
+// classe. Élèves et familles accèdent à LEUR espace par un lien personnel révocable.
+// ============================================================================
+
+/// Extension ÉDUCATION d'une fiche (`type = "program"`).
+model ProgramDetails {
+  listingId           String  @id
+  listing             Listing @relation(fields: [listingId], references: [id])
+  tenantId            String
+  tenant              Tenant  @relation(fields: [tenantId], references: [id])
+  /// school (scolaire) | training (formation professionnelle) | language | tutoring | other (CHECK)
+  category            String  @default("training")
+  /// Niveau affiché (« Terminale », « B1 », « Débutant »…)
+  level               String?
+  /// onsite | online | hybrid (CHECK)
+  format              String  @default("onsite")
+  /// Durée affichée (« 9 mois », « 12 semaines »…)
+  durationLabel       String?
+  /// Frais d'inscription (FCFA) — le prix de la fiche est la scolarité.
+  registrationFee     Int     @default(0)
+  /// Nombre d'échéances proposé par défaut pour la scolarité (1 = paiement unique).
+  defaultInstallments Int     @default(1)
+  /// Public : children | teens | adults | all (CHECK)
+  audience            String  @default("all")
+  position            Int     @default(0)
+
+  classes ClassGroup[]
+
+  @@index([tenantId])
+}
+
+/// Classe / session d'une formation : un enseignant, une salle, un horaire, une capacité.
+model ClassGroup {
+  id            String         @id @default(uuid())
+  tenantId      String
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  listingId     String
+  program       ProgramDetails @relation(fields: [listingId], references: [listingId])
+  name          String
+  /// Enseignant principal (membre de l'équipe) — ne voit et ne saisit que SES classes.
+  teacherUserId String?
+  teacher       User?          @relation("ClassTeacher", fields: [teacherUserId], references: [id])
+  room          String?
+  /// [{ weekday, startMinute, endMinute }]
+  schedule      Json           @default("[]")
+  startDate     DateTime       @db.Date
+  endDate       DateTime       @db.Date
+  capacity      Int
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+
+  enrollments EnrollmentDetails[]
+  attendance  AttendanceRecord[]
+  assessments Assessment[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, listingId])
+  @@index([tenantId, teacherUserId])
+}
+
+/// Élève / apprenant. Son responsable (parent, tuteur, ou lui-même s'il est adulte) est
+/// un client du registre commun (téléphone normalisé, jamais de doublon).
+model Student {
+  id               String    @id @default(uuid())
+  tenantId         String
+  tenant           Tenant    @relation(fields: [tenantId], references: [id])
+  guardianId       String
+  guardian         Customer  @relation(fields: [guardianId], references: [id])
+  /// parent | guardian | self (CHECK)
+  guardianRelation String    @default("parent")
+  firstName        String
+  lastName         String
+  birthDate        DateTime? @db.Date
+  /// Lien personnel de l'espace élève (révocable).
+  accessToken      String    @unique @default(uuid())
+  notes            String?
+  createdAt        DateTime  @default(now()) @db.Timestamptz(3)
+
+  enrollments EnrollmentDetails[]
+  attendance  AttendanceRecord[]
+  grades      Grade[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, guardianId])
+}
+
+/// Espace FAMILLE : un lien personnel par responsable (révocable), qui montre tous ses enfants.
+model FamilyAccess {
+  customerId  String   @id
+  customer    Customer @relation(fields: [customerId], references: [id])
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id])
+  accessToken String   @unique @default(uuid())
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId])
+}
+
+/// Extension ÉDUCATION d'une réservation (module « enrollments ») : l'inscription.
+model EnrollmentDetails {
+  reservationId   String      @id
+  reservation     Reservation @relation(fields: [reservationId], references: [id])
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id])
+  studentId       String
+  student         Student     @relation(fields: [studentId], references: [id])
+  listingId       String
+  classGroupId    String?
+  classGroup      ClassGroup? @relation(fields: [classGroupId], references: [id])
+  /// Inscription active (requested | confirmed) — maintenu par déclencheur.
+  active          Boolean     @default(true)
+  registrationFee Int         @default(0)
+  tuition         Int         @default(0)
+  /// Remise / bourse accordée par l'administration, toujours motivée.
+  discountAmount  Int         @default(0)
+  discountReason  String?
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+
+  installments EnrollmentInstallment[]
+
+  @@index([tenantId, classGroupId])
+  @@index([tenantId, studentId])
+}
+
+/// Échéancier d'une inscription : la somme des échéances = montant dû de l'inscription.
+model EnrollmentInstallment {
+  id            String            @id @default(uuid())
+  tenantId      String
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  reservationId String
+  enrollment    EnrollmentDetails @relation(fields: [reservationId], references: [reservationId])
+  position      Int
+  label         String
+  dueDate       DateTime          @db.Date
+  amount        Int
+
+  @@unique([reservationId, position])
+  @@index([tenantId, dueDate])
+}
+
+/// Présence d'un élève à une séance d'une classe (une ligne par élève et par jour).
+model AttendanceRecord {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  classGroupId String
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  sessionDate  DateTime   @db.Date
+  /// present | absent | late | excused (CHECK)
+  status       String
+  note         String?
+  recordedBy   String?
+  recordedAt   DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@unique([classGroupId, studentId, sessionDate])
+  @@index([tenantId, studentId])
+}
+
+/// Évaluation d'une classe (devoir, examen) — notes visibles des familles une fois publiées.
+model Assessment {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  classGroupId String
+  classGroup   ClassGroup @relation(fields: [classGroupId], references: [id])
+  title        String
+  date         DateTime   @db.Date
+  coefficient  Decimal    @default(1) @db.Decimal(4, 2)
+  maxScore     Int        @default(20)
+  publishedAt  DateTime?  @db.Timestamptz(3)
+  createdBy    String?
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+
+  grades Grade[]
+
+  @@unique([id, tenantId])
+  @@index([tenantId, classGroupId])
+}
+
+model Grade {
+  id           String     @id @default(uuid())
+  tenantId     String
+  tenant       Tenant     @relation(fields: [tenantId], references: [id])
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+  studentId    String
+  student      Student    @relation(fields: [studentId], references: [id])
+  /// Note sur `maxScore` ; null = absent à l'évaluation (`absent` = true).
+  score        Decimal?   @db.Decimal(5, 2)
+  absent       Boolean    @default(false)
+  comment      String?
+  recordedBy   String?
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([assessmentId, studentId])
+  @@index([tenantId, studentId])
+}
+
+/// Réglages de l'établissement.
+model EducationSettings {
+  tenantId         String   @id
+  tenant           Tenant   @relation(fields: [tenantId], references: [id])
+  /// Année scolaire affichée (« 2026-2027 »)
+  academicYear     String   @default("")
+  /// Barème des notes (20 = sur 20)
+  gradeScale       Int      @default(20)
+  /// Seuil d'alerte d'absences non justifiées (par élève et par classe)
+  absenceAlert     Int      @default(3)
+  /// Les inscriptions en ligne sont-elles ouvertes ?
+  onlineEnrollment Boolean  @default(true)
+  updatedAt        DateTime @updatedAt
+}
+
+// ============================================================================
+// SECTEUR LIVRAISON (sociétés de coursiers) — courses pour le compte de clients
+// ============================================================================
+
+/// Une course : un colis à prendre chez l'expéditeur (client de la société) et à remettre
+/// au destinataire, avec éventuellement une somme à encaisser à la livraison.
+model CourierJob {
+  id                 String             @id @default(uuid())
+  tenantId           String
+  tenant             Tenant             @relation(fields: [tenantId], references: [id])
+  /// LIV-AAAA-NNNNNN
+  reference          String
+  /// pending | assigned | picked_up | in_transit | delivered | failed | returning | returned | canceled (CHECK)
+  status             String             @default("pending")
+  senderId           String
+  sender             Customer           @relation("CourierSender", fields: [senderId], references: [id])
+  pickupName         String
+  pickupPhone        String
+  pickupAddress      String
+  pickupCommune      String?
+  recipientName      String
+  recipientPhone     String
+  dropoffAddress     String
+  dropoffCommune     String?
+  instructions       String?
+  zoneId             String?
+  zone               DeliveryZone?      @relation(fields: [zoneId], references: [id])
+  packageDescription String
+  /// small | medium | large (CHECK)
+  size               String             @default("small")
+  /// Tarif calculé par le serveur (zone + format), jamais saisi par le client.
+  fee                Int
+  /// sender | recipient (CHECK) : qui règle le tarif de la course.
+  feePaidBy          String             @default("sender")
+  /// Somme à encaisser auprès du destinataire pour le compte de l'expéditeur.
+  codAmount          Int                @default(0)
+  delivererId        String?
+  deliverer          Deliverer?         @relation(fields: [delivererId], references: [id])
+  attempts           Int                @default(0)
+  scheduledDate      DateTime?          @db.Date
+  senderToken        String             @unique @default(uuid())
+  recipientToken     String             @unique @default(uuid())
+  /// Code à 4 chiffres remis au destinataire : preuve de remise.
+  deliveryCode       String
+  /// code | name (CHECK) — code vérifié, ou nom du réceptionnaire (preuve plus faible).
+  proofType          String?
+  proofName          String?
+  /// Espèces réellement encaissées à la livraison (= somme attendue, sinon échec).
+  collectedAmount    Int?
+  collectedAt        DateTime?          @db.Timestamptz(3)
+  remittanceId       String?
+  remittance         CourierRemittance? @relation(fields: [remittanceId], references: [id])
+  settlementId       String?
+  settlement         CourierSettlement? @relation(fields: [settlementId], references: [id])
+  failureReason      String?
+  cancelReason       String?
+  deliveredAt        DateTime?          @db.Timestamptz(3)
+  /// web | dashboard | phone | whatsapp
+  channel            String             @default("dashboard")
+  createdAt          DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
+
+  events CourierJobEvent[]
+
+  @@unique([tenantId, reference])
+  @@unique([id, tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, delivererId, status])
+  @@index([tenantId, senderId])
+}
+
+/// Historique d'une course (lecture seule pour l'application).
+model CourierJobEvent {
+  id         String     @id @default(uuid())
+  tenantId   String
+  tenant     Tenant     @relation(fields: [tenantId], references: [id])
+  jobId      String
+  job        CourierJob @relation(fields: [jobId], references: [id])
+  fromStatus String?
+  toStatus   String
+  note       String?
+  /// staff | deliverer | customer | system
+  actorType  String
+  actorId    String?
+  createdAt  DateTime   @default(now()) @db.Timestamptz(3)
+
+  @@index([tenantId, jobId])
+}
+
+/// Versement des espèces d'un livreur au bureau : couvre des courses précises.
+model CourierRemittance {
+  id              String    @id @default(uuid())
+  tenantId        String
+  tenant          Tenant    @relation(fields: [tenantId], references: [id])
+  delivererId     String
+  deliverer       Deliverer @relation(fields: [delivererId], references: [id])
+  /// VER-AAAA-NNNNNN
+  receiptNumber   String
+  expectedAmount  Int
+  receivedAmount  Int
+  /// Écart (manquant ou excédent) : toujours motivé.
+  discrepancyNote String?
+  receivedBy      String?
+  receivedAt      DateTime  @default(now()) @db.Timestamptz(3)
+
+  jobs CourierJob[]
+
+  @@unique([tenantId, receiptNumber])
+  @@unique([id, tenantId])
+  @@index([tenantId, delivererId])
+}
+
+/// Reversement à un expéditeur : sommes encaissées pour lui − tarifs à sa charge.
+model CourierSettlement {
+  id            String   @id @default(uuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id])
+  senderId      String
+  sender        Customer @relation("CourierSettlementSender", fields: [senderId], references: [id])
+  /// REV-AAAA-NNNNNN
+  receiptNumber String
+  codTotal      Int
+  feesDeducted  Int
+  /// codTotal − feesDeducted (négatif : l'expéditeur doit la différence).
+  amount        Int
+  /// cash | wave | orange_money | free_money | bank_transfer | other (CHECK)
+  method        String
+  reference     String?
+  settledBy     String?
+  settledAt     DateTime @default(now()) @db.Timestamptz(3)
+
+  jobs CourierJob[]
+
+  @@unique([tenantId, receiptNumber])
+  @@unique([id, tenantId])
+  @@index([tenantId, senderId])
+}
+
+model CourierSettings {
+  tenantId        String   @id
+  tenant          Tenant   @relation(fields: [tenantId], references: [id])
+  /// Suppléments par format de colis (FCFA)
+  mediumSurcharge Int      @default(500)
+  largeSurcharge  Int      @default(1500)
+  /// Plafond d'encaissement à la livraison par course (sécurité des livreurs)
+  maxCod          Int      @default(500000)
+  /// Tentatives avant retour obligatoire à l'expéditeur
+  maxAttempts     Int      @default(3)
+  /// Demandes de course depuis le site public
+  publicRequests  Boolean  @default(true)
+  updatedAt       DateTime @updatedAt
 }

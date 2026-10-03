@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { MissingPhoto } from "./missing-photo";
 import { AnimatePresence, motion } from "framer-motion";
 import { useAnimationLevel } from "@/lib/motion/animation-level-context";
 import { t, type Locale } from "@/lib/i18n";
@@ -86,15 +87,19 @@ export function ProductCard({ product, locale }: { product: ProductCardData; loc
           {...(product.href ? { href: product.href, "data-cursor-hover": true } : {})}
           className="relative block aspect-[4/5] w-full overflow-hidden bg-[var(--color-surface-muted)]"
         >
-          <Image
-            src={product.imageUrl}
-            alt={product.name}
-            fill
-            sizes="(max-width: 640px) 50vw, 33vw"
-            className={`object-cover transition-opacity duration-500 ${
-              product.hoverImageUrl ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"
-            } ${!product.hoverImageUrl ? "transition-transform duration-[var(--motion-duration-slow)]" : ""}`}
-          />
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 50vw, 33vw"
+              className={`object-cover transition-opacity duration-500 ${
+                product.hoverImageUrl ? "group-hover:opacity-0" : "group-hover:scale-[1.04]"
+              } ${!product.hoverImageUrl ? "transition-transform duration-[var(--motion-duration-slow)]" : ""}`}
+            />
+          ) : (
+            <MissingPhoto />
+          )}
           {product.hoverImageUrl && (
             <Image
               src={product.hoverImageUrl}

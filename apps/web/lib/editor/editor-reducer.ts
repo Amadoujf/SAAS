@@ -52,6 +52,9 @@ export type EditorAction =
   | { type: "REORDER_SECTIONS"; pageId: string; orderedIds: string[] }
   | { type: "TOGGLE_SECTION_ENABLED"; pageId: string; sectionId: string }
   | { type: "DUPLICATE_SECTION"; pageId: string; sectionId: string; newId: string }
+  /** Insère une NOUVELLE section (bibliothèque de l'éditeur) après `afterSectionId`, ou
+   *  en fin de page ; l'identifiant est fourni par l'appelant (réducteur pur). */
+  | { type: "ADD_SECTION"; pageId: string; section: SectionInstance; afterSectionId?: string | null }
   | { type: "DELETE_SECTION"; pageId: string; sectionId: string }
   | { type: "UPDATE_SECTION_PARAMS"; pageId: string; sectionId: string; params: Record<string, unknown> }
   | {
@@ -171,6 +174,16 @@ function applyContentAction(content: EditorContent, action: EditorAction): Edito
       });
     }
 
+    case "ADD_SECTION": {
+      const next = mapPage(content, action.pageId, (page) => {
+        if (page.blocks.some((block) => block.id === action.section.id)) return page;
+        const at = action.afterSectionId ? page.blocks.findIndex((block) => block.id === action.afterSectionId) : -1;
+        const blocks = at === -1 ? [...page.blocks, action.section] : [...page.blocks.slice(0, at + 1), action.section, ...page.blocks.slice(at + 1)];
+        return { ...page, blocks: renormalizeOrder(blocks) };
+      });
+      return next === content ? content : { ...next, selectedSectionId: action.section.id };
+    }
+
     case "DELETE_SECTION": {
       return mapPage(content, action.pageId, (page) => {
         if (!page.blocks.some((block) => block.id === action.sectionId)) return page;
@@ -224,6 +237,7 @@ const CONTENT_ACTION_TYPES = new Set<EditorAction["type"]>([
   "REORDER_SECTIONS",
   "TOGGLE_SECTION_ENABLED",
   "DUPLICATE_SECTION",
+  "ADD_SECTION",
   "DELETE_SECTION",
   "UPDATE_SECTION_PARAMS",
   "UPDATE_SECTION_STYLE_OVERRIDE",

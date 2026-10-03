@@ -1,4 +1,8 @@
-import { validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
+import { sectionParamSchemas, validateSectionInstance, type SectionInstance } from "@yamacommerce/templates";
+import { CollectionHeroSection } from "./collection/collection-hero";
+import { ProductLineupSection } from "./collection/product-lineup";
+import { MarqueeSection } from "./collection/marquee-band";
+import { BrandStorySection } from "./collection/brand-story";
 import type { DesignTokens } from "@yamacommerce/design-tokens";
 import type { Locale } from "@/lib/i18n";
 import { AnimationScopeOverride } from "@/lib/motion/animation-level-context";
@@ -34,12 +38,17 @@ import { LookbookSection } from "./lookbook";
 import { DesignersSection } from "./designers";
 import { ProvenanceSection } from "./provenance";
 import { CatalogSearchSection } from "./catalog-search";
+import { ImmersiveHeroSection } from "./immersive/immersive-hero";
+import { ImmersiveShowcaseSection } from "./immersive/immersive-showcase";
+import { ScrollStorySection } from "./immersive/scroll-story";
+import { SHOWCASE_POOL_KEY, isShowcasePool, selectShowcaseItems, type ShowcasePool } from "@/lib/showcase/showcase";
 import type {
   ResolvedCategoriesContent,
   ResolvedProductsContent,
   ResolvedPromotionsContent,
   ResolvedLookbookContent,
   ResolvedDesignersContent,
+  ResolvedHeroProductContent,
 } from "./content-types";
 
 /**
@@ -55,6 +64,9 @@ export type ResolvedContentBySectionId = Record<
   | ResolvedPromotionsContent
   | ResolvedLookbookContent
   | ResolvedDesignersContent
+  | ResolvedHeroProductContent
+  /** Réservoir des produits et fiches publiés (clé `SHOWCASE_POOL_KEY`) — voir lib/showcase. */
+  | ShowcasePool
 >;
 
 /**
@@ -283,6 +295,40 @@ function renderByKey(
 
     case "catalog_search":
       return <CatalogSearchSection variant={instance.variant} params={instance.params as any} />;
+
+    // Sections immersives : les réglages sont repassés par leur schéma pour obtenir les
+    // valeurs PAR DÉFAUT (la validation d'instance contrôle sans les appliquer) — une
+    // section enregistrée avec seulement un titre s'affiche donc complète.
+    case "immersive_hero":
+      return <ImmersiveHeroSection variant={instance.variant} params={sectionParamSchemas.immersive_hero.parse(instance.params)} />;
+
+    case "immersive_showcase": {
+      // Sélection calculée ici (fonction pure), depuis le réservoir fourni par le serveur
+      // ou l'éditeur — un carrousel tout juste ajouté dans l'éditeur affiche donc déjà
+      // les vrais contenus de l'entreprise, sans aller-retour serveur.
+      const pool = resolvedContent?.[SHOWCASE_POOL_KEY];
+      const params = sectionParamSchemas.immersive_showcase.parse(instance.params);
+      const items = selectShowcaseItems(params, isShowcasePool(pool) ? pool : undefined);
+      return <ImmersiveShowcaseSection variant={instance.variant} params={params} items={items} />;
+    }
+
+    case "scroll_story":
+      return <ScrollStorySection variant={instance.variant} params={sectionParamSchemas.scroll_story.parse(instance.params)} />;
+
+    case "collection_hero":
+      return <CollectionHeroSection variant={instance.variant} params={sectionParamSchemas.collection_hero.parse(instance.params)} content={resolvedContent?.[instance.id] as ResolvedHeroProductContent | undefined} />;
+
+    case "product_lineup": {
+      const content = resolvedContent?.[instance.id] as ResolvedProductsContent | undefined;
+      if (!content) return <SectionFallback sectionKey="product_lineup" />;
+      return <ProductLineupSection variant={instance.variant} params={sectionParamSchemas.product_lineup.parse(instance.params)} content={content} />;
+    }
+
+    case "marquee":
+      return <MarqueeSection variant={instance.variant} params={sectionParamSchemas.marquee.parse(instance.params)} />;
+
+    case "brand_story":
+      return <BrandStorySection variant={instance.variant} params={sectionParamSchemas.brand_story.parse(instance.params)} />;
 
     default: {
       // Exhaustivité : si un 17e type de section est ajouté à SECTION_KEYS sans être

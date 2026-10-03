@@ -1,0 +1,89 @@
+# Prévisualisation PRIVÉE de Y-COM : pile complète et SÉPARÉE (sa propre base de
+# démonstration, son propre Redis, ses propres fichiers), protégée par un code d'accès et
+# non indexable. Jamais la production. Voir docs/16-previsualisation-privee.md.
+#
+#   cp infra/preview/.env.preview.example infra/preview/.env.preview   # puis renseigner
+#   docker compose -f infra/preview/docker-compose.yml --env-file infra/preview/.env.preview up -d --build
+name: yamacommerce-preview
+
+x-app-env: &app-env
+  NODE_ENV: production
+  DATABASE_URL: postgresql://yamacommerce_app:${APP_DB_PASSWORD}@db:5432/yamacommerce_preview?schema=public
+  MIGRATE_DATABASE_URL: postgresql://yamacommerce_owner:${OWNER_DB_PASSWORD}@db:5432/yamacommerce_preview?schema=public
+  REDIS_URL: redis://redis:6379
+  AUTH_SECRET: ${AUTH_SECRET}
+  AUTH_TRUST_HOST: "true"
+  NEXTAUTH_URL: https://${PREVIEW_DOMAIN}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+  PLATFORM_SUBDOMAIN_SUFFIX: ${PREVIEW_DOMAIN}
+  PREVIEW_ACCESS_CODE: ${PREVIEW_ACCESS_CODE}
+  PREVIEW_COOKIE_DOMAIN: .${PREVIEW_DOMAIN}
+  SAAS_BILLING_PROVIDER: manual
+  PAYDUNYA_MODE: sandbox
+  AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
+  AI_MODEL: ${AI_MODEL:-claude-sonnet-5-5}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
+  LOCAL_STORAGE_ROOT_DIR: /data/storage
+  ALLOW_DEMO_SEED: "true"
+  PREVIEW_DEMO_PASSWORD: ${PREVIEW_DEMO_PASSWORD}
+  AI_PLATFORM_MONTHLY_CAP_XOF: ${AI_PLATFORM_MONTHLY_CAP_XOF:-15000}
+  SUPERADMIN_SEED_EMAIL: ${SUPERADMIN_EMAIL}
+  SUPERADMIN_SEED_PASSWORD: ${SUPERADMIN_PASSWORD}
+  DEFAULT_TIMEZONE: Africa/Dakar
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yamacommerce_owner
+      POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD}
+      POSTGRES_DB: yamacommerce_preview
+    volumes: [preview_db:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U yamacommerce_owner -d yamacommerce_preview"], interval: 5s, timeout: 5s, retries: 20 }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes: [preview_redis:/data]
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 5s, retries: 20 }
+
+  # Migrations, rôles, données de base et entreprises de démonstration (une seule fois :
+  # chaque script de démo ne recrée pas une démo déjà présente).
+  migrate:
+    build: { context: ../.., dockerfile: Dockerfile }
+    image: yamacommerce:preview
+    environment: *app-env
+    depends_on: { db: { condition: service_healthy } }
+    command: ["sh", "infra/preview/init-demo-db.sh"]
+    restart: "no"
+
+  web:
+    image: yamacommerce:preview
+    restart: unless-stopped
+    environment: *app-env
+    volumes: [preview_storage:/data/storage]
+    depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy } }
+
+  worker:
+    image: yamacommerce:preview
+    restart: unless-stopped
+    environment: *app-env
+    command: ["pnpm", "--filter", "@yamacommerce/worker", "exec", "tsx", "src/index.ts"]
+    depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy } }
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PREVIEW_DOMAIN: ${PREVIEW_DOMAIN}
+    ports: ["80:80", "443:443"]
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "preview_caddy:/data"]
+    depends_on: [web]
+
+volumes:
+  preview_db:
+  preview_redis:
+  preview_storage:
+  preview_caddy:

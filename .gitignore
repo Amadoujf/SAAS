@@ -48,3 +48,10 @@ infra/**/data/
 # jamais destinés à être versionnés, comme n'importe quel autre répertoire d'upload local.
 .local-storage-demo/
 .local-storage/
+
+# Instantanés Redis locaux
+*.rdb
+
+# Prévisualisation privée : secrets du serveur, jamais versionnés
+infra/preview/.env.preview
+infra/preview/ai-trial/out/

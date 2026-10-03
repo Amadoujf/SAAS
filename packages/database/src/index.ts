@@ -2,7 +2,7 @@
  *  applicatives (ex. apps/web/lib/publishing/*) qui reçoivent un `tx` déjà ouvert par
  *  `withTenant()` de le typer explicitement sans dépendre directement de
  *  `@prisma/client` (qui reste un détail d'implémentation de ce package). */
-export type { Prisma, DomainLifecycleStatus, ProductStatus } from "@prisma/client";
+export type { Prisma, DomainLifecycleStatus, ProductStatus, OrderStatus } from "@prisma/client";
 export * from "./client";
 export * from "./tenant-context";
 export * from "./counters";
@@ -20,8 +20,31 @@ export * from "./cart-registry";
 export * from "./order-status";
 export * from "./order-registry";
 export * from "./order-reservation";
+export * from "./commerce-registry";
+export * from "./order-operations";
+export * from "./dashboard-insights";
+export * from "./team-registry";
+export * from "./storefront-registry";
+export * from "./notification-registry";
 export * from "./subscription-status";
 export * from "./subscription-registry";
 export * from "./subscription-lifecycle";
 export * from "./subscription-usage";
 export * from "./subscription-reminders";
+export * from "./tenant-provisioning";
+export * from "./listing-registry";
+export * from "./reservation-registry";
+export * from "./real-estate-registry";
+export * from "./ai-usage-registry";
+export * from "./ai-platform-budget";
+export * from "./travel-registry";
+export * from "./service-slots";
+export * from "./service-registry";
+export * from "./hotel-registry";
+export * from "./restaurant-registry";
+export * from "./auto-registry";
+export * from "./site-links";
+export * from "./payment-ledger";
+export * from "./education-registry";
+export * from "./courier-registry";
+export * from "./size-guide-registry";

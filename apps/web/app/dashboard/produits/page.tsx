@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/yc/panel";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { ProductsPanel } from "@/components/dashboard/products-panel";
@@ -19,10 +20,8 @@ export default async function ProductsPage() {
   if (!catalogEnabled) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white p-4">
-        <h1 className="text-lg font-semibold text-gray-900">Produits</h1>
-      </header>
+    <div>
+      <PageHeader eyebrow="Catalogue" title="Produits" description="Votre catalogue : prix, variantes, photos et publication." />
       <ProductsPanel />
     </div>
   );

@@ -31,7 +31,14 @@ reports.view / reports.export / reports.advanced
 marketing.manage_promotions / marketing.manage_campaigns
 ai.use_product_assistant / ai.use_chat_agent
 inventory.manage_stock / inventory.manage_suppliers
+listings.view / listings.create / listings.edit / listings.publish / listings.delete / listings.manage_availability
+reservations.view / reservations.update_status / reservations.cancel
+leases.view / leases.manage / rents.record
 ```
+
+Fiches et réservations (octobre 2026, secteurs hors commerce) : Sales voit les fiches et
+traite les réservations (sans les annuler) ; Inventory gère les fiches et leurs créneaux
+(sans les supprimer) ; Owner et Manager ont tout.
 
 ## 5.3 Matrice (extrait)
 

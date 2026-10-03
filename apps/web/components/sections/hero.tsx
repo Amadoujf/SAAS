@@ -67,14 +67,16 @@ function HeroFullbleed({ params }: { params: HeroParams }) {
                 <Button href={params.ctaHref} size="xl">
                   {params.ctaLabel}
                 </Button>
-                <Button
-                  href="#savoir-faire"
-                  variant="outline"
-                  size="xl"
-                  className="border-white/60 text-white hover:bg-white hover:text-[var(--color-primary)]"
-                >
-                  Notre savoir-faire
-                </Button>
+                {params.secondaryCtaLabel && params.secondaryCtaHref && (
+                  <Button
+                    href={params.secondaryCtaHref}
+                    variant="outline"
+                    size="xl"
+                    className="border-white/60 text-white hover:bg-white hover:text-[var(--color-primary)]"
+                  >
+                    {params.secondaryCtaLabel}
+                  </Button>
+                )}
               </div>
             )}
           </div>

@@ -35,6 +35,16 @@ export const SECTION_KEYS = [
   "designers",
   "provenance",
   "catalog_search",
+  "immersive_hero",
+  "immersive_showcase",
+  "scroll_story",
+  // Compositions de mode (1er octobre 2026) : une ouverture, une présentation des pièces,
+  // un bandeau défilant et un récit de marque, chacun en trois variantes accordées aux
+  // directions éditoriale, sculpturale et studio.
+  "collection_hero",
+  "product_lineup",
+  "marquee",
+  "brand_story",
 ] as const;
 
 export type SectionKey = (typeof SECTION_KEYS)[number];
@@ -43,7 +53,51 @@ export function isSectionKey(value: string): value is SectionKey {
   return (SECTION_KEYS as readonly string[]).includes(value);
 }
 
-const mediaSchema = z.object({ url: z.string().url(), alt: z.string().optional() });
+
+/**
+ * Référence d'image des sections immersives : URL absolue https (médiathèque servie par
+ * un autre hôte, CDN) OU chemin interne de l'application (« /api/media/… »,
+ * « /demo-templates/… »). Jamais `javascript:`, jamais `//hôte` (URL protocole-relative
+ * qui sortirait du site), jamais un autre schéma.
+ */
+const imageRefSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https?:\/\/[^\s]+$/.test(v), "Image invalide : choisissez-la dans la médiathèque.");
+
+/** Média d'une section : adresse https OU chemin interne (médiathèque de l'entreprise,
+ *  « /api/media/… ») — mêmes règles que les sections immersives. */
+const mediaSchema = z.object({ url: imageRefSchema, alt: z.string().optional() });
+
+/** Lien d'un bouton : chemin interne (« /catalogue ») ou adresse https. */
+/** Lien libre d'une section : chemin interne, ancre, https, téléphone ou e-mail —
+ *  jamais `javascript:`, `data:`, `http:`, `//hôte` ni caractères de contrôle. Le
+ *  serveur vérifie EN PLUS les zones privées et les sites d'autres entreprises. */
+/** Caractère de contrôle (0–31, 127) ou barre oblique inverse : jamais dans un lien. */
+const hasControlChar = (v: string) => [...v].some((ch) => ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127 || ch === "\\");
+
+const linkHrefSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .refine(
+    (v) =>
+      v === "" ||
+      (!hasControlChar(v) &&
+        (/^tel:\+?[\d ().-]{3,30}$/i.test(v) ||
+          (!/\s/.test(v) && (/^#[\w-]*$/.test(v) || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[a-z0-9.-]+(:\d+)?(\/\S*)?$/i.test(v) || /^mailto:[^@\s]+@[^@\s]+\.[^@\s]+$/i.test(v))))),
+    "Lien invalide : chemin de votre site, adresse https, téléphone ou e-mail.",
+  );
+
+const actionHrefSchema = z
+  .string()
+  .trim()
+  .max(300)
+  .refine((v) => (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^\s]+$/.test(v), "Lien invalide : chemin commençant par « / » ou adresse https.");
+
+/** Point focal d'une image (en %) : ce qui reste visible quand l'image est recadrée. */
+const focalSchema = z.number().min(0).max(100);
 
 /** Schéma de paramètres propre à chaque section — validé à la création/modification
  *  d'une instance de section dans un template, jamais laissé libre. */
@@ -54,7 +108,15 @@ export const sectionParamSchemas = {
     subtitle: z.string().optional(),
     media: mediaSchema,
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
+    /** Bouton secondaire (variante plein cadre) — absent = aucun bouton secondaire. */
+    secondaryCtaLabel: z.string().max(40).optional(),
+    secondaryCtaHref: z
+      .string()
+      .trim()
+      .max(300)
+      .refine((v) => /^#[\w-]+$/.test(v) || (v.startsWith("/") && !v.startsWith("//")) || /^https:\/\/[^\s]+$/.test(v), "Lien invalide.")
+      .optional(),
   }),
   categories: z.object({
     title: z.string().optional(),
@@ -119,7 +181,7 @@ export const sectionParamSchemas = {
     title: z.string().min(1),
     description: z.string().optional(),
     buttonLabel: z.string(),
-    buttonHref: z.string(),
+    buttonHref: linkHrefSchema,
   }),
   contact: z.object({
     address: z.string().optional(),
@@ -153,7 +215,7 @@ export const sectionParamSchemas = {
     media: mediaSchema,
     detailMedia: mediaSchema.optional(),
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
     /** Mécaniques « édition limitée » — voir Teranga Atelier (template 4, 20
      *  septembre 2026) : nombre de pièces encore disponibles et/ou précommande. Ces
      *  deux champs restent optionnels pour ne rien changer au comportement existant
@@ -172,14 +234,14 @@ export const sectionParamSchemas = {
       .max(4)
       .optional(),
     ctaLabel: z.string().optional(),
-    ctaHref: z.string().optional(),
+    ctaHref: linkHrefSchema.optional(),
   }),
   lookbook: z.object({
     title: z.string().optional(),
     images: z
       .array(
         z.object({
-          url: z.string().url(),
+          url: imageRefSchema,
           alt: z.string().optional(),
           hotspots: z
             .array(
@@ -231,7 +293,7 @@ export const sectionParamSchemas = {
     subtitle: z.string().optional(),
     searchPlaceholder: z.string().optional(),
     quickCategories: z
-      .array(z.object({ label: z.string(), href: z.string() }))
+      .array(z.object({ label: z.string(), href: linkHrefSchema }))
       .max(8)
       .optional(),
     stats: z
@@ -239,6 +301,181 @@ export const sectionParamSchemas = {
       .max(4)
       .optional(),
     media: mediaSchema.optional(),
+  }),
+  // ---------------------------------------------------------------------------
+  // Sections immersives (octobre 2026) — mise en scène interactive commune à tous les
+  // secteurs : chaque entreprise les remplit avec SES contenus (aucun produit, prix,
+  // nom ou visuel imposé). Voir docs/12 §12.8.
+  // ---------------------------------------------------------------------------
+  /** Hero immersif : sujet principal de grande taille, typographie expressive, scène
+   *  éventuellement COMPOSÉE d'éléments détourés séparés (`layers`) qui s'assemblent ou
+   *  se séparent au défilement. Une photo plate reste possible (sans effet d'assemblage). */
+  immersive_hero: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().min(1).max(120),
+    titleAccent: z.string().trim().max(60).optional(),
+    subtitle: z.string().trim().max(280).optional(),
+    primaryCtaLabel: z.string().trim().max(40).optional(),
+    primaryCtaHref: actionHrefSchema.optional(),
+    secondaryCtaLabel: z.string().trim().max(40).optional(),
+    secondaryCtaHref: actionHrefSchema.optional(),
+    subjectImage: imageRefSchema.optional(),
+    subjectAlt: z.string().trim().max(160).optional(),
+    /** « cutout » : image détourée (PNG/WebP transparent) posée dans la scène ;
+     *  « framed » : photographie classique présentée dans un cadre — jamais une photo
+     *  à fond plein déguisée en objet flottant. */
+    subjectStyle: z.enum(["cutout", "framed"]).default("cutout"),
+    focalX: focalSchema.default(50),
+    focalY: focalSchema.default(50),
+    layers: z
+      .array(
+        z.object({
+          imageUrl: imageRefSchema,
+          alt: z.string().trim().max(120).optional(),
+          depth: z.number().min(0).max(1).default(0.5),
+          offsetX: z.number().min(-50).max(50).default(0),
+          offsetY: z.number().min(-50).max(50).default(0),
+          scale: z.number().min(0.1).max(2).default(1),
+          rotate: z.number().min(-45).max(45).default(0),
+          arriveFrom: z.enum(["top", "bottom", "left", "right", "none"]).default("top"),
+        }),
+      )
+      .max(6)
+      .default([]),
+    mobileImage: imageRefSchema.optional(),
+    backgroundColor: z.string().trim().max(40).optional(),
+    backgroundImage: imageRefSchema.optional(),
+    lighting: z.enum(["halo", "spotlight", "ambient", "none"]).default("halo"),
+    scrollEffect: z.enum(["assemble", "separate", "parallax", "zoom", "none"]).default("parallax"),
+    floating: z.boolean().default(true),
+    intensity: z.enum(["subtle", "balanced", "bold"]).default("balanced"),
+  }),
+  /** Carrousel immersif : élément central mis en avant, voisins en profondeur ; visuel,
+   *  titre, prix éventuel et arrière-plan changent ensemble. Source au choix : produits
+   *  du catalogue, fiches (biens, offres…) ou contenus saisis à la main. */
+  immersive_showcase: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().max(120).optional(),
+    subtitle: z.string().trim().max(220).optional(),
+    source: z.enum(["products", "listings", "manual"]).default("products"),
+    productIds: z.array(z.string()).max(12).optional(),
+    listingIds: z.array(z.string()).max(12).optional(),
+    items: z
+      .array(
+        z.object({
+          title: z.string().trim().min(1).max(90),
+          subtitle: z.string().trim().max(160).optional(),
+          imageUrl: imageRefSchema,
+          imageAlt: z.string().trim().max(140).optional(),
+          href: actionHrefSchema.optional(),
+          badge: z.string().trim().max(30).optional(),
+          accentColor: z.string().trim().max(40).optional(),
+        }),
+      )
+      .max(12)
+      .default([]),
+    displayCount: z.number().int().min(3).max(12).default(6),
+    showPrice: z.boolean().default(true),
+    ctaLabel: z.string().trim().max(30).default("Découvrir"),
+    autoplay: z.boolean().default(true),
+    intervalSeconds: z.number().int().min(3).max(15).default(6),
+    backdrop: z.enum(["tinted", "neutral", "dark"]).default("tinted"),
+    /** « photo » : visuel dans un cadre arrondi (photo avec fond) ; « cutout » : objet
+     *  détouré posé sur la scène, sans cadre — à réserver aux visuels à fond transparent. */
+    imageStyle: z.enum(["photo", "cutout"]).default("photo"),
+    /** Habillage PAR ÉLÉMENT d'un produit ou d'une fiche réels (source products/listings) :
+     *  visuel détouré propre au carrousel et couleur d'ambiance. Le titre, le prix et le
+     *  lien restent ceux de l'enregistrement — jamais modifiables ici. */
+    overrides: z
+      .array(
+        z.object({
+          recordId: z.string().trim().min(1).max(64),
+          imageUrl: imageRefSchema.optional(),
+          imageAlt: z.string().trim().max(140).optional(),
+          accentColor: z.string().trim().max(40).optional(),
+        }),
+      )
+      .max(12)
+      .default([]),
+  }),
+  /** Récit au défilement : grande image (ou une image par étape) accompagnée de messages
+   *  successifs — caractéristiques, matières, pièces d'un logement, étapes d'une
+   *  expérience. Défilement naturel : jamais de blocage ni d'animation interminable. */
+  scroll_story: z.object({
+    eyebrow: z.string().trim().max(80).optional(),
+    title: z.string().trim().max(120).optional(),
+    intro: z.string().trim().max(400).optional(),
+    image: imageRefSchema.optional(),
+    imageAlt: z.string().trim().max(160).optional(),
+    steps: z
+      .array(
+        z.object({
+          eyebrow: z.string().trim().max(60).optional(),
+          title: z.string().trim().min(1).max(90),
+          body: z.string().trim().max(400).optional(),
+          imageUrl: imageRefSchema.optional(),
+          imageAlt: z.string().trim().max(140).optional(),
+          focusX: focalSchema.default(50),
+          focusY: focalSchema.default(50),
+          zoom: z.number().min(1).max(2.5).default(1),
+          /** Variante « product » : couleur d'ambiance de l'étape et pose de l'objet. */
+          accentColor: z.string().trim().max(40).optional(),
+          rotate: z.number().min(-35).max(35).default(0),
+          objectScale: z.number().min(0.6).max(1.4).default(1),
+        }),
+      )
+      .min(1)
+      .max(8),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
+    backgroundColor: z.string().trim().max(40).optional(),
+    /** Variante « product » : « photo » (défaut sûr) = photographie classique dans un
+     *  cadre, inclinaison légère ; « cutout » = objet détouré posé librement. */
+    objectStyle: z.enum(["photo", "cutout"]).default("photo"),
+  }),
+  /** Ouverture de collection. Règles de lisibilité tenues par le composant (voile sous
+   *  le texte, tailles bornées) ; le titre reste court pour rester lisible sur téléphone. */
+  collection_hero: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    title: z.string().trim().min(1).max(70),
+    subtitle: z.string().trim().max(220).optional(),
+    /** Nom en très grandes lettres (variante « wordmark ») ; 2 à 12 caractères. */
+    wordmark: z.string().trim().min(2).max(12).optional(),
+    media: mediaSchema,
+    /** Deuxième image (variante « cover » : vignette ; « wordmark » : arrière-plan). */
+    secondaryMedia: mediaSchema.optional(),
+    /** Variante « stage » : photos suivantes du diaporama (3 au plus). */
+    slides: z.array(mediaSchema).max(3).optional(),
+    /** Produit présenté (choisi par l'entreprise ou l'IA). Résolu au rendu : photos et
+     *  lien vers SA fiche ; absent ou retiré de la vente → premier produit publié
+     *  photographié. */
+    productId: z.string().trim().min(1).max(64).optional(),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
+    secondaryCtaLabel: z.string().trim().max(40).optional(),
+    secondaryCtaHref: actionHrefSchema.optional(),
+  }),
+  /** Présentation des pièces (produits RÉELS de l'entreprise, résolus au rendu). */
+  product_lineup: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    title: z.string().trim().max(80).optional(),
+    productIds: z.array(z.string()).optional(),
+    displayCount: z.number().int().min(2).max(12).default(6),
+    linkLabel: z.string().trim().max(40).optional(),
+    linkHref: actionHrefSchema.optional(),
+  }),
+  /** Bandeau défilant : mots courts (univers, matières), jamais de promesse. */
+  marquee: z.object({
+    items: z.array(z.string().trim().min(1).max(40)).min(2).max(8),
+  }),
+  /** Récit de marque : une phrase forte, un texte, une image facultative. */
+  brand_story: z.object({
+    eyebrow: z.string().trim().max(60).optional(),
+    statement: z.string().trim().min(1).max(180),
+    body: z.string().trim().max(600).optional(),
+    media: mediaSchema.optional(),
+    ctaLabel: z.string().trim().max(40).optional(),
+    ctaHref: actionHrefSchema.optional(),
   }),
 } as const satisfies Record<SectionKey, z.ZodTypeAny>;
 
@@ -273,6 +510,32 @@ export const sectionVariants: Record<SectionKey, readonly string[]> = {
   designers: ["grid", "carousel"],
   provenance: ["map", "list"],
   catalog_search: ["hero", "compact"],
+  // « stage » : sujet sculptural à droite (commerce, mode, restauration, automobile) ;
+  // « centered » : sujet central sous le titre (produit signature, plat) ;
+  // « architectural » : grande photographie plein cadre révélée (immobilier,
+  // hôtellerie, voyage).
+  immersive_hero: ["stage", "centered", "architectural"],
+  // « depth » : élément central et voisins en perspective ; « stack » : cartes empilées.
+  // « arc » : objets posés en arc de cercle, l'élément central sur un socle lumineux,
+  // l'ambiance prenant la couleur de l'élément central.
+  immersive_showcase: ["depth", "stack", "arc"],
+  // « focus » : une image, cadrage qui glisse de détail en détail (matières, pièces) ;
+  // « sequence » : une image par étape en fondu ; « timeline » : étapes jalonnées
+  // (itinéraire, parcours de formation, suivi de livraison) ; « product » : un objet
+  // détouré mis en scène, qui pivote d'étape en étape sur une ambiance colorée.
+  scroll_story: ["focus", "sequence", "timeline", "product"],
+  // « cover » : photographie dominante, titre en sérif, vignette décalée (éditorial) ;
+  // « plinth » : pièce posée sur un socle, très grand titre grotesque (sculptural) ;
+  // « wordmark » : nom de la marque en lettres géantes traversé par la photo (studio).
+  // « stage » : grande photo pleine largeur en diaporama, titre sur un dégradé clair.
+  collection_hero: ["cover", "plinth", "wordmark", "stage"],
+  // « editorial » : grands portraits décalés ; « plinth » : pièces isolées sur socles ;
+  // « index » : grille dense numérotée, survol en aplat de couleur.
+  product_lineup: ["editorial", "plinth", "index"],
+  marquee: ["band", "outline"],
+  // « quote » : grande citation centrée ; « split » : image sur fond de pierre et texte ;
+  // « bold » : aplat de couleur, phrase en capitales.
+  brand_story: ["quote", "split", "bold"],
 };
 
 export function isValidVariant(sectionKey: SectionKey, variant: string): boolean {

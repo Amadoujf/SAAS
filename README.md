@@ -1,4 +1,6 @@
-# YamaCommerce AI
+# Y-COM
+
+> Nom commercial : **Y-COM** (anciennement YamaCommerce AI). Les noms techniques — paquets `@yamacommerce/*`, domaine `yamacommerce.ai`, rôles PostgreSQL — restent inchangés pour ne casser ni les déploiements ni les adresses existantes.
 
 Plateforme SaaS multi-entreprises et **multi-secteurs** (e-commerce, mode, restauration, immobilier, voyage, automobile, hôtellerie, services, éducation, livraison — et au-delà, voir [doc 11](docs/11-secteurs-et-modules.md)) permettant à chaque entrepreneur de choisir son secteur, ses modules, son template et de publier son site professionnel au Sénégal.
 

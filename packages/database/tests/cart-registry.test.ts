@@ -176,9 +176,11 @@ describe.skipIf(!databaseAvailable)("Registre du panier", () => {
     await withTenant(tenantAId, async (tx) => {
       const cart = await getOrCreateActiveCart(tx, tenantAId, visitorToken);
       const item = await addCartItem(tx, tenantAId, cart.id, { productVariantId: publishedVariantId, quantity: 1 });
-      await updateCartItemQuantity(tx, tenantAId, visitorToken, item.id, 5);
-      const withFive = await getCartWithTotals(tx, tenantAId, cart.id);
-      expect(withFive?.lines[0]?.quantity).toBe(5);
+      // 3 = tout le stock disponible de cette variante (au-delà : refus, voir
+      // commerce-operations.test.ts « STOCK À L'AJOUT »).
+      await updateCartItemQuantity(tx, tenantAId, visitorToken, item.id, 3);
+      const withThree = await getCartWithTotals(tx, tenantAId, cart.id);
+      expect(withThree?.lines[0]?.quantity).toBe(3);
 
       await updateCartItemQuantity(tx, tenantAId, visitorToken, item.id, 0);
       const emptied = await getCartWithTotals(tx, tenantAId, cart.id);
@@ -220,6 +222,10 @@ describe.skipIf(!databaseAvailable)("Registre du panier", () => {
         data: { tenantId: tenantAId, productId: product.id, name: "Unique", price: 2_000, attributes: {} },
       }),
     );
+    await withTenant(tenantAId, async (tx) => {
+      const shop = await tx.shop.findFirstOrThrow({ where: { tenantId: tenantAId } });
+      await tx.inventoryItem.create({ data: { tenantId: tenantAId, productVariantId: variant.id, shopId: shop.id, availableQuantity: 1 } });
+    });
 
     await withTenant(tenantAId, async (tx) => {
       const cart = await getOrCreateActiveCart(tx, tenantAId, visitorToken);

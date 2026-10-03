@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { completeMediaUpload } from "@/lib/media/upload-pipeline";
 import { realMediaDeps } from "@/lib/media/real-media-context";
-import { requireTenantPermission } from "@/lib/tenant-permissions";
+import { requireAnyTenantPermission } from "@/lib/tenant-permissions";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 
 /** Étapes 6-9 du parcours d'import RÉEL — voir `app/api/demo-media/complete-upload`
@@ -13,7 +13,7 @@ const bodySchema = z.object({ mediaAssetId: z.string().min(1) });
 export async function POST(request: NextRequest) {
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
-  const actor = await requireTenantPermission(membership.tenantId, "products.edit");
+  const actor = await requireAnyTenantPermission(membership.tenantId, ["products.edit", "listings.edit"]);
   if (!actor) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));

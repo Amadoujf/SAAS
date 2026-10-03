@@ -35,6 +35,9 @@ export async function createBillingCheckout(input: CreateBillingCheckoutInput): 
   const { session, plan } = await withTenant(input.tenantId, async (tx) => {
     const plan = await tx.subscriptionPlan.findFirst({ where: { id: input.planId, status: "PUBLISHED" } });
     if (!plan) throw new Error("Formule introuvable ou non publiée.");
+    // Formule sur devis : jamais de paiement en libre-service (prix négocié, attribuée
+    // par un Super Admin après échange commercial).
+    if (plan.isQuoteOnly || plan.priceMonthly <= 0) throw new Error("Cette formule est proposée sur devis : contactez-nous.");
 
     const subscription = await getOrCreateSubscription(tx, input.tenantId, input.planId);
     const amountXOF = input.billingCycle === "YEARLY" ? plan.priceYearly : plan.priceMonthly;

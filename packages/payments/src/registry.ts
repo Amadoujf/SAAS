@@ -54,9 +54,15 @@ export async function resolveProviderForTenant(
  * entre PLUSIEURS prestataires en ligne actifs à la fois (ex. PayDunya ET PayTech)
  * est hors périmètre de cette étape — le premier trouvé est utilisé.
  */
+/** Prestataires de paiement EN LIGNE (redirection vers une page de paiement sécurisée). */
+export const ONLINE_PROVIDERS: PaymentProviderName[] = ["paydunya", "paytech"];
+
 export async function resolveEnabledOnlineProvider(tenantId: string): Promise<PaymentProviderName | null> {
   const config = await withTenant(tenantId, (tx) =>
-    tx.paymentProviderConfig.findFirst({ where: { tenantId, isEnabled: true, provider: { not: "cod" } } }),
+    // Seuls les VRAIS prestataires en ligne : le paiement à la livraison et les numéros
+    // Wave / Orange Money (encaissements manuels vérifiés par l'entreprise) sont exclus,
+    // sinon ils pourraient masquer PayDunya quand les deux sont activés.
+    tx.paymentProviderConfig.findFirst({ where: { tenantId, isEnabled: true, provider: { in: ONLINE_PROVIDERS } }, orderBy: { provider: "asc" } }),
   );
   return (config?.provider as PaymentProviderName | undefined) ?? null;
 }

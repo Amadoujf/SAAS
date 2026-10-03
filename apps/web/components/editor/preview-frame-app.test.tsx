@@ -139,7 +139,7 @@ describe("PreviewFrameApp — document de l'iframe d'aperçu", () => {
   it("SÉLECTION DE SECTION : un clic sur une section poste SECTION_CLICKED au parent", () => {
     render(<PreviewFrameApp allowedParentOrigin={ALLOWED_ORIGIN} />);
     dispatchFromParent(contentUpdate());
-    fireEvent.click(screen.getByLabelText("Sélectionner la section hero"));
+    fireEvent.click(screen.getByLabelText("Sélectionner la section Bannière d'accueil"));
     expect(window.parent.postMessage).toHaveBeenCalledWith(
       {
         channel: PREVIEW_CHANNEL,
@@ -160,7 +160,7 @@ describe("PreviewFrameApp — document de l'iframe d'aperçu", () => {
       type: "SELECT_SECTION",
       payload: { sectionId: "hero-1" },
     });
-    expect(screen.getByLabelText("Sélectionner la section hero")).toHaveAttribute(
+    expect(screen.getByLabelText("Sélectionner la section Bannière d'accueil")).toHaveAttribute(
       "aria-pressed",
       "true",
     );

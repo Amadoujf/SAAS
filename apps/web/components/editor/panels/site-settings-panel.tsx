@@ -1,5 +1,6 @@
 "use client";
 
+import { toPortableUrl } from "@/lib/editor/portable-url";
 import {
   colorsSchema,
   typographySchema,
@@ -254,7 +255,7 @@ export function SiteSettingsPanel({
             <MediaLibrary
               apiBase={mediaApiBase}
               onSelect={(asset) => {
-                onChange(picking === "logo" ? { ...settings, logoUrl: asset.url } : { ...settings, faviconUrl: asset.url });
+                onChange(picking === "logo" ? { ...settings, logoUrl: toPortableUrl(asset.url, window.location.origin) } : { ...settings, faviconUrl: toPortableUrl(asset.url, window.location.origin) });
                 setPicking(null);
               }}
               onClose={() => setPicking(null)}

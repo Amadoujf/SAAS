@@ -26,7 +26,11 @@ export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   PAID: ["CONFIRMED", "REFUNDED"],
   CONFIRMED: ["PREPARING", "CANCELED"],
   PREPARING: ["READY", "CANCELED"],
-  READY: ["SHIPPED", "CANCELED"],
+  // READY -> DELIVERED : remise en main propre d'une commande en RETRAIT EN BOUTIQUE
+  // (aucune expédition). Réservé aux commandes `deliveryMethod = "pickup"` — voir la
+  // garde de `advanceOrderStatus` (order-operations.ts), qui refuse aussi READY ->
+  // SHIPPED pour un retrait.
+  READY: ["SHIPPED", "DELIVERED", "CANCELED"],
   SHIPPED: ["OUT_FOR_DELIVERY", "DELIVERED"],
   OUT_FOR_DELIVERY: ["DELIVERED", "CANCELED"],
   DELIVERED: ["REFUNDED"],

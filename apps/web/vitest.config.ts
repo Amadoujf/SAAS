@@ -20,6 +20,7 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "."),
       "server-only": path.resolve(__dirname, "./test/stubs/server-only.ts"),
+      "next/font/local": path.resolve(__dirname, "./test/stubs/next-font-local.ts"),
     },
   },
 });

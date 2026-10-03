@@ -1,0 +1,270 @@
+"use client";
+
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { YcAppLogo } from "@/components/yc/logo";
+import {
+  IconArrowRight, IconBag, IconBox, IconCard, IconChart, IconChevronDown, IconGlobe, IconHome, IconLogout, IconMenu, IconPhone, IconReceipt,
+  IconSettings, IconStack, IconTag, IconTruck, IconUsers, IconWallet, IconX,
+} from "@/components/yc/icons";
+
+export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed" | "flame" | "menu" | "table" | "car" | "ship" | "folder" | "school" | "book";
+
+const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
+  home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
+  categories: IconTag, stock: IconStack, delivery: IconTruck, settings: IconSettings, billing: IconCard, chart: IconChart, site: IconGlobe,
+  property: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 21h18" /><path d="M5 21V10l7-5 7 5v11" /><path d="M10 21v-5h4v5" /></svg>
+  ),
+  calendar: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4" /><path d="m9.5 15 2 2 3.5-3.5" /></svg>
+  ),
+  key: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4.5" /><path d="m11.2 11.8 8.3-8.3M16.5 6.5l2.5 2.5M14 9l2 2" /></svg>
+  ),
+  plane: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M10.5 13.5 3 11l1.5-1.5 8 .5 4.5-4.5a2.1 2.1 0 0 1 3 3L15.5 13l.5 8-1.5 1.5-2.5-7.5" /><path d="m6 17 2-2M4 16l2 3" /></svg>
+  ),
+  ticket: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4Z" /><path d="M14 6v12" strokeDasharray="2 2" /></svg>
+  ),
+  bed: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 18V7M21 18v-5a3 3 0 0 0-3-3h-8v5M3 15h18" /><circle cx="7" cy="11.5" r="1.8" /></svg>
+  ),
+  flame: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3c.5 3.5 5 5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5.5.2 2 .9 3 1.7 3.5C11 8 11.2 5.5 12 3Z" /><path d="M5 21h14" /></svg>
+  ),
+  menu: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h4" /></svg>
+  ),
+  table: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1" /><rect x="13.5" y="3.5" width="7" height="7" rx="1" /><rect x="3.5" y="13.5" width="7" height="7" rx="1" /><path d="M14 14h2.5v2.5H14zM18 18h2.5v2.5H18zM14 20.5h1M20.5 14v1" /></svg>
+  ),
+  scissors: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="2.8" /><circle cx="6" cy="18" r="2.8" /><path d="M8.3 7.7 20 18M8.3 16.3 20 6" /></svg>
+  ),
+  media: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5" /><circle cx="9" cy="10" r="1.8" /><path d="m21 16-5-5-9 9" /></svg>
+  ),
+  car: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 16v-3.5l2-5A2 2 0 0 1 6.9 6h10.2a2 2 0 0 1 1.9 1.5l2 5V16" /><path d="M3 12.5h18" /><circle cx="7.5" cy="16.5" r="2" /><circle cx="16.5" cy="16.5" r="2" /></svg>
+  ),
+  ship: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 17c1.5 1.3 3 1.3 4.5 0s3-1.3 4.5 0 3 1.3 4.5 0 3-1.3 4.5 0" /><path d="M5 14 4 10h16l-1 4" /><path d="M8 10V6h8v4" /><path d="M12 3v3" /></svg>
+  ),
+  school: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m2.5 9 9.5-5 9.5 5-9.5 5Z" /><path d="M6.5 11.2V16c0 1.4 2.5 3 5.5 3s5.5-1.6 5.5-3v-4.8" /><path d="M21.5 9v5" /></svg>
+  ),
+  book: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5Z" /><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5" /><path d="M8 7h8" /></svg>
+  ),
+  folder: (p: { size?: number }) => (
+    <svg width={p.size ?? 20} height={p.size ?? 20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" /><path d="M8 13h8" /></svg>
+  ),
+};
+
+export interface NavItem { href: string; label: string; icon: NavIcon; badge?: number; external?: boolean }
+export interface NavGroup { label: string; items: NavItem[] }
+
+export function isActive(pathname: string, href: string) {
+  return href === "/dashboard" ? pathname === "/dashboard" : pathname === href || pathname.startsWith(`${href}/`);
+}
+
+const focusRing = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yc-electric/50";
+
+function NavLinks({ groups, pathname, onNavigate }: { groups: NavGroup[]; pathname: string; onNavigate?: () => void }) {
+  return (
+    <nav aria-label="Navigation de l'espace entreprise" className="flex flex-col">
+      {groups.map((group, gi) => (
+        <div key={group.label} className={gi > 0 ? "mt-5" : ""}>
+          <p className={gi > 0 ? "mb-1.5 px-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-yc-ink-soft/70" : "sr-only"}>{group.label}</p>
+          <ul className="flex flex-col gap-0.5">
+            {group.items.map((item) => {
+              const active = !item.external && isActive(pathname, item.href);
+              const Icon = ICONS[item.icon];
+              const cls = `group flex items-center gap-3.5 rounded-xl px-3.5 py-2.5 text-[15px] transition-colors duration-200 ${focusRing} ${
+                active ? "bg-[#EAF0FF] font-semibold text-yc-electric" : "text-yc-ink hover:bg-[#F4F5F8]"
+              }`;
+              const content = (
+                <>
+                  <span className={active ? "text-yc-electric" : "text-yc-ink/70 group-hover:text-yc-ink"}><Icon size={20} /></span>
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge ? <span className="yc-num min-w-[22px] rounded-full bg-[#FF8A3D] px-1.5 py-0.5 text-center text-[11px] font-bold text-white">{item.badge}</span> : null}
+                  {item.external ? <IconArrowRight size={15} className="-rotate-45 text-yc-ink-soft" /> : null}
+                </>
+              );
+              return (
+                <li key={item.href}>
+                  {item.external ? (
+                    <a href={item.href} target="_blank" rel="noreferrer" className={cls}>{content}</a>
+                  ) : (
+                    <Link href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={cls}>{content}</Link>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** Sélecteur d'entreprise : nom, statut du site (en ligne si un domaine est actif)
+ *  et raccourcis réels. Un compte n'est rattaché qu'à une entreprise aujourd'hui. */
+function TenantSwitcher({ tenantName, roleName, storeUrl }: { tenantName: string; roleName: string | null; storeUrl: string | null }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent | KeyboardEvent) => {
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("keydown", close); };
+  }, [open]);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}
+        className={`flex w-full items-center gap-3 rounded-xl border border-yc-ink/10 px-3.5 py-2.5 text-left text-yc-ink transition-colors hover:bg-[#F4F5F8] ${focusRing}`}>
+        <IconBox size={20} />
+        <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{tenantName}</span>
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${storeUrl ? "bg-yc-success" : "bg-yc-ink/20"}`} title={storeUrl ? "Site en ligne" : "Site non publié"} aria-label={storeUrl ? "Site en ligne" : "Site non publié"} />
+        <IconChevronDown size={18} className={`shrink-0 text-yc-ink-soft transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute inset-x-0 top-full z-10 mt-2 overflow-hidden rounded-xl bg-white py-1.5 text-yc-ink shadow-yc-float ring-1 ring-yc-ink/[0.08]">
+          <p className="px-4 py-2 text-xs text-yc-ink-soft">{roleName === "OWNER" ? "Propriétaire" : roleName ?? "Membre"} de <span className="font-semibold text-yc-ink">{tenantName}</span></p>
+          {storeUrl && <a href={storeUrl} target="_blank" rel="noreferrer" className="block px-4 py-2 text-sm hover:bg-yc-ivory-100">Voir mon site</a>}
+          <Link href="/dashboard/facturation" onClick={() => setOpen(false)} className="block px-4 py-2 text-sm hover:bg-yc-ivory-100">Abonnement</Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HelpCard({ supportUrl }: { supportUrl: string | null }) {
+  const cls = `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[14px] text-yc-ink-soft transition-colors hover:bg-[#F4F5F8] hover:text-yc-ink ${focusRing}`;
+  const body = (
+    <>
+      <IconPhone size={18} />
+      <span className="flex-1">{supportUrl ? "Centre d'aide" : "Premiers pas"}</span>
+      <IconArrowRight size={15} className={supportUrl ? "-rotate-45" : ""} />
+    </>
+  );
+  return supportUrl ? <a href={supportUrl} target="_blank" rel="noreferrer" className={cls}>{body}</a> : <Link href="/dashboard#premiers-pas" className={cls}>{body}</Link>;
+}
+
+export function DashboardSidebar({
+  groups, tenantName, roleName, storeUrl, supportUrl, signOut,
+}: {
+  groups: NavGroup[];
+  tenantName: string;
+  roleName: string | null;
+  storeUrl: string | null;
+  supportUrl: string | null;
+  signOut: () => Promise<void>;
+}) {
+  const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+  const reduce = usePrefersReducedMotion();
+
+  useEffect(() => setOpen(false), [pathname]);
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
+  const all = groups.flatMap((g) => g.items);
+  // Onglets au pouce : les trois premières sections du secteur (commerce : commandes et
+  // produits ; immobilier : biens et visites ; voyage : réservations et départs ; salon : agenda et rendez-vous ; hôtel : planning et séjours ; restaurant : cuisine et commandes), selon les droits du membre.
+  const tabs = ["/dashboard", "/dashboard/commandes", "/dashboard/produits", "/dashboard/biens", "/dashboard/visites", "/dashboard/reservations", "/dashboard/departs", "/dashboard/agenda", "/dashboard/rendez-vous", "/dashboard/planning", "/dashboard/sejours", "/dashboard/cuisine", "/dashboard/ventes"]
+    .map((h) => all.find((i) => i.href === h))
+    .filter((i): i is NavItem => !!i)
+    .slice(0, 3);
+  const panel = "bg-white";
+
+  return (
+    <>
+      {/* Bureau */}
+      <aside className={`sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col gap-6 overflow-y-auto border-r border-yc-ink/[0.07] px-3.5 py-6 lg:flex ${panel}`}>
+        <Link href="/dashboard" className={`rounded-lg px-2 text-yc-ink ${focusRing}`}><YcAppLogo /></Link>
+        <TenantSwitcher tenantName={tenantName} roleName={roleName} storeUrl={storeUrl} />
+        <NavLinks groups={groups} pathname={pathname} />
+        <div className="mt-auto border-t border-yc-ink/[0.07] pt-3">
+          <HelpCard supportUrl={supportUrl} />
+        </div>
+      </aside>
+
+      {/* Mobile : tiroir ouvert par l'onglet « Plus » */}
+      <AnimatePresence>
+        {open && (
+          <motion.div className="fixed inset-0 z-50 lg:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <button type="button" aria-label="Fermer le menu" className="absolute inset-0 bg-[#06122e]/40 backdrop-blur-sm" onClick={() => setOpen(false)} />
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu"
+              className={`absolute inset-y-0 left-0 flex w-[86vw] max-w-[320px] flex-col gap-6 overflow-y-auto px-4 py-5 ${panel}`}
+              initial={reduce ? false : { x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={reduce ? { opacity: 0 } : { x: "-100%" }}
+              transition={{ type: "spring", stiffness: 420, damping: 40 }}
+            >
+              <div className="flex items-center justify-between text-yc-ink">
+                <YcAppLogo compact id="yc-app-mark-drawer" />
+                <button type="button" onClick={() => setOpen(false)} aria-label="Fermer le menu" className={`grid h-10 w-10 place-items-center rounded-lg text-yc-ink-soft hover:text-yc-ink ${focusRing}`}>
+                  <IconX size={20} />
+                </button>
+              </div>
+              <TenantSwitcher tenantName={tenantName} roleName={roleName} storeUrl={storeUrl} />
+              <NavLinks groups={groups} pathname={pathname} onNavigate={() => setOpen(false)} />
+              <div className="mt-auto flex flex-col gap-3">
+                <HelpCard supportUrl={supportUrl} />
+                <form action={signOut}>
+                  <button type="submit" className={`flex w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm text-yc-ink-soft hover:bg-[#F4F5F8] hover:text-yc-ink ${focusRing}`}>
+                    <IconLogout size={18} /> Déconnexion
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile : barre d'onglets au pouce */}
+      <nav aria-label="Raccourcis" className="fixed inset-x-0 bottom-0 z-30 border-t border-yc-ink/10 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+        <ul className="mx-auto grid max-w-md grid-cols-4">
+          {tabs.map((item) => {
+            const Icon = ICONS[item.icon];
+            const active = isActive(pathname, item.href);
+            return (
+              <li key={item.href}>
+                <Link href={item.href} aria-current={active ? "page" : undefined} className={`relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-semibold ${active ? "text-yc-electric" : "text-yc-ink-soft"}`}>
+                  <Icon size={22} />
+                  {item.href === "/dashboard" ? "Accueil" : item.label}
+                  {item.badge ? <span className="absolute right-[calc(50%-22px)] top-1.5 h-2 w-2 rounded-full bg-[#FF8A3D]" aria-label={`${item.badge} à traiter`} /> : null}
+                </Link>
+              </li>
+            );
+          })}
+          <li>
+            <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className="flex w-full flex-col items-center gap-1 py-2.5 text-[11px] font-semibold text-yc-ink-soft">
+              <IconMenu size={22} /> Plus
+            </button>
+          </li>
+        </ul>
+      </nav>
+    </>
+  );
+}

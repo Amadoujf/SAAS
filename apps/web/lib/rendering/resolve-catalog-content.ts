@@ -3,10 +3,13 @@ import type { Prisma } from "@yamacommerce/database";
 import type { TemplateManifest } from "@yamacommerce/templates";
 import type { ProductCardData } from "@/components/ui/product-card";
 import type {
+  ResolvedHeroProductContent,
   ResolvedCategoriesContent,
   ResolvedProductsContent,
 } from "@/components/sections/content-types";
 import type { ResolvedContentBySectionId } from "@/components/sections/section-renderer";
+import { SHOWCASE_POOL_KEY } from "@/lib/showcase/showcase";
+import { buildShowcasePool } from "./showcase-pool";
 
 /**
  * Résout le contenu catalogue RÉEL (produits/catégories) pour les sections qui en
@@ -29,11 +32,39 @@ export async function resolveCatalogContentForManifest(
 ): Promise<ResolvedContentBySectionId> {
   const result: ResolvedContentBySectionId = {};
 
+  // Carrousels immersifs : un seul réservoir pour toutes leurs instances (produits et
+  // fiches publiés), la sélection de chacune est faite au rendu (lib/showcase).
+  if (manifest.pages.some((page) => page.sections.some((section) => section.sectionKey === "immersive_showcase"))) {
+    result[SHOWCASE_POOL_KEY] = await buildShowcasePool(tx, tenantId);
+  }
+
+  // Ouvertures de collection : le produit présenté, lu au rendu (fiche réelle, photos
+  // réelles). Choisi mais retiré de la vente, ou non choisi : premier produit publié
+  // photographié (le plus ancien — stable d'une visite à l'autre).
+  const heroSections = manifest.pages.flatMap((page) => page.sections.filter((section) => section.sectionKey === "collection_hero"));
+  if (heroSections.length > 0) {
+    const wanted = [...new Set(heroSections.map((s) => (s.params as { productId?: string }).productId).filter((id): id is string => Boolean(id)))];
+    const select = { id: true, name: true, slug: true, images: { orderBy: { position: "asc" as const }, take: 4, select: { url: true, altText: true } } };
+    const chosen = wanted.length ? await tx.product.findMany({ where: { tenantId, id: { in: wanted }, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, select }) : [];
+    const byHeroId = new Map(chosen.map((p) => [p.id, p]));
+    const needsFallback = heroSections.some((s) => !byHeroId.has((s.params as { productId?: string }).productId ?? ""));
+    const first = needsFallback ? await tx.product.findFirst({ where: { tenantId, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, orderBy: { createdAt: "asc" }, select }) : null;
+    for (const section of heroSections) {
+      const p = byHeroId.get((section.params as { productId?: string }).productId ?? "") ?? first;
+      const content: ResolvedHeroProductContent = {
+        product: p ? { id: p.id, name: p.name, href: `/p/${p.slug}`, images: p.images.map((i) => ({ url: i.url, alt: i.altText })) } : null,
+        fallback: !byHeroId.has((section.params as { productId?: string }).productId ?? ""),
+      };
+      result[section.id] = content;
+    }
+  }
+
   const categorySections = manifest.pages.flatMap((page) =>
     page.sections.filter((section) => section.sectionKey === "categories"),
   );
   const featuredSections = manifest.pages.flatMap((page) =>
-    page.sections.filter((section) => section.sectionKey === "featured_products"),
+    // Pièces de la collection (product_lineup) : même contrat que les produits en vedette.
+    page.sections.filter((section) => section.sectionKey === "featured_products" || section.sectionKey === "product_lineup"),
   );
   const newArrivalsSections = manifest.pages.flatMap((page) =>
     page.sections.filter((section) => section.sectionKey === "new_arrivals"),
@@ -42,6 +73,13 @@ export async function resolveCatalogContentForManifest(
   if (categorySections.length > 0) {
     const categories = await tx.category.findMany({ where: { tenantId } });
     const bySlug = new Map(categories.map((c) => [c.id, c]));
+    // Catégorie sans visuel : la photo d'un de SES produits publiés (réelle), sinon rien.
+    const missing = categories.filter((c) => !c.imageUrl).map((c) => c.id);
+    const productPhotos = missing.length
+      ? await tx.product.findMany({ where: { tenantId, categoryId: { in: missing }, status: "PUBLISHED", deletedAt: null, images: { some: {} } }, select: { categoryId: true, images: { orderBy: { position: "asc" }, take: 1, select: { url: true } } }, orderBy: { createdAt: "desc" } })
+      : [];
+    const photoByCategory = new Map<string, string>();
+    for (const p of productPhotos) if (p.categoryId && p.images[0] && !photoByCategory.has(p.categoryId)) photoByCategory.set(p.categoryId, p.images[0].url);
     for (const section of categorySections) {
       const params = section.params as { title?: string; categoryIds: string[] };
       const items = params.categoryIds
@@ -50,7 +88,7 @@ export async function resolveCatalogContentForManifest(
         .map((c) => ({
           id: c.id,
           name: c.name,
-          imageUrl: c.imageUrl ?? "",
+          imageUrl: c.imageUrl ?? photoByCategory.get(c.id) ?? "",
           href: `/catalogue?categorie=${encodeURIComponent(c.slug)}`,
         }));
       const content: ResolvedCategoriesContent = { title: params.title, categories: items };
@@ -62,7 +100,7 @@ export async function resolveCatalogContentForManifest(
     const publishedProducts = await tx.product.findMany({
       where: { tenantId, status: "PUBLISHED", deletedAt: null },
       include: {
-        images: { orderBy: { position: "asc" }, take: 1 },
+        images: { orderBy: { position: "asc" }, take: 2 },
         variants: { include: { inventoryItems: { select: { availableQuantity: true } } } },
       },
       orderBy: { createdAt: "desc" },
@@ -86,6 +124,8 @@ export async function resolveCatalogContentForManifest(
         price: product.basePrice,
         compareAtPrice: product.compareAtPrice ?? undefined,
         imageUrl: product.images[0]?.url ?? "",
+        // Deuxième photo réelle (survol des présentations qui l'utilisent), jamais inventée.
+        hoverImageUrl: product.images[1]?.url,
         href: `/p/${product.slug}`,
         sizes: sizes.length > 0 ? sizes : undefined,
         inStock,
@@ -114,7 +154,11 @@ export async function resolveCatalogContentForManifest(
       const params = section.params as { title?: string; displayCount: number };
       const content: ResolvedProductsContent = {
         title: params.title,
-        products: publishedProducts.slice(0, params.displayCount).map(toCard),
+        // Les plus récents, photographiés d'abord : un produit sans photo ne passe jamais
+        // devant une vraie photo dans une vitrine de nouveautés (il reste listé après).
+        products: [...publishedProducts.filter((p) => p.images[0]?.url), ...publishedProducts.filter((p) => !p.images[0]?.url)]
+          .slice(0, params.displayCount)
+          .map(toCard),
       };
       result[section.id] = content;
     }

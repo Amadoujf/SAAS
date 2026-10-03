@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import { MissingPhoto } from "./missing-photo";
 import { AnimatePresence, motion } from "framer-motion";
 import { t, type Locale } from "@/lib/i18n";
 import { CloseIcon } from "@/components/ui/icons";
@@ -104,7 +105,7 @@ export function QuickView({
               <CloseIcon />
             </button>
             <div className="relative aspect-[4/5] sm:aspect-auto">
-              <Image src={product.imageUrl} alt={product.name} fill className="object-cover" />
+              {product.imageUrl ? <Image src={product.imageUrl} alt={product.name} fill className="object-cover" /> : <MissingPhoto />}
             </div>
             <div className="flex flex-col justify-center p-8 lg:p-10">
               <h3 className="font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] text-[var(--color-text-primary)]">
