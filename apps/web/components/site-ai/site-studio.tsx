@@ -68,6 +68,12 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
   const [fullscreen, setFullscreen] = useState(false);
   // Téléphone et tablette : l'assistant s'ouvre en panneau par-dessus l'aperçu.
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Colonne de droite : le directeur artistique ou les réglages manuels.
+  const [panel, setPanel] = useState<"assistant" | "settings">("assistant");
+  const openSettings = () => {
+    setPanel("settings");
+    setSheetOpen(true);
+  };
   // Direction affichée à l'étape des directions (onglet, plein écran, demande).
   const [activeDirection, setActiveDirection] = useState(0);
   useEffect(() => {
@@ -107,7 +113,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
   const selected = useMemo(() => {
     const s = studio.draft.sections.find((x) => x.id === selectedId);
     if (!s) return null;
-    return { id: s.id, label: s.label, images: s.images, hero: s.sectionKey === "collection_hero" ? { productId: s.productId, candidates: studio.heroCandidates } : undefined };
+    return { id: s.id, label: s.label, images: s.images, hero: s.sectionKey === "collection_hero" ? { productId: s.productId, candidates: [...studio.heroCandidates].sort((a, b) => Number(b.id === s.productId) - Number(a.id === s.productId)) } : undefined };
   }, [studio.draft.sections, studio.heroCandidates, selectedId]);
 
   const hs = studio.homeStatus;
@@ -174,8 +180,8 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           </span>
         )}
         {mode !== "onboarding" && (
-          <span className="hidden items-center gap-1 sm:flex lg:ml-6">
-            <DeviceToggle device={device} onChange={setDevice} />
+          <span className="flex items-center gap-1 lg:ml-6">
+            <span className="hidden sm:block"><DeviceToggle device={device} onChange={setDevice} /></span>
             <button type="button" onClick={() => setFullscreen(true)} aria-label="Aperçu plein écran" title="Plein écran" className="grid h-11 w-11 place-items-center rounded-xl text-yc-ink-soft hover:bg-[#F1F3F7] hover:text-yc-ink">
               <svg aria-hidden="true" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
             </button>
@@ -233,7 +239,11 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
                     <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setFullscreen(true); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">Aperçu plein écran</button>
                     {mode === "studio" && <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setPicker({ kind: "logo" }); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">{studio.draft.snapshot.settings.identity.logoUrl ? "Changer le logo" : "Ajouter un logo"}</button>}
                     <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); setMode("onboarding"); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">Recréer avec l&apos;IA</button>
-                    <a role="menuitem" href="#reglages-avances" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 hover:bg-[#F6F7FB]">Réglages avancés</a>
+                    {mode === "studio" ? (
+                      <button role="menuitem" type="button" onClick={() => { setMenuOpen(false); openSettings(); }} className="rounded-xl px-3 py-2.5 text-left hover:bg-[#F6F7FB]">Réglages avancés</button>
+                    ) : (
+                      <a role="menuitem" href="#reglages-avances" onClick={() => setMenuOpen(false)} className="rounded-xl px-3 py-2.5 hover:bg-[#F6F7FB]">Réglages avancés</a>
+                    )}
                   </div>
                 )}
               </div>
@@ -316,12 +326,28 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
             id="directeur-artistique"
             className={`flex flex-col xl:sticky xl:top-[136px] xl:h-[calc(100vh-152px)] max-xl:fixed max-xl:inset-x-0 max-xl:bottom-0 max-xl:z-[70] max-xl:h-[min(84vh,720px)] max-xl:rounded-t-[28px] max-xl:bg-white max-xl:shadow-[0_-24px_60px_rgba(15,23,42,0.25)] max-xl:transition-[transform,visibility] max-xl:duration-300 ${sheetOpen ? "" : "max-xl:invisible max-xl:translate-y-[105%]"}`}
           >
-            <div className="flex items-center justify-between px-5 pb-1 pt-3 xl:hidden">
-              <span className="mx-auto h-1.5 w-10 rounded-full bg-yc-ink/15" aria-hidden="true" />
-              <button type="button" onClick={() => setSheetOpen(false)} className="absolute right-3 top-2 min-h-10 rounded-full px-3 text-[13px] font-semibold text-yc-ink-soft hover:text-yc-ink">Fermer</button>
+            <div className="relative flex h-12 items-start justify-center pt-3 xl:hidden">
+              <span className="h-1.5 w-10 rounded-full bg-yc-ink/15" aria-hidden="true" />
+              <button type="button" onClick={() => setSheetOpen(false)} className="absolute right-3 top-1.5 min-h-10 rounded-full px-3 text-[13px] font-semibold text-yc-ink-soft hover:text-yc-ink">Fermer</button>
             </div>
-            <div className="min-h-0 flex-1 max-xl:[&>section]:rounded-none max-xl:[&>section]:shadow-none max-xl:[&>section]:ring-0">
+            {/* Tous les réglages restent à droite : conversation ou réglages manuels. */}
+            <div role="tablist" aria-label="Personnalisation" className="mx-5 mb-3 flex rounded-xl bg-[#EEF0F4] p-1 xl:mx-0">
+              {(["assistant", "settings"] as const).map((k) => (
+                <button key={k} type="button" role="tab" aria-selected={panel === k} aria-controls={`panneau-${k}`} onClick={() => setPanel(k)} className={`min-h-10 flex-1 rounded-lg text-[14px] font-semibold transition ${panel === k ? "bg-white text-yc-ink shadow-sm" : "text-yc-ink-soft hover:text-yc-ink"}`}>
+                  {k === "assistant" ? "Directeur artistique" : "Réglages"}
+                </button>
+              ))}
+            </div>
+            <div id="panneau-settings" role="tabpanel" hidden={panel !== "settings"} className="min-h-0 flex-1 overflow-y-auto bg-white px-4 py-4 xl:rounded-2xl xl:ring-1 xl:ring-yc-ink/[0.07]">
+              <p className="mb-4 text-[13px] leading-relaxed text-yc-ink-soft">
+                Réglages manuels : ils s&apos;appliquent immédiatement au site en ligne.{" "}
+                <a href="/editeur" className="font-semibold text-yc-electric hover:underline">Éditeur section par section →</a>
+              </p>
+              {advanced}
+            </div>
+            <div id="panneau-assistant" role="tabpanel" hidden={panel !== "assistant"} className="min-h-0 flex-1 max-xl:[&>section]:rounded-none max-xl:[&>section]:shadow-none max-xl:[&>section]:ring-0">
             <StudioAssistant
+              onOpenSettings={openSettings}
               mode={studio.catalog.mode}
               initial={(studio.tenantName.trim()[0] ?? "Y").toUpperCase()}
               items={studio.conversation as ConversationItem[]}
@@ -367,7 +393,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
       {mode === "studio" && sheetOpen && <button type="button" aria-label="Fermer l'assistant" onClick={() => setSheetOpen(false)} className="fixed inset-0 z-[65] bg-yc-night-950/30 xl:hidden" />}
       {mode === "studio" && !sheetOpen && !previewJobId && (
         <button type="button" onClick={() => setSheetOpen(true)} aria-controls="directeur-artistique" className="fixed bottom-[84px] right-4 z-40 inline-flex min-h-12 items-center gap-2 rounded-full bg-yc-night-950 pl-4 pr-5 text-[14px] font-semibold text-white shadow-yc-float md:bottom-6 xl:hidden">
-          <IconSparkles size={15} /> Directeur artistique
+          <IconSparkles size={15} /> Personnaliser
         </button>
       )}
       {fullscreen && mode === "directions" && studio.directions && (
@@ -396,6 +422,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
         />
       )}
 
+      {mode !== "studio" && (
       <details id="reglages-avances" className="group scroll-mt-28 rounded-2xl bg-white shadow-yc ring-1 ring-yc-ink/[0.06]">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
           <span>
@@ -412,6 +439,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
           {advanced}
         </div>
       </details>
+      )}
 
       {mode === "studio" && previewJobId && (
         <div className="fixed inset-x-3 bottom-[76px] z-40 flex items-center gap-2 rounded-2xl bg-yc-night-950 p-2 pl-4 text-white shadow-yc-float md:hidden" role="region" aria-label="Proposition en aperçu">

@@ -52,6 +52,7 @@ export function StudioAssistant({
   onClearSelection,
   onReplaceImage,
   onChooseHeroProduct,
+  onOpenSettings,
   mode = "commerce",
   initial = "Y",
 }: {
@@ -73,6 +74,8 @@ export function StudioAssistant({
   onClearSelection: () => void;
   onReplaceImage: (sectionId: string, field: string) => void;
   onChooseHeroProduct?: (sectionId: string, productId: string) => void;
+  /** Bascule la colonne de droite sur les réglages manuels. */
+  onOpenSettings?: () => void;
 }) {
   const [message, setMessage] = useState("");
   const list = useRef<HTMLOListElement>(null);
@@ -240,9 +243,15 @@ export function StudioAssistant({
             <svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" /></svg>
           </button>
         </form>
-        <a href="#reglages-avances" className="mt-3 inline-flex items-center gap-2 px-1 text-[13px] text-yc-ink-soft hover:text-yc-ink">
-          <SlidersIcon /> Réglages avancés
-        </a>
+        {onOpenSettings ? (
+          <button type="button" onClick={onOpenSettings} className="mt-3 inline-flex items-center gap-2 px-1 text-[13px] text-yc-ink-soft hover:text-yc-ink">
+            <SlidersIcon /> Réglages avancés
+          </button>
+        ) : (
+          <a href="#reglages-avances" className="mt-3 inline-flex items-center gap-2 px-1 text-[13px] text-yc-ink-soft hover:text-yc-ink">
+            <SlidersIcon /> Réglages avancés
+          </a>
+        )}
       </div>
     </section>
   );

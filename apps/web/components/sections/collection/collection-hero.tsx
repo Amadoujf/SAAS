@@ -209,6 +209,25 @@ function StageHero({ params, motion }: { params: CollectionHeroParams; motion: "
     return () => window.clearTimeout(id);
   }, [auto, index, slides.length]);
   const go = (step: number) => setIndex((i) => (i + step + slides.length) % slides.length);
+  // Couleur moyenne de chaque photo (lue en 8×8 px), pour teinter le fond qui la prolonge.
+  const [tints, setTints] = useState<Record<number, string>>({});
+  const sampleTint = (img: HTMLImageElement, i: number) => {
+    if (tints[i]) return;
+    try {
+      const c = document.createElement("canvas");
+      c.width = c.height = 8;
+      const g = c.getContext("2d");
+      if (!g) return;
+      g.drawImage(img, 0, 0, 8, 8);
+      const d = g.getImageData(0, 0, 8, 8).data;
+      let r = 0, gr = 0, b = 0;
+      for (let k = 0; k < d.length; k += 4) { r += d[k]!; gr += d[k + 1]!; b += d[k + 2]!; }
+      const n = d.length / 4;
+      setTints((t) => ({ ...t, [i]: `rgb(${Math.round(r / n)} ${Math.round(gr / n)} ${Math.round(b / n)})` }));
+    } catch {
+      // Image d'un autre domaine sans autorisation : le fond reste celui du site.
+    }
+  };
   const control = "grid h-11 w-11 place-items-center rounded-full bg-white/90 text-[var(--color-text-primary)] shadow-[0_8px_24px_-12px_rgba(0,0,0,0.5)] backdrop-blur transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-primary)]";
   return (
     <section data-motion={motion} aria-roledescription="carrousel" aria-label={params.title} className="relative overflow-hidden" onMouseEnter={() => setHold(true)} onMouseLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)}>
@@ -216,16 +235,21 @@ function StageHero({ params, motion }: { params: CollectionHeroParams; motion: "
         {slides.map((m, i) => (
           <Fragment key={`${m.url}-${i}`}>
             {/* Grand écran : la photo ENTIÈRE à droite (jamais agrandie au point de ne montrer
-                qu'un détail), prolongée à gauche par elle-même, floutée. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={m.url} alt="" aria-hidden="true" loading={i === 0 ? "eager" : "lazy"} className={`absolute inset-0 hidden h-full w-full scale-110 object-cover blur-2xl transition-opacity duration-[1200ms] lg:block ${i === index ? "opacity-100" : "opacity-0"}`} />
+                qu'un détail). À gauche, un fond calme teinté par la couleur moyenne de la
+                photo : aucun pixel inventé ni étiré, aucune tache, quel que soit le produit. */}
+            <span
+              aria-hidden="true"
+              className={`absolute inset-0 hidden transition-[opacity,background-color] duration-[1200ms] lg:block ${i === index ? "opacity-100" : "opacity-0"}`}
+              style={{ backgroundColor: tints[i] ? `color-mix(in srgb, var(--color-background) 72%, ${tints[i]})` : "var(--color-surface)" }}
+            />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={m.url}
+              onLoad={(e) => sampleTint(e.currentTarget, i)}
               alt={i === index ? (m.alt ?? "") : ""}
               aria-hidden={i === index ? undefined : true}
               loading={i === 0 ? "eager" : "lazy"}
-              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out lg:left-auto lg:right-0 lg:w-auto lg:max-w-[74%] lg:[mask-image:linear-gradient(90deg,transparent,#000_16%)] ${i === index ? "opacity-100" : "opacity-0"} ${i === index && motion === "on" ? "ycc-kenburns" : ""}`}
+              className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ease-out lg:left-auto lg:right-0 lg:w-auto lg:max-w-[74%] lg:[mask-image:linear-gradient(90deg,transparent_0%,rgba(0,0,0,0.35)_12%,#000_32%)] ${i === index ? "opacity-100" : "opacity-0"} ${i === index && motion === "on" ? "ycc-kenburns" : ""}`}
             />
           </Fragment>
         ))}

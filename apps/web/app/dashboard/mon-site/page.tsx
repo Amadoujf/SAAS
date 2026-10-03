@@ -48,6 +48,8 @@ export default async function MySitePage() {
     <SiteEditor
       storeUrl={siteUrl}
       homeComposedInEditor={data.status.mode === "editor"}
+      // Dans l'atelier (droit d'édition du site), les réglages vivent dans la colonne de droite.
+      panel={Boolean(await requireTenantPermission(tenantId, "site.edit"))}
       templates={STORE_TEMPLATES.map((t) => ({ slug: t.slug, name: t.name, tagline: t.tagline, layout: t.layout, bg: t.tokens.colors.background, ink: t.tokens.colors.textPrimary, primary: t.tokens.colors.primary, accent: t.tokens.colors.accentPrimary }))}
       products={data.products.map((p) => ({ id: p.id, name: p.name, imageUrl: p.images[0]?.url ?? null, price: p.basePrice }))}
       categories={data.categories.map((c) => ({ id: c.id, name: c.name }))}

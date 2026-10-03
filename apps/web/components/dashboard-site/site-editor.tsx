@@ -20,6 +20,9 @@ export interface SiteEditorProps {
   /** L'accueil en ligne est composé dans l'éditeur : les réglages de l'accueil standard
    *  (sans effet) sont masqués — ils restent enregistrés tels quels. */
   homeComposedInEditor?: boolean;
+  /** Affiché dans la colonne de droite de l'atelier : une seule colonne, barre
+   *  d'enregistrement en bas du panneau (jamais par-dessus l'aperçu). */
+  panel?: boolean;
 }
 
 const input = "h-11 w-full rounded-lg bg-white px-3 text-[15px] ring-1 ring-inset ring-yc-ink/12 focus:outline-none focus:ring-2 focus:ring-yc-electric";
@@ -97,7 +100,7 @@ function move<T>(list: T[], i: number, d: number) {
 
 /** Éditeur « Mon site » : template, identité, carrousel, univers, produits en vedette,
  *  collections, bandeau et engagements. Tout est revalidé par le serveur. */
-export function SiteEditor({ storeUrl, templates, products, categories, initial, homeComposedInEditor = false }: SiteEditorProps) {
+export function SiteEditor({ storeUrl, templates, products, categories, initial, homeComposedInEditor = false, panel = false }: SiteEditorProps) {
   const router = useRouter();
   const [state, setState] = useState(initial);
   const [picker, setPicker] = useState<null | { size: "large" | "medium"; apply: (url: string, alt: string) => void }>(null);
@@ -127,7 +130,7 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial,
   }
 
   return (
-    <div className="flex flex-col gap-4 pb-24">
+    <div className={panel ? "flex flex-col gap-4 [&_.grid]:!grid-cols-1" : "flex flex-col gap-4 pb-24"}>
       {demoCount > 0 && !homeComposedInEditor && (
         <p role="status" className="rounded-xl bg-yc-warning/[0.12] px-4 py-3 text-sm">
           <strong>{demoCount} visuel{demoCount > 1 ? "s" : ""} de démonstration</strong> affiché{demoCount > 1 ? "s" : ""} sur votre boutique. Remplacez-les par des photos représentant fidèlement vos produits.
@@ -306,8 +309,8 @@ export function SiteEditor({ storeUrl, templates, products, categories, initial,
         </>
       )}
 
-      <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-yc-ink/10 bg-white/95 backdrop-blur lg:bottom-0 lg:left-[268px]">
-        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-3 px-4 py-3 sm:px-8 max-lg:pb-20">
+      <div className={panel ? "sticky -bottom-4 z-10 -mx-4 border-t border-yc-ink/10 bg-white/95 backdrop-blur" : "fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 border-t border-yc-ink/10 bg-white/95 backdrop-blur lg:bottom-0 lg:left-[248px]"}>
+        <div className={panel ? "flex flex-wrap items-center gap-3 px-4 py-3" : "mx-auto flex max-w-[1240px] flex-wrap items-center gap-3 px-4 py-3 sm:px-8 max-lg:pb-20"}>
           {message && <p role={message.ok ? "status" : "alert"} className={`text-sm font-medium ${message.ok ? "text-[rgb(4_120_87)]" : "text-yc-danger"}`}>{message.text}</p>}
           <div className="ml-auto flex gap-2">
             {storeUrl && <a href={storeUrl} target="_blank" rel="noreferrer" className="inline-flex h-11 items-center gap-2 rounded-lg px-4 text-sm font-semibold text-yc-electric hover:bg-yc-electric/5">Voir ma boutique <IconArrowRight size={16} /></a>}
