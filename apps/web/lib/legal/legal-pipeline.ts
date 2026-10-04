@@ -3,7 +3,6 @@ import {
   LegalProfileError,
   getLegalProfile,
   saveLegalProfile,
-  withSuperAdminAccess,
   withTenant,
   writeAuditLog,
   type LegalProfileInput,
@@ -43,17 +42,20 @@ export async function saveCurrentLegalProfile(input: LegalProfileInput): Promise
   const actor = await requireTenantPermission(membership.tenantId, "settings.branding");
   if (!actor) return { ok: false, status: 403, error: "Non autorisé." };
   try {
-    const profile = await withTenant(membership.tenantId, (tx) => saveLegalProfile(tx, membership.tenantId, input));
-    await withSuperAdminAccess((tx) =>
-      writeAuditLog(tx, {
+    // Fiche et journal d'audit dans la MÊME transaction : jamais une modification
+    // publique sans sa trace, ni une trace sans modification.
+    const profile = await withTenant(membership.tenantId, async (tx) => {
+      const saved = await saveLegalProfile(tx, membership.tenantId, input);
+      await writeAuditLog(tx, {
         tenantId: membership.tenantId,
         actorUserId: actor.userId,
         actorType: actor.isSuperAdmin ? "super_admin" : membership.roleName === "OWNER" ? "owner" : "employee",
         action: "legal_profile.update",
         entityType: "TenantLegalProfile",
         entityId: membership.tenantId,
-      }),
-    );
+      });
+      return saved;
+    });
     invalidateSiteCache(membership.tenantId);
     return { ok: true, data: profile };
   } catch (error) {

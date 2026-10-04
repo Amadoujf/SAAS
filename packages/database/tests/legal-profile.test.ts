@@ -3,6 +3,7 @@ import { prisma } from "../src/client";
 import { withSuperAdminAccess, withTenant } from "../src/tenant-context";
 import { testOwnerClient } from "./test-owner-client";
 import { LegalProfileError, getLegalProfile, normalizeLegalProfile, saveLegalProfile } from "../src/legal-profile-registry";
+import { writeAuditLog } from "../src/audit-log-registry";
 
 /**
  * Informations légales d'une entreprise sur PostgreSQL RÉEL : validation, enregistrement
@@ -55,6 +56,7 @@ describe.skipIf(!databaseAvailable)("informations légales (PostgreSQL)", () => 
 
   afterAll(async () => {
     const o = testOwnerClient();
+    await o.auditLog.deleteMany({ where: { tenantId: { in: tenantIds } } });
     await o.tenantLegalProfile.deleteMany({ where: { tenantId: { in: tenantIds } } });
     await o.tenant.deleteMany({ where: { id: { in: tenantIds } } });
     await o.$disconnect();
@@ -84,5 +86,23 @@ describe.skipIf(!databaseAvailable)("informations légales (PostgreSQL)", () => 
     // Écriture pour le compte d'une autre entreprise : refusée par la RLS.
     await expect(withTenant(b, (tx) => saveLegalProfile(tx, a, { legalName: "Piratage" }))).rejects.toThrow();
     expect((await withTenant(a, (tx) => getLegalProfile(tx, a))).legalName).toBe("Secret A");
+  });
+
+  it("fiche et journal d'audit dans la même transaction : tout ou rien", async () => {
+    const audit = (tx: Parameters<Parameters<typeof withTenant>[1]>[0]) =>
+      writeAuditLog(tx, { tenantId: b, actorUserId: null, actorType: "owner", action: "legal_profile.update", entityType: "TenantLegalProfile", entityId: b });
+    await withTenant(b, async (tx) => {
+      await saveLegalProfile(tx, b, { legalName: "Maison B" });
+      await audit(tx);
+    });
+    expect(await withTenant(b, (tx) => tx.auditLog.count({ where: { tenantId: b, action: "legal_profile.update" } }))).toBe(1);
+    // Échec après l'écriture : ni la modification ni sa trace ne subsistent.
+    await expect(withTenant(b, async (tx) => {
+      await saveLegalProfile(tx, b, { legalName: "Jamais visible" });
+      await audit(tx);
+      throw new Error("échec simulé");
+    })).rejects.toThrow("échec simulé");
+    expect((await withTenant(b, (tx) => getLegalProfile(tx, b))).legalName).toBe("Maison B");
+    expect(await withTenant(b, (tx) => tx.auditLog.count({ where: { tenantId: b, action: "legal_profile.update" } }))).toBe(1);
   });
 });
