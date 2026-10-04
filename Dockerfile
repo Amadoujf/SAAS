@@ -20,10 +20,16 @@ RUN pnpm --filter @yamacommerce/database exec prisma generate
 # connexion n'est ouverte pendant la compilation) ; remplacées au démarrage.
 RUN DATABASE_URL=postgresql://build:build@localhost:5432/build AUTH_SECRET=build-only-not-secret-0123456789abcdef \
     ENCRYPTION_KEY=00112233445566778899aabbccddeeff00112233445566778899aabbccddee REDIS_URL=redis://localhost:6379 \
-    pnpm --filter @yamacommerce/web exec next build
+    pnpm --filter @yamacommerce/web exec next build \
+ && rm -rf apps/web/.next/cache
 
 FROM base AS runtime
 ENV NODE_ENV=production
 COPY --from=build /app /app
+# Jamais root à l'exécution : seuls le cache de Next.js et le stockage des fichiers sont
+# accessibles en écriture à l'utilisateur `node`.
+RUN mkdir -p /data/storage /app/apps/web/.next/cache \
+ && chown -R node:node /data/storage /app/apps/web/.next/cache
+USER node
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@yamacommerce/web", "exec", "next", "start", "-p", "3000"]

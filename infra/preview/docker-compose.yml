@@ -1,16 +1,31 @@
 # Prévisualisation PRIVÉE de Y-COM : pile complète et SÉPARÉE (sa propre base de
 # démonstration, son propre Redis, ses propres fichiers), protégée par un code d'accès et
-# non indexable. Jamais la production. Voir docs/16-previsualisation-privee.md.
+# non indexable. Jamais la production. Voir docs/16 et docs/19 (sécurité).
 #
 #   cp infra/preview/.env.preview.example infra/preview/.env.preview   # puis renseigner
 #   docker compose -f infra/preview/docker-compose.yml --env-file infra/preview/.env.preview up -d --build
+#
+# Sécurité (docs/19) :
+# - seul Caddy publie des ports (80/443) ; PostgreSQL et Redis sont sur un réseau
+#   INTERNE sans accès à Internet, jamais publiés ;
+# - les identifiants du propriétaire de la base (migrations) ne sont donnés qu'à
+#   `migrate` ; `web` et `worker` n'ont que le rôle applicatif soumis à la RLS ;
+# - Redis exige un mot de passe ; conteneurs applicatifs sans root ni privilèges ;
+# - journaux plafonnés (le disque ne peut pas être rempli par les logs).
 name: yamacommerce-preview
+
+x-logging: &logging
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-hardened: &hardened
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
 
 x-app-env: &app-env
   NODE_ENV: production
   DATABASE_URL: postgresql://yamacommerce_app:${APP_DB_PASSWORD}@db:5432/yamacommerce_preview?schema=public
-  MIGRATE_DATABASE_URL: postgresql://yamacommerce_owner:${OWNER_DB_PASSWORD}@db:5432/yamacommerce_preview?schema=public
-  REDIS_URL: redis://redis:6379
+  REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
   AUTH_SECRET: ${AUTH_SECRET}
   AUTH_TRUST_HOST: "true"
   NEXTAUTH_URL: https://${PREVIEW_DOMAIN}
@@ -26,35 +41,50 @@ x-app-env: &app-env
   EMAIL_FROM: ${EMAIL_FROM:-}
   LOCAL_STORAGE_ROOT_DIR: /data/storage
   ALLOW_DEMO_SEED: "true"
-  PREVIEW_DEMO_PASSWORD: ${PREVIEW_DEMO_PASSWORD}
   AI_PLATFORM_MONTHLY_CAP_XOF: ${AI_PLATFORM_MONTHLY_CAP_XOF:-15000}
-  SUPERADMIN_SEED_EMAIL: ${SUPERADMIN_EMAIL}
-  SUPERADMIN_SEED_PASSWORD: ${SUPERADMIN_PASSWORD}
   DEFAULT_TIMEZONE: Africa/Dakar
+  # Appels internes worker → web (publication programmée, domaines), sur le réseau `app`.
+  WEB_APP_INTERNAL_URL: http://web:3000
+  INTERNAL_WORKER_SECRET: ${INTERNAL_WORKER_SECRET}
 
 services:
   db:
     image: postgres:17-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: yamacommerce_owner
       POSTGRES_PASSWORD: ${OWNER_DB_PASSWORD}
       POSTGRES_DB: yamacommerce_preview
     volumes: [preview_db:/var/lib/postgresql/data]
+    networks: [data]
     healthcheck: { test: ["CMD-SHELL", "pg_isready -U yamacommerce_owner -d yamacommerce_preview"], interval: 5s, timeout: 5s, retries: 20 }
 
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    logging: *logging
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
     volumes: [preview_redis:/data]
-    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 5s, timeout: 5s, retries: 20 }
+    networks: [data]
+    healthcheck: { test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"], interval: 5s, timeout: 5s, retries: 20 }
+    environment: { REDIS_PASSWORD: "${REDIS_PASSWORD}" }
 
   # Migrations, rôles, données de base et entreprises de démonstration (une seule fois :
-  # chaque script de démo ne recrée pas une démo déjà présente).
+  # chaque script de démo ne recrée pas une démo déjà présente). SEUL service qui reçoit
+  # les identifiants du propriétaire de la base et ceux du super-administrateur initial.
   migrate:
     build: { context: ../.., dockerfile: Dockerfile }
     image: yamacommerce:preview
-    environment: *app-env
+    logging: *logging
+    <<: *hardened
+    environment:
+      <<: *app-env
+      MIGRATE_DATABASE_URL: postgresql://yamacommerce_owner:${OWNER_DB_PASSWORD}@db:5432/yamacommerce_preview?schema=public
+      PREVIEW_DEMO_PASSWORD: ${PREVIEW_DEMO_PASSWORD}
+      SUPERADMIN_SEED_EMAIL: ${SUPERADMIN_EMAIL}
+      SUPERADMIN_SEED_PASSWORD: ${SUPERADMIN_PASSWORD}
+    networks: [data]
     depends_on: { db: { condition: service_healthy } }
     command: ["sh", "infra/preview/init-demo-db.sh"]
     restart: "no"
@@ -62,25 +92,43 @@ services:
   web:
     image: yamacommerce:preview
     restart: unless-stopped
+    logging: *logging
+    <<: *hardened
     environment: *app-env
     volumes: [preview_storage:/data/storage]
+    networks: [data, app, edge]
     depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy } }
 
   worker:
     image: yamacommerce:preview
     restart: unless-stopped
+    logging: *logging
+    <<: *hardened
     environment: *app-env
+    networks: [data, app, egress]
     command: ["pnpm", "--filter", "@yamacommerce/worker", "exec", "tsx", "src/index.ts"]
     depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy } }
 
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    logging: *logging
     environment:
       PREVIEW_DOMAIN: ${PREVIEW_DOMAIN}
     ports: ["80:80", "443:443"]
     volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "preview_caddy:/data"]
+    networks: [edge]
     depends_on: [web]
+
+networks:
+  # Base et Redis : réseau interne, aucune route vers Internet ni depuis Internet.
+  data: { internal: true }
+  # web ↔ worker (appels internes), sans accès à Internet.
+  app: { internal: true }
+  # Caddy ↔ web (et sortie de web vers l'IA, les e-mails, les prestataires).
+  edge: {}
+  # Sortie du worker (e-mails, prestataires) sans contact avec Caddy.
+  egress: {}
 
 volumes:
   preview_db:

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isInternalCallAuthorized } from "@/lib/internal-secret";
 import type { NextRequest } from "next/server";
 import { z } from "zod";
 import { notificationsQueue, QUEUE_NAMES } from "@yamacommerce/queue";
@@ -25,9 +26,7 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const expectedSecret = process.env.INTERNAL_WORKER_SECRET;
-  const providedSecret = request.headers.get("x-internal-secret");
-  if (!expectedSecret || providedSecret !== expectedSecret) {
+  if (!isInternalCallAuthorized(request.headers.get("x-internal-secret"))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
