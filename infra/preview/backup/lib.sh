@@ -26,3 +26,21 @@ EXTRA_MOUNTS=()
 
 # Signal de surveillance : début, succès, échec (healthchecks.io). Jamais bloquant.
 ping() { [ -n "${1:-}" ] && curl -fsS -m 10 --retry 3 -o /dev/null "$1${2:-}" || true; }
+
+# Point de restauration : chaque sauvegarde marque ses instantanés (base, fichiers,
+# configuration) d'une même étiquette `run-<date>`. Donne « id étiquette » de
+# l'instantané de base demandé (`latest` ou un identifiant), pour restaurer ensuite les
+# fichiers et la configuration de la MÊME sauvegarde, jamais d'une autre date.
+recovery_point() {
+  local sel=(--tag db --latest 1)
+  [ "${1:-latest}" = latest ] || sel=("$1")
+  restic snapshots "${sel[@]}" --json | python3 -c '
+import json, sys
+snaps = json.load(sys.stdin) or []
+s = snaps[-1] if snaps else {}
+tags = s.get("tags") or []
+run = [t for t in tags if t.startswith("run-")]
+if "db" not in tags or not run:
+    sys.exit("Instantané de base introuvable ou sans point de restauration (run-…).")
+print(s["short_id"], run[0])'
+}

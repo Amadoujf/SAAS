@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Reprise après sinistre : REMPLACE la base et les fichiers EN SERVICE par la dernière
-# sauvegarde (ou un instantané donné : ./restore.sh <id>). Destructif : demande de taper
-# RESTAURER. Arrête web et worker pendant l'opération, les relance ensuite.
+# sauvegarde (ou celle d'un instantané de base donné : ./restore.sh <id>). Base et
+# fichiers viennent TOUJOURS de la même sauvegarde (étiquette run-…). Destructif :
+# demande de taper RESTAURER. Arrête web et worker pendant l'opération, les relance ensuite.
 . "$(dirname "$0")/lib.sh"
-SNAPSHOT=${1:-latest}
+read -r DB_SNAP RUN_TAG <<<"$(recovery_point "${1:-latest}")"
+[ -n "$RUN_TAG" ] || exit 1
+SNAPSHOT="$DB_SNAP ($RUN_TAG)"
 if [ "${YCOM_RESTORE_CONFIRM:-}" != "RESTAURER" ]; then
   read -r -p "Remplacer la base et les fichiers en service par la sauvegarde « $SNAPSHOT » ? Tapez RESTAURER : " answer
   [ "$answer" = "RESTAURER" ] || { echo "Abandon."; exit 1; }
 fi
 WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
 EXTRA_MOUNTS=(-v "$WORK:/restore")
-if [ "$SNAPSHOT" = latest ]; then restic restore latest --tag db --target /restore --quiet; else restic restore "$SNAPSHOT" --target /restore --quiet; fi
+restic restore "$DB_SNAP" --target /restore --quiet
 DUMP="$WORK/db/yamacommerce_preview.dump"
 [ -s "$DUMP" ] || { echo "Dump absent de la sauvegarde." >&2; exit 1; }
 
@@ -28,6 +31,6 @@ $COMPOSE exec -T db psql -U yamacommerce_owner -d yamacommerce_preview -qc "ALTE
 echo "Remplacement des fichiers"
 docker run --rm -v "${PROJECT}_preview_storage:/data/storage" --entrypoint sh "$RESTIC_IMAGE" -c 'find /data/storage -mindepth 1 -delete'
 EXTRA_MOUNTS=(-v "${PROJECT}_preview_storage:/data/storage")
-restic restore latest --tag files --target / --quiet
+restic restore latest --tag "files,$RUN_TAG" --target / --quiet
 docker run --rm -v "${PROJECT}_preview_storage:/data/storage" --entrypoint chown "$RESTIC_IMAGE" -R 1000:1000 /data/storage
 echo "Restauration terminée : vérifiez avec infra/preview/verify.sh."

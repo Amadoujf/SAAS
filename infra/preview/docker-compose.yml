@@ -89,6 +89,22 @@ services:
     command: ["sh", "infra/preview/init-demo-db.sh"]
     restart: "no"
 
+  # Un volume de fichiers déjà existant (créé par une image plus ancienne exécutée en
+  # root) masque le `chown` de l'image : ce passage unique remet le stockage à
+  # l'utilisateur `node` (1000) avant que web ne démarre sans root. Sans réseau, seule
+  # la capacité de changer de propriétaire.
+  storage-init:
+    image: yamacommerce:preview
+    logging: *logging
+    user: "0:0"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_READ_SEARCH]
+    network_mode: none
+    volumes: [preview_storage:/data/storage]
+    command: ["chown", "-R", "1000:1000", "/data/storage"]
+    restart: "no"
+
   web:
     image: yamacommerce:preview
     restart: unless-stopped
@@ -97,7 +113,10 @@ services:
     environment: *app-env
     volumes: [preview_storage:/data/storage]
     networks: [data, app, edge]
-    depends_on: { migrate: { condition: service_completed_successfully }, redis: { condition: service_healthy } }
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      storage-init: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
 
   worker:
     image: yamacommerce:preview

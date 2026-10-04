@@ -15,8 +15,11 @@ echo "1/5 Intégrité du dépôt (5 % des données relues)"
 restic check --read-data-subset=5% --quiet
 
 echo "2/5 Restauration de la base"
+read -r DB_SNAP RUN_TAG <<<"$(recovery_point latest)"
+[ -n "$RUN_TAG" ] || { echo "Aucune sauvegarde avec point de restauration." >&2; false; }
+echo "Point de restauration : $RUN_TAG (base $DB_SNAP)"
 EXTRA_MOUNTS=(-v "$WORK:/restore")
-restic restore latest --tag db --target /restore --quiet
+restic restore "$DB_SNAP" --target /restore --quiet
 DUMP="$WORK/db/yamacommerce_preview.dump"
 [ -s "$DUMP" ] || { echo "Dump absent ou vide." >&2; false; }
 PW=$(openssl rand -hex 16)
@@ -44,14 +47,14 @@ RLS=$(docker exec "$CONTAINER" psql -U postgres -d restored -Atc "SELECT count(*
 echo "RLS forcée sur $RLS tables de la base restaurée."
 
 echo "4/5 Restauration des fichiers"
-restic restore latest --tag files --target /restore --quiet
+restic restore latest --tag "files,$RUN_TAG" --target /restore --quiet
 R_FILES=$(find "$WORK/data/storage" -type f 2>/dev/null | wc -l)
 L_FILES=$($COMPOSE exec -T web sh -c 'find /data/storage -type f | wc -l')
 echo "fichiers : $R_FILES restaurés, $L_FILES en service"
 [ "$R_FILES" -le "$L_FILES" ] || { echo "Plus de fichiers restaurés qu'en service : incohérence." >&2; false; }
 
 echo "5/5 Configuration"
-restic restore latest --tag config --target /restore --quiet
+restic restore latest --tag "config,$RUN_TAG" --target /restore --quiet
 grep -q '^PREVIEW_DOMAIN=' "$WORK/config/.env.preview" || { echo "Configuration non restaurée." >&2; false; }
 
 ping "${HEALTHCHECK_RESTORE_URL:-}"
