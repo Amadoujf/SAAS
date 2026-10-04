@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/yc/panel";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { isCatalogModuleEnabled } from "@/lib/catalog/require-catalog-module";
 import { StocksPanel } from "@/components/dashboard/stocks-panel";
@@ -13,10 +14,8 @@ export default async function StocksPage() {
   if (!catalogEnabled) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white p-4">
-        <h1 className="text-lg font-semibold text-gray-900">Stocks</h1>
-      </header>
+    <div>
+      <PageHeader eyebrow="Catalogue" title="Stocks" description="Quantités disponibles, réservées et alertes de rupture." />
       <StocksPanel />
     </div>
   );

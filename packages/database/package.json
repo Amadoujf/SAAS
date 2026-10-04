@@ -16,7 +16,19 @@
     "studio": "dotenv -e ../../.env -- prisma studio",
     "lint": "eslint . --ext .ts",
     "typecheck": "dotenv -e ../../.env -- tsc --noEmit",
-    "test": "dotenv -e ../../.env -- vitest run"
+    "test": "dotenv -e ../../.env -- vitest run",
+    "seed:commerce-demo": "dotenv -e ../../.env -- tsx src/seed-commerce-demo.ts",
+    "seed:real-estate-demo": "dotenv -e ../../.env -- tsx src/seed-real-estate-demo.ts",
+    "seed:immersive-demo": "dotenv -e ../../.env -- tsx src/seed-immersive-demo.ts",
+    "seed:ai-demo": "dotenv -e ../../.env -- tsx src/seed-ai-demo.ts",
+    "seed:travel-demo": "dotenv -e ../../.env -- tsx src/seed-travel-demo.ts",
+    "seed:salon-demo": "dotenv -e ../../.env -- tsx src/seed-salon-demo.ts",
+    "seed:hotel-demo": "dotenv -e ../../.env -- tsx src/seed-hotel-demo.ts",
+    "seed:restaurant-demo": "dotenv -e ../../.env -- tsx src/seed-restaurant-demo.ts",
+    "seed:auto-demo": "dotenv -e ../../.env -- tsx src/seed-auto-demo.ts",
+    "seed:education-demo": "dotenv -e ../../.env -- tsx src/seed-education-demo.ts",
+    "seed:courier-demo": "dotenv -e ../../.env -- tsx src/seed-courier-demo.ts",
+    "seed:fashion-demo": "dotenv -e ../../.env -- tsx src/seed-fashion-demo.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",

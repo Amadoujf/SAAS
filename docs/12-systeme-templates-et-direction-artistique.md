@@ -194,3 +194,24 @@ Un template n'est considéré **livrable** que lorsque tous les éléments suiva
 - [ ] Captures d'écran ordinateur ET mobile pour chaque page principale (fournies à la validation avant mise en catalogue)
 
 Aucun template n'est proposé aux tenants tant que cette liste n'est pas cochée en entier.
+
+## 12.10 Sections immersives (hero, carrousel en profondeur, récit au défilement)
+
+Trois sections du registre commun (`packages/templates/src/sections.ts`), disponibles pour **tous les secteurs** dans la bibliothèque de l'éditeur (`lib/editor/section-library.ts`). Elles passent par le même chemin que les autres sections : validation zod, brouillon, aperçu, publication atomique (`publishSite`), médiathèque.
+
+| Section | Variantes | Contenu |
+|---|---|---|
+| `immersive_hero` | `stage`, `centered`, `architectural` | Titre + accent, CTA réels, sujet (photo encadrée ou visuel détouré), jusqu'à 6 **calques préparés** (profondeur, décalage, échelle, rotation, provenance), éclairage, effet au défilement (`assemble`, `separate`, `parallax`, `zoom`, `none`), intensité, image mobile, point focal. |
+| `immersive_showcase` | `depth`, `stack`, `arc` | Source `products` / `listings` / `manual`, 3–12 éléments, prix facultatif, lecture automatique réglable (3–15 s). Les éléments sont tirés des **contenus publiés de l'entreprise** (réservoir `__showcase_pool__`, `lib/rendering/showcase-pool.ts`) : jamais un produit ou un prix inventé. `arc` : objets en arc, l'élément central sur un socle lumineux, ambiance à sa couleur ; `imageStyle: cutout` pour des visuels détourés ; `overrides` habille un enregistrement réel (visuel détouré, couleur) sans toucher à son titre, son prix ni son lien. |
+| `scroll_story` | `focus`, `sequence`, `timeline`, `product` | 1–8 étapes (texte, image facultative, point focal, zoom). `product` : un objet détouré qui pivote (`rotate`) et change d'échelle (`objectScale`) d'étape en étape sur une ambiance colorée (`accentColor`), points de progression cliquables (défilement natif). |
+
+**Choix techniques.** framer-motion (MIT, déjà présent) et CSS suffisent : aucun ajout de GSAP/ScrollTrigger ni de Three.js (poids, et aucun modèle 3D fidèle des produits des entreprises n'existe — un effet 3D ne serait pas honnête). L'effet « objet qui s'assemble » repose sur des **éléments détourés préparés séparément** : une photo plate unique ne le produit pas.
+
+**Garanties.**
+- Aucun détournement du défilement : transformations liées au défilement (`useScroll`) et `position: sticky` ; l'étape active est détectée par IntersectionObserver.
+- `prefers-reduced-motion` : amplitude nulle, pas de lecture automatique (`useMotionAmplitude`) ; appareils modestes : effets allégés (`useLowPower`) ; mobile : amplitude réduite et scène rognée.
+- Lecture automatique suspendue au survol, au focus, hors écran et onglet inactif ; bouton pause visible ; flèches, clavier, glisser tactile ; région `aria-live`.
+- Dimensions des médias réservées (CLS mesuré à 0) ; image en échec → repli neutre, textes et boutons conservés.
+- Aucun curseur personnalisé imposé ; rien n'est accessible uniquement au survol.
+
+**Démonstration.** `pnpm --filter @yamacommerce/database run seed:immersive-demo` dépose des compositions dans le **brouillon** de Sunu Marché et Almadies Immobilier (publication depuis l'éditeur). Scène « lampe » et collection « Terres émaillées » (six produits de démonstration dont le visuel est le rendu) : créations procédurales originales (`scripts/demo-visuals/scene-lampe.py`, `scripts/demo-visuals/ceramiques.py`) ; provenance dans `apps/web/public/demo-templates/MANIFEST.json`. Une nouvelle entreprise ne reçoit aucun de ces visuels : son premier brouillon est composé de ses propres contenus (`lib/site-editor/tenant-site.ts`).

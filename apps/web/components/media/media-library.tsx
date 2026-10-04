@@ -73,6 +73,9 @@ export interface SelectedMedia {
   url: string;
   altText: string | null;
   originalName: string;
+  /** Variantes optimisées disponibles (thumbnail/small/medium/large) : permet au
+   *  consommateur de référencer une taille adaptée plutôt que l'original. */
+  variants?: { key: string }[];
 }
 
 export interface MediaLibraryProps {
@@ -472,7 +475,7 @@ export function MediaLibrary({ apiBase, onSelect, onClose }: MediaLibraryProps) 
                   <button
                     type="button"
                     onClick={() =>
-                      onSelect({ id: asset.id, url: asset.url, altText: asset.altText, originalName: asset.originalName })
+                      onSelect({ id: asset.id, url: asset.url, altText: asset.altText, originalName: asset.originalName, variants: asset.variants })
                     }
                     className="mt-1 w-full rounded-md bg-indigo-600 py-1 text-[11px] font-medium text-white hover:bg-indigo-700"
                   >
@@ -560,7 +563,7 @@ export function MediaLibrary({ apiBase, onSelect, onClose }: MediaLibraryProps) 
                       <button
                         type="button"
                         onClick={() =>
-                          onSelect({ id: asset.id, url: asset.url, altText: asset.altText, originalName: asset.originalName })
+                          onSelect({ id: asset.id, url: asset.url, altText: asset.altText, originalName: asset.originalName, variants: asset.variants })
                         }
                         className="rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-medium text-white"
                       >

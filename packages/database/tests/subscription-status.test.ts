@@ -193,13 +193,16 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
 
     // GRACE_PERIOD -> ACTIVE (réactivation par paiement) et GRACE_PERIOD -> SUSPENDED
     // (fin de grâce détectée par le balayage) sont TOUTES DEUX valides depuis
-    // GRACE_PERIOD : une vraie course entre deux décisions concurrentes.
+    // GRACE_PERIOD : une vraie course entre deux décisions concurrentes. `fromStatus`
+    // fixe l'état constaté : sans lui, si SUSPENDED gagne puis que la réactivation relit
+    // SUSPENDED, SUSPENDED -> ACTIVE est valide et les deux réussissent l'une APRÈS
+    // l'autre (ordre légitime, mais pas le scénario testé ici — vu en CI).
     const attempts = await Promise.allSettled([
       withTenant(secondTenantId, (tx) =>
-        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "ACTIVE", actorType: "webhook", eventType: "reactivated" }),
+        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "ACTIVE", actorType: "webhook", eventType: "reactivated", fromStatus: "GRACE_PERIOD" }),
       ),
       withTenant(secondTenantId, (tx) =>
-        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "SUSPENDED", actorType: "system", eventType: "suspended" }),
+        transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: fresh.id, toStatus: "SUSPENDED", actorType: "system", eventType: "suspended", fromStatus: "GRACE_PERIOD" }),
       ),
     ]);
 
@@ -223,5 +226,20 @@ describe.skipIf(!databaseAvailable)("transitionSubscriptionStatus (réel, Postgr
 
     const events = await withTenant(secondTenantId, (tx) => tx.subscriptionEvent.findMany({ where: { subscriptionId: fresh.id } }));
     expect(events).toHaveLength(1); // une seule transition a réellement eu lieu.
+  });
+
+  it("fromStatus : une décision fondée sur un statut dépassé est refusée, même si la transition resterait valide", async () => {
+    // Abonnement laissé par le test précédent : ACTIVE ou SUSPENDED, jamais GRACE_PERIOD.
+    const sub = await withTenant(secondTenantId, (tx) => tx.tenantSubscription.findFirstOrThrow({ where: { tenantId: secondTenantId } }));
+    expect(sub.status).not.toBe("GRACE_PERIOD");
+    const eventsBefore = await withTenant(secondTenantId, (tx) => tx.subscriptionEvent.count({ where: { subscriptionId: sub.id } }));
+    // -> CANCELED est valide depuis ACTIVE comme depuis SUSPENDED, mais l'appelant
+    // croyait l'abonnement en période de grâce : refus, rien n'est écrit.
+    await expect(
+      withTenant(secondTenantId, (tx) => transitionSubscriptionStatus(tx, secondTenantId, { subscriptionId: sub.id, toStatus: "CANCELED", actorType: "system", eventType: "canceled", fromStatus: "GRACE_PERIOD" })),
+    ).rejects.toBeInstanceOf(SubscriptionStatusConflictError);
+    const after = await withTenant(secondTenantId, (tx) => tx.tenantSubscription.findUniqueOrThrow({ where: { id: sub.id } }));
+    expect(after.status).toBe(sub.status);
+    expect(await withTenant(secondTenantId, (tx) => tx.subscriptionEvent.count({ where: { subscriptionId: sub.id } }))).toBe(eventsBefore);
   });
 });

@@ -60,6 +60,11 @@ export interface TransitionSubscriptionStatusInput {
    *  documentées sur le modèle (ex. "suspended", "canceled", "grace_period_started"). */
   eventType: string;
   payloadSnapshot?: Prisma.InputJsonValue | null;
+  /** Statut sur lequel l'appelant a fondé sa décision (ex. un balayage qui a constaté
+   *  « GRACE_PERIOD »). S'il a changé entre-temps, la transition est refusée
+   *  (`SubscriptionStatusConflictError`) au lieu de s'appliquer à un état que
+   *  l'appelant n'a jamais vu — même si elle resterait valide depuis ce nouvel état. */
+  fromStatus?: SubscriptionStatus;
 }
 
 /**
@@ -84,6 +89,9 @@ export async function transitionSubscriptionStatus(
     throw new Error(`transitionSubscriptionStatus : abonnement "${input.subscriptionId}" introuvable pour ce tenant.`);
   }
 
+  if (input.fromStatus && subscription.status !== input.fromStatus) {
+    throw new SubscriptionStatusConflictError(input.subscriptionId);
+  }
   if (subscription.status === input.toStatus) return subscription;
   if (!isValidSubscriptionTransition(subscription.status, input.toStatus)) {
     throw new InvalidSubscriptionTransitionError(subscription.status, input.toStatus);

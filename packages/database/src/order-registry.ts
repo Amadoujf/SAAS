@@ -4,6 +4,7 @@ import { getOrCreateMainShop, InsufficientStockError } from "./catalog-registry"
 import { resolveOrCreateCustomer, addCustomerAddress, type CustomerInput, type CustomerAddressInput } from "./customer-registry";
 import { nextCounterValue, orderScope, formatOrderNumber } from "./counters";
 import { transitionOrderStatus, STOCK_COMMIT_STATUS, OrderStatusConflictError, InvalidOrderTransitionError } from "./order-status";
+import { computeZoneShipping, getCommerceSettings } from "./commerce-registry";
 
 /**
  * Persistance des commandes — étape 2 (clients/panier/commandes/livraison, 19
@@ -31,10 +32,20 @@ export interface ConvertCartToOrderInput {
   deliveryMethod: "delivery" | "pickup";
   deliveryZoneId?: string | null;
   deliveryAddress?: DeliveryAddressInput | null;
-  paymentMethod: "cod" | "online";
+  /** `cod` : paiement à la livraison. `online` : prestataire automatique (PSP) du
+   *  tenant. `manual_wave` / `manual_orange_money` : transfert manuel vers le
+   *  portefeuille marchand du tenant, avec preuve à valider par l'équipe. */
+  paymentMethod: OrderPaymentMethod;
   promoCode?: string | null;
   notes?: string | null;
   channel?: string;
+}
+
+export const ORDER_PAYMENT_METHODS = ["cod", "online", "manual_wave", "manual_orange_money"] as const;
+export type OrderPaymentMethod = (typeof ORDER_PAYMENT_METHODS)[number];
+
+export function isManualPaymentMethod(method: string): method is "manual_wave" | "manual_orange_money" {
+  return method === "manual_wave" || method === "manual_orange_money";
 }
 
 export interface ConvertCartToOrderResult {
@@ -108,16 +119,34 @@ export async function convertCartToOrder(
     0,
   );
 
+  // Frais de livraison — calculés par `computeZoneShipping` (commerce-registry.ts),
+  // la MÊME fonction que celle qui alimente l'affichage du checkout : le montant
+  // facturé ne peut jamais diverger de celui présenté au client.
+  const settings = await getCommerceSettings(tx, tenantId);
   let shippingTotal = 0;
+  if (input.deliveryMethod === "pickup" && !settings.pickupEnabled) {
+    throw new Error("Le retrait en boutique n'est pas proposé par cette boutique.");
+  }
   if (input.deliveryMethod === "delivery") {
     if (!input.deliveryZoneId) throw new Error("convertCartToOrder : zone de livraison requise pour ce mode.");
     const zone = await tx.deliveryZone.findFirst({ where: { id: input.deliveryZoneId, tenantId } });
     if (!zone) {
       throw new Error(`convertCartToOrder : zone de livraison "${input.deliveryZoneId}" introuvable pour ce tenant.`);
     }
-    const freeThresholdMet = zone.freeThreshold !== null && subtotal >= zone.freeThreshold;
-    shippingTotal = freeThresholdMet ? 0 : zone.fee;
-    if (hasBulky) shippingTotal += zone.bulkySurcharge;
+    const shipping = computeZoneShipping(zone, {
+      subtotal,
+      hasBulky,
+      hasNonDeliverable,
+      categoryIds: [...new Set(cartItems.map((i) => i.variant.product.categoryId).filter((id): id is string => !!id))],
+    });
+    if (!shipping.available) {
+      throw new Error(
+        shipping.reason === "excluded_category"
+          ? "Un article de votre panier n'est pas livrable dans cette zone — choisissez une autre zone ou le retrait."
+          : "Cette zone de livraison n'est plus disponible — choisissez-en une autre.",
+      );
+    }
+    shippingTotal = shipping.fee;
   }
 
   let discountTotal = 0;
@@ -202,6 +231,7 @@ export async function convertCartToOrder(
       deliveryZoneId: input.deliveryMethod === "delivery" ? input.deliveryZoneId : null,
       deliveryAddressId,
       notes: input.notes ?? null,
+      paymentMethod: input.paymentMethod,
       items: {
         create: lineComputations.map(({ item, unitPrice, lineTotal }) => ({
           tenantId,
@@ -233,13 +263,18 @@ export async function convertCartToOrder(
     });
     await commitReservedStock(tx, tenantId, orderId);
   } else {
-    const reservationExpiresAt = new Date(Date.now() + RESERVATION_WINDOW_MINUTES * 60_000);
+    // Paiement manuel : le client doit ouvrir son application Wave/Orange Money,
+    // transférer, puis déposer une preuve — la fenêtre de réservation est donc celle
+    // configurée par le tenant (heures), pas les 30 minutes d'un paiement PSP hébergé.
+    const manual = isManualPaymentMethod(input.paymentMethod);
+    const windowMs = manual ? settings.manualPaymentWindowHours * 3_600_000 : RESERVATION_WINDOW_MINUTES * 60_000;
+    const reservationExpiresAt = new Date(Date.now() + windowMs);
     await tx.order.update({ where: { id: orderId }, data: { reservationExpiresAt } });
     await transitionOrderStatus(tx, tenantId, {
       orderId,
       toStatus: "AWAITING_PAYMENT",
       changedByType: "system",
-      note: "En attente de paiement en ligne.",
+      note: manual ? "En attente du transfert manuel et de sa preuve." : "En attente de paiement en ligne.",
     });
   }
 
@@ -365,35 +400,31 @@ export interface CancelOrderActor {
  * dépassé `STOCK_COMMIT_STATUS`, sinon libère simplement la réservation.
  */
 export async function cancelOrder(tx: Prisma.TransactionClient, tenantId: string, orderId: string, actor: CancelOrderActor) {
+  // Verrou de ligne AVANT de lire le statut — bogue réel trouvé sur GitHub Actions
+  // (« DEUX WORKERS SUR LE MÊME JOB », order-reservation.test.ts) : sans verrou,
+  // plusieurs annulations CONCURRENTES pouvaient chacune lire un statut pas encore
+  // annulé et relâcher/restocker le stock une fois de plus. Une première correction
+  // comparait le nombre de lignes `OrderStatusHistory` avant/après la transition, mais
+  // sous READ COMMITTED le second comptage voit aussi la ligne VALIDÉE entre-temps par
+  // une AUTRE transaction : le perdant se croyait gagnant et relâchait quand même.
+  // Avec `FOR UPDATE`, un appel concurrent attend la fin du premier puis relit le
+  // statut validé (`CANCELED`) : une seule transaction effectue la transition et
+  // libère le stock.
+  await tx.$queryRaw`SELECT "id" FROM "Order" WHERE "id" = ${orderId} AND "tenantId" = ${tenantId} FOR UPDATE`;
   const order = await tx.order.findFirst({ where: { id: orderId, tenantId } });
   if (!order) throw new Error(`cancelOrder : commande "${orderId}" introuvable pour ce tenant.`);
 
   if (order.status === "CANCELED") {
     // Déjà annulée — no-op sûr, le stock a déjà été libéré/restocké par la PREMIÈRE
-    // annulation réussie. Ne jamais le refaire (voir la course ci-dessous).
+    // annulation réussie. Ne jamais le refaire.
     return order;
   }
 
   const wasCommitted = !STATUSES_BEFORE_STOCK_COMMIT.has(order.status);
 
-  // CORRECTION DE STABILISATION — bogue réel trouvé en exécutant la suite réelle sur
-  // GitHub Actions (jamais reproduit localement, révélé par un ordonnancement
-  // différent) : `transitionOrderStatus` court-circuite silencieusement (retourne
-  // l'ordre SANS lever ni écrire d'historique) quand la commande est DÉJÀ dans l'état
-  // cible — un no-op légitime pour un rejeu simple, mais dangereux ici, car plusieurs
-  // appels CONCURRENTS de `cancelOrder` (ex. deux workers sur le même job expiré,
-  // voir order-reservation.test.ts « DEUX WORKERS ») peuvent chacun lire un statut PAS
-  // ENCORE annulé, puis découvrir — seulement au moment de l'appel interne et frais de
-  // `transitionOrderStatus` — que l'un d'eux a déjà gagné entre-temps. Sans détecter
-  // ce no-op, CHAQUE appelant relâchait/restockait le stock une fois de plus, jamais
-  // gardé par aucune contrainte DB (contrairement à `commitReservedStock`), d'où un
-  // dépassement réel constaté (3 libérations pour une seule commande annulée une
-  // fois). `transitionOrderStatus` n'écrit une ligne `OrderStatusHistory` QUE sur une
-  // vraie transition (jamais sur le court-circuit) — compter avant/après dans la MÊME
-  // transaction est donc un signal fiable, sans toucher à la signature publique de
-  // `transitionOrderStatus` (utilisée par des appelants qui, eux, n'ont pas cette
-  // classe de bogue).
-  const cancelHistoryBefore = await tx.orderStatusHistory.count({ where: { orderId, tenantId, toStatus: "CANCELED" } });
+  // Le verrou ci-dessus garantit qu'aucune autre transaction ne peut modifier le
+  // statut d'ici la fin de celle-ci : la transition ci-dessous est réelle (jamais le
+  // court-circuit « déjà dans l'état cible » de `transitionOrderStatus`).
   await transitionOrderStatus(tx, tenantId, {
     orderId,
     toStatus: "CANCELED",
@@ -401,15 +432,11 @@ export async function cancelOrder(tx: Prisma.TransactionClient, tenantId: string
     changedByType: actor.changedByType,
     note: actor.note,
   });
-  const cancelHistoryAfter = await tx.orderStatusHistory.count({ where: { orderId, tenantId, toStatus: "CANCELED" } });
 
-  if (cancelHistoryAfter > cancelHistoryBefore) {
-    // CET appel a réellement effectué la transition — lui seul relâche/restocke.
-    if (wasCommitted) {
-      await restockAfterPostConfirmationCancel(tx, tenantId, orderId);
-    } else {
-      await releaseReservedStock(tx, tenantId, orderId, actor.note ?? "Réservation libérée (commande annulée avant confirmation)");
-    }
+  if (wasCommitted) {
+    await restockAfterPostConfirmationCancel(tx, tenantId, orderId);
+  } else {
+    await releaseReservedStock(tx, tenantId, orderId, actor.note ?? "Réservation libérée (commande annulée avant confirmation)");
   }
 
   if (order.reservationExpiresAt) {

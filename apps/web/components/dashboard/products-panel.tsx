@@ -12,7 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 
 const STATUS_LABELS: Record<string, string> = { DRAFT: "Brouillon", PUBLISHED: "Publié", ARCHIVED: "Archivé" };
 const STATUS_BADGE_CLASS: Record<string, string> = {
-  DRAFT: "bg-gray-100 text-gray-700",
+  DRAFT: "bg-yc-ivory-100 text-yc-ink/80",
   PUBLISHED: "bg-green-100 text-green-800",
   ARCHIVED: "bg-amber-100 text-amber-800",
 };
@@ -84,25 +84,25 @@ export function ProductsPanel() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+    <div className="flex flex-col gap-4 ">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm text-gray-700">
+          <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
             Rechercher
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Nom du produit"
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-gray-700">
+          <label className="flex flex-col gap-1 text-sm text-yc-ink/80">
             Statut
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-1.5 text-sm"
+              className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-sm"
             >
               <option value="">Tous</option>
               {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -115,7 +115,7 @@ export function ProductsPanel() {
         </div>
         <Link
           href="/dashboard/produits/nouveau"
-          className="rounded bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          className="rounded-xl bg-yc-night-900 shadow-[0_10px_24px_-12px_rgb(10_16_42/0.8)] px-4 py-2 text-sm font-medium text-white hover:bg-yc-night-800"
         >
           Nouveau produit
         </Link>
@@ -123,27 +123,27 @@ export function ProductsPanel() {
 
       {actionMessage && <p className="text-sm text-red-600">{actionMessage}</p>}
 
-      <div className="rounded-lg border border-gray-200 bg-white">
-        {loading && <p className="p-4 text-sm text-gray-500">Chargement…</p>}
+      <div className="rounded-yc-lg bg-white shadow-yc ring-1 ring-yc-ink/[0.06] border-0">
+        {loading && (<div role="status" aria-label="Chargement des produits" className="divide-y divide-yc-ink/[0.06]">{[0, 1, 2, 3].map((i) => (<div key={i} className="flex items-center gap-4 p-4"><div className="yc-skeleton h-12 w-12 rounded-xl" /><div className="flex-1 space-y-2"><div className="yc-skeleton h-3.5 w-48 rounded" /><div className="yc-skeleton h-3 w-32 rounded" /></div><div className="yc-skeleton h-6 w-16 rounded-full" /></div>))}</div>)}
         {!loading && products.length === 0 && (
-          <p className="p-8 text-center text-sm text-gray-500">
+          <p className="p-8 text-center text-sm text-yc-ink-soft">
             Aucun produit pour le moment. Créez votre premier produit pour commencer.
           </p>
         )}
-        <ul className="divide-y divide-gray-200">
+        <ul className="divide-y divide-yc-ink/[0.06]">
           {products.map((product) => (
-            <li key={product.id} className="flex items-center gap-4 px-4 py-3">
-              <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-gray-100">
+            <li key={product.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:flex-nowrap">
+              <div className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-yc-ivory-100">
                 {product.images[0] && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={product.images[0].url} alt="" className="h-full w-full object-cover" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
-                <Link href={`/dashboard/produits/${product.id}`} className="truncate font-medium text-gray-900 hover:underline">
+                <Link href={`/dashboard/produits/${product.id}`} className="yc-focus block truncate rounded font-semibold text-yc-ink hover:underline">
                   {product.name}
                 </Link>
-                <p className="text-sm text-gray-500">
+                <p className="truncate text-sm text-yc-ink-soft">
                   {formatFCFA(product.basePrice)}
                   {product.category ? ` · ${product.category.name}` : ""} · {product.variants.length} variante(s)
                 </p>
@@ -151,12 +151,12 @@ export function ProductsPanel() {
               <span className={`rounded-full px-3 py-1 text-xs font-medium ${STATUS_BADGE_CLASS[product.status]}`}>
                 {STATUS_LABELS[product.status]}
               </span>
-              <div className="flex gap-2">
+              <div className="flex w-full justify-end gap-2 sm:w-auto">
                 {product.status !== "PUBLISHED" && (
                   <button
                     type="button"
                     onClick={() => void handleStatusChange(product.id, "PUBLISHED")}
-                    className="rounded border border-green-300 px-2 py-1 text-xs text-green-700 hover:bg-green-50"
+                    className="rounded-xl border border-green-300 px-3 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-50"
                   >
                     Publier
                   </button>
@@ -165,7 +165,7 @@ export function ProductsPanel() {
                   <button
                     type="button"
                     onClick={() => void handleStatusChange(product.id, "ARCHIVED")}
-                    className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                    className="rounded-xl border border-yc-ink/15 focus:outline-none focus:ring-2 focus:ring-yc-electric/60 px-3 py-1.5 text-xs font-semibold text-yc-ink/80 hover:bg-yc-ivory-50"
                   >
                     Archiver
                   </button>
@@ -173,7 +173,7 @@ export function ProductsPanel() {
                 <button
                   type="button"
                   onClick={() => void handleDelete(product.id)}
-                  className="rounded border border-red-300 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  className="rounded-xl border border-red-300 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
                 >
                   Supprimer
                 </button>

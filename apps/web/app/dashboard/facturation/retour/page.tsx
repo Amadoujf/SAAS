@@ -97,12 +97,12 @@ function StatusPanel({
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
-      <div className={`w-full max-w-md rounded-lg border p-6 text-center ${toneClasses[tone]}`}>
+    <div className="flex min-h-screen items-center justify-center bg-yc-ivory-50 p-4">
+      <div className={`w-full max-w-md rounded-yc-lg border p-6 text-center ${toneClasses[tone]}`}>
         <h1 className="text-lg font-semibold">{title}</h1>
         <p className="mt-2 text-sm">{message}</p>
         {ctaHref && ctaLabel && (
-          <a href={ctaHref} className="mt-4 inline-block rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800">
+          <a href={ctaHref} className="mt-4 inline-block rounded-xl bg-yc-night-900 px-4 py-2 text-sm font-medium text-white hover:bg-yc-night-800">
             {ctaLabel}
           </a>
         )}

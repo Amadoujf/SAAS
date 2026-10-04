@@ -79,6 +79,38 @@ export const PERMISSIONS = [
 
   "inventory.manage_stock",
   "inventory.manage_suppliers",
+
+  // Fiches et réservations des secteurs à primitives génériques (immobilier, voyage,
+  // services, hôtellerie, automobile, éducation — voir docs/04 §4.5.2). Distinctes de
+  // "products.*" : un bien ou un départ n'est jamais un produit du catalogue commerce.
+  "listings.view",
+  "listings.create",
+  "listings.edit",
+  "listings.publish",
+  "listings.delete",
+  "listings.manage_availability",
+
+  "reservations.view",
+  "reservations.update_status",
+  "reservations.cancel",
+
+  // Immobilier : baux et loyers (un encaissement de loyer est de l'argent réel —
+  // permission distincte, accordée au comptable).
+  "leases.view",
+  "leases.manage",
+  "rents.record",
+
+  // Voyage : voyageurs (identité, pièces, visas) et encaissements d'acomptes et de soldes
+  // (argent réel — permission distincte, accordée au comptable).
+  "travelers.manage",
+  "reservation_payments.record",
+
+  // Éducation : présences et notes (`academics.record`, limité aux classes de
+  // l'enseignant), gestion complète (classes, évaluations de toutes les classes,
+  // publication des notes : `academics.manage`).
+  "academics.view",
+  "academics.record",
+  "academics.manage",
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -96,6 +128,7 @@ export const SYSTEM_ROLES = [
   "MARKETING",
   "ACCOUNTANT",
   "DELIVERY_STAFF",
+  "TEACHER",
 ] as const;
 
 export type SystemRole = (typeof SYSTEM_ROLES)[number];
@@ -112,6 +145,12 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "orders.update_status",
     "customers.view",
     "customers.edit",
+    "listings.view",
+    "reservations.view",
+    "reservations.update_status",
+    "leases.view",
+    "travelers.manage",
+    "academics.view",
   ],
   INVENTORY_MANAGER: [
     "products.view",
@@ -121,6 +160,11 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "products.bulk_edit",
     "inventory.manage_stock",
     "inventory.manage_suppliers",
+    "listings.view",
+    "listings.create",
+    "listings.edit",
+    "listings.publish",
+    "listings.manage_availability",
   ],
   MARKETING: [
     "customers.view",
@@ -134,6 +178,11 @@ export const SYSTEM_ROLE_PERMISSIONS: Record<SystemRole, Permission[]> = {
     "reports.view",
     "reports.export",
     "payments.view",
+    "leases.view",
+    "rents.record",
+    "reservations.view",
+    "reservation_payments.record",
   ],
   DELIVERY_STAFF: ["delivery.view", "delivery.update_status"],
+  TEACHER: ["academics.view", "academics.record"],
 };

@@ -1,7 +1,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { isValidSenegalRegion } from "@yamacommerce/database";
+import { isValidSenegalRegion, isValidSenegalPhone } from "@yamacommerce/database";
 import { isSameOriginRequest } from "@/lib/domains/same-origin";
 import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 import { getOrCreateVisitorToken } from "@/lib/storefront/visitor-session";
@@ -20,17 +20,18 @@ const addressSchema = z.object({
 
 const checkoutSchema = z.object({
   customer: z.object({
-    firstName: z.string().min(1),
-    lastName: z.string().nullable().optional(),
-    phone: z.string().nullable().optional(),
+    firstName: z.string().trim().min(1).max(80),
+    lastName: z.string().trim().max(80).nullable().optional(),
+    // Téléphone obligatoire : il sert au suivi invité et au livreur.
+    phone: z.string().refine((v) => isValidSenegalPhone(v), { message: "Numéro de téléphone sénégalais invalide." }),
     email: z.string().email().nullable().optional(),
   }),
   deliveryMethod: z.enum(["delivery", "pickup"]),
   deliveryZoneId: z.string().nullable().optional(),
   deliveryAddress: addressSchema.nullable().optional(),
-  paymentMethod: z.enum(["cod", "online"]),
+  paymentMethod: z.enum(["cod", "online", "manual_wave", "manual_orange_money"]),
   promoCode: z.string().nullable().optional(),
-  notes: z.string().nullable().optional(),
+  notes: z.string().max(500).nullable().optional(),
 });
 
 /**
@@ -46,7 +47,7 @@ export async function POST(request: NextRequest) {
   if (active.status !== "ok") return NextResponse.json({ error: "Boutique introuvable." }, { status: 404 });
 
   const parsed = checkoutSchema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: "Corps de requête invalide." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Corps de requête invalide." }, { status: 400 });
 
   const visitorToken = await getOrCreateVisitorToken();
   try {

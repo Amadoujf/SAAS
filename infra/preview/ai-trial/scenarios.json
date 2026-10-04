@@ -1,0 +1,132 @@
+[
+  {
+    "id": "mode-ceremonie",
+    "tenant": "test-mode",
+    "owner": "naya@test-mode.sn",
+    "catalogue": "Mode : robes, boubous en bazin, chemises bogolan, sandales (15 articles)",
+    "brief": {
+      "activity": "Maison de prêt-à-porter à Dakar : grands boubous en bazin brodés main pour les cérémonies, robes et ensembles en lin pour tous les jours.",
+      "audience": "Femmes et hommes de 30 à 55 ans qui préparent un mariage ou la Tabaski",
+      "styles": ["luxueux", "artisanal"],
+      "likes": "Beaucoup de grandes photos, peu de texte, un esprit haute couture, des tons or et indigo"
+    },
+    "edits": ["Mets les boubous et caftans en avant juste après l'ouverture.", "Ajoute un lookbook avec mes plus belles pièces."]
+  },
+  {
+    "id": "mode-jeune",
+    "tenant": "test-mode",
+    "owner": "naya@test-mode.sn",
+    "catalogue": "Mode : même catalogue, demande opposée",
+    "brief": {
+      "activity": "Marque de mode urbaine en wax pour les jeunes actifs de Dakar, prix accessibles, nouvelles pièces chaque mois.",
+      "audience": "Étudiants et jeunes actifs de 18 à 30 ans, très présents sur Instagram",
+      "styles": ["coloré", "audacieux", "moderne"],
+      "likes": "Énergique, couleurs vives, gros titres, comme un magazine de rue"
+    },
+    "edits": ["Rends les couleurs encore plus vives.", "Écris un titre d'ouverture plus court et plus percutant."]
+  },
+  {
+    "id": "ceramique-galerie",
+    "tenant": "test-ceramique",
+    "owner": "fatou@test-ceramique.sn",
+    "catalogue": "Céramiques : vases, coupes, deux pièces sans photo (8 articles)",
+    "brief": {
+      "activity": "Atelier de céramique à Ngor : pièces uniques tournées à la main, émaux naturels, petites séries.",
+      "audience": "Amateurs de décoration, architectes d'intérieur, cadeaux haut de gamme",
+      "styles": ["épuré", "naturel"],
+      "likes": "Comme une galerie d'art : beaucoup de blanc, de l'espace, une typographie élégante"
+    },
+    "edits": ["Ajoute une section qui raconte comment chaque pièce est fabriquée.", "Utilise une police plus fine pour les titres."]
+  },
+  {
+    "id": "ceramique-marche",
+    "tenant": "test-ceramique",
+    "owner": "fatou@test-ceramique.sn",
+    "catalogue": "Céramiques : même catalogue, demande opposée",
+    "brief": {
+      "activity": "Boutique de vaisselle et de déco en céramique pour la maison, à petits prix, livrée partout au Sénégal.",
+      "audience": "Familles et jeunes couples qui s'installent",
+      "styles": ["chaleureux", "coloré"],
+      "likes": "Convivial, des promotions visibles, on doit trouver vite les produits"
+    },
+    "edits": ["Mets les catégories en avant tout en haut.", "Ajoute un bandeau qui annonce la livraison offerte dès 50 000 FCFA."]
+  },
+  {
+    "id": "resto-nuit",
+    "tenant": "test-restaurant",
+    "owner": "fatou@test-restaurant.sn",
+    "catalogue": "Restaurant : grillades, plats du jour, boissons (carte complète)",
+    "brief": {
+      "activity": "Dibiterie de nuit à Ouakam : grillades au feu de bois, ouvert jusqu'à 4 h, commande à emporter et livraison.",
+      "audience": "Jeunes et noctambules, groupes d'amis",
+      "styles": ["audacieux", "chaleureux"],
+      "likes": "Ambiance braise et nuit, photos de grillades en grand, bouton commander toujours visible"
+    },
+    "edits": ["Mets la réservation de table plus en avant.", "Fais une ouverture plus sombre, ambiance nuit."]
+  },
+  {
+    "id": "resto-famille",
+    "tenant": "test-restaurant",
+    "owner": "fatou@test-restaurant.sn",
+    "catalogue": "Restaurant : même carte, demande opposée",
+    "brief": {
+      "activity": "Restaurant familial le midi : plats sénégalais du jour, thieboudienne le vendredi, formule midi à petit prix.",
+      "audience": "Employés des bureaux alentour et familles le week-end",
+      "styles": ["naturel", "épuré"],
+      "likes": "Clair et rassurant, le menu du jour doit se lire en premier"
+    },
+    "edits": ["Mets en avant la formule midi.", "Ajoute une galerie de nos plats."]
+  },
+  {
+    "id": "auto-premium",
+    "tenant": "test-auto",
+    "owner": "awa@test-auto.sn",
+    "catalogue": "Automobile : 10 véhicules d'occasion et importations",
+    "brief": {
+      "activity": "Concession de véhicules premium d'occasion, contrôlés en atelier, importation sur commande depuis l'Europe.",
+      "audience": "Cadres et chefs d'entreprise",
+      "styles": ["luxueux", "moderne"],
+      "likes": "Sobre et haut de gamme, grandes photos des véhicules, inspirer confiance"
+    },
+    "edits": ["Ajoute une section qui explique notre contrôle en atelier.", "Mets les véhicules en vedette juste après l'ouverture."]
+  },
+  {
+    "id": "auto-familial",
+    "tenant": "test-auto",
+    "owner": "awa@test-auto.sn",
+    "catalogue": "Automobile : même stock, demande opposée",
+    "brief": {
+      "activity": "Garage de quartier qui vend des voitures d'occasion fiables à prix abordable, avec facilités de paiement.",
+      "audience": "Familles et premiers acheteurs",
+      "styles": ["chaleureux", "naturel"],
+      "likes": "Simple, rassurant, les prix bien visibles, un bouton pour réserver un essai"
+    },
+    "edits": ["Mets en avant la réservation d'un essai.", "Rends le ton des textes plus chaleureux."]
+  },
+  {
+    "id": "ecole-prestige",
+    "tenant": "test-ecole",
+    "owner": "direction@test-ecole.sn",
+    "catalogue": "Éducation : formations, classes, frais",
+    "brief": {
+      "activity": "Collège privé bilingue à Dakar, excellence académique, préparation au BFEM et aux concours.",
+      "audience": "Parents exigeants qui cherchent un établissement de référence",
+      "styles": ["épuré", "luxueux"],
+      "likes": "Institutionnel et élégant, mettre en avant les résultats et l'encadrement"
+    },
+    "edits": ["Ajoute une section sur nos résultats aux examens.", "Mets les inscriptions plus en avant."]
+  },
+  {
+    "id": "ecole-soutien",
+    "tenant": "test-ecole",
+    "owner": "direction@test-ecole.sn",
+    "catalogue": "Éducation : mêmes formations, demande opposée",
+    "brief": {
+      "activity": "Centre de soutien scolaire et cours du soir pour collégiens et lycéens, petits groupes, horaires souples.",
+      "audience": "Élèves en difficulté et leurs parents",
+      "styles": ["coloré", "chaleureux"],
+      "likes": "Accueillant et motivant, pas intimidant, des couleurs gaies"
+    },
+    "edits": ["Rends l'ouverture plus joyeuse.", "Mets les horaires et les tarifs bien en évidence."]
+  }
+]

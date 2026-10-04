@@ -1,7 +1,8 @@
 "use client";
 
+import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import { useRef } from "react";
-import { useScroll, useTransform, motion, useReducedMotion } from "framer-motion";
+import { useScroll, useTransform, motion } from "framer-motion";
 import { useAnimationLevel } from "./animation-level-context";
 
 /**
@@ -20,7 +21,7 @@ export function Parallax({
   className?: string;
 }) {
   const level = useAnimationLevel();
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = usePrefersReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const y = useTransform(scrollYProgress, [0, 1], [-strength, strength]);

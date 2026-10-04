@@ -1,3 +1,4 @@
+import { normalizeSenegalPhone } from "./senegal-reference";
 import type { Prisma } from "@prisma/client";
 import { createOrRecoverFromConflict } from "./concurrency";
 
@@ -72,14 +73,36 @@ export async function updateCustomer(
   return tx.customer.findFirstOrThrow({ where: { id, tenantId } });
 }
 
+/** Statuts comptés dans l'historique d'achat d'un client : commandes réellement
+ *  engagées (jamais une commande en attente de paiement, annulée ou remboursée). */
+const PURCHASE_STATUSES = ["PAID", "CONFIRMED", "PREPARING", "READY", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"] as const;
+
+/** CORRECTION — `Customer.ordersCount`/`totalSpent` n'étaient mis à jour par AUCUN
+ *  chemin (toujours 0 dans le dashboard). Plutôt qu'un compteur dénormalisé de plus à
+ *  maintenir, les statistiques sont calculées depuis les commandes réelles. */
+async function purchaseStats(tx: Prisma.TransactionClient, tenantId: string, customerIds: string[]) {
+  if (customerIds.length === 0) return new Map<string, { ordersCount: number; totalSpent: number; lastOrderAt: Date | null }>();
+  const rows = await tx.order.groupBy({
+    by: ["customerId"],
+    where: { tenantId, customerId: { in: customerIds }, status: { in: [...PURCHASE_STATUSES] } },
+    _count: { _all: true },
+    _sum: { total: true },
+    _max: { createdAt: true },
+  });
+  return new Map(rows.map((r) => [r.customerId, { ordersCount: r._count._all, totalSpent: r._sum.total ?? 0, lastOrderAt: r._max.createdAt }]));
+}
+
 export async function getCustomerForTenant(tx: Prisma.TransactionClient, tenantId: string, id: string) {
-  return tx.customer.findFirst({
+  const customer = await tx.customer.findFirst({
     where: { id, tenantId },
     include: {
       addresses: true,
       orders: { orderBy: { createdAt: "desc" }, take: 20 },
     },
   });
+  if (!customer) return null;
+  const stats = (await purchaseStats(tx, tenantId, [customer.id])).get(customer.id);
+  return { ...customer, ordersCount: stats?.ordersCount ?? 0, totalSpent: stats?.totalSpent ?? 0 };
 }
 
 export interface ListCustomersFilter {
@@ -91,7 +114,7 @@ export async function listCustomers(
   tenantId: string,
   filter?: ListCustomersFilter,
 ) {
-  return tx.customer.findMany({
+  const customers = await tx.customer.findMany({
     where: {
       tenantId,
       ...(filter?.search
@@ -107,6 +130,8 @@ export async function listCustomers(
     },
     orderBy: { createdAt: "desc" },
   });
+  const stats = await purchaseStats(tx, tenantId, customers.map((c) => c.id));
+  return customers.map((c) => ({ ...c, ordersCount: stats.get(c.id)?.ordersCount ?? 0, totalSpent: stats.get(c.id)?.totalSpent ?? 0 }));
 }
 
 /**
@@ -120,7 +145,9 @@ export async function resolveOrCreateCustomer(
   input: CustomerInput,
 ) {
   if (input.phone) {
-    const phone = input.phone;
+    // Forme canonique `+221XXXXXXXXX` : « 77 123 45 67 », « 00221771234567 » et
+    // « +221771234567 » désignent le MÊME client (dédoublonnage et suivi invité).
+    const phone = normalizeSenegalPhone(input.phone) ?? input.phone.trim();
     const refetch = () => tx.customer.findUnique({ where: { tenantId_phone: { tenantId, phone } } });
     const existing = await refetch();
     const customer =

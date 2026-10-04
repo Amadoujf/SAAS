@@ -142,7 +142,7 @@ export async function createProductAction(
   // pour rester le plus proche possible d'une garde atomique (best-effort — voir
   // `subscription-usage.ts` pour la limite documentée sous concurrence extrême).
   const product = await withTenant(tenantId, async (tx) => {
-    await assertQuotaAvailable(tx, tenantId, "products");
+    await assertQuotaAvailable(tx, tenantId, "records");
     return createProductRegistry(tx, tenantId, { ...input, createdBy: actor.userId });
   });
   await audit({ tenantId, actorUserId: actor.userId, action: "catalog.product_created", entityType: "Product", entityId: product.id });

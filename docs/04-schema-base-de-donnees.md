@@ -899,7 +899,7 @@ model ErrorLog {
 >
 > **§4.5.1 (registre secteurs/modules) est migré** — voir `prisma/migrations/20260913000000_sector_module_registry_and_domain_extension` — et seedé (10 secteurs + option « Autre activité », catalogue de modules complet), avec activation testée (`packages/database/tests/module-registry.test.ts`, exécuté en CI). Le modèle `Domain` a également été étendu dans cette même migration (assistant de configuration, facturation, renouvellement — voir §4.2).
 >
-> **§4.5.2 et suivants (primitives Listing/Reservation, tables sectorielles dédiées) restent planifiés, pas encore migrés** — prévus en Phase 3 (voir [09](09-plan-developpement.md)).
+> **§4.5.2 migré en octobre 2026** (migration `20261004000000_listings_reservations`, registres `listing-registry.ts` et `reservation-registry.ts`) : `Listing`, `ListingRevision`, `ListingAvailability`, `Reservation` et `ReservationStatusHistory`, avec RLS dès la création, clés étrangères composites « même entreprise », historiques immuables et quota « fiches ». Écart assumé : `ListingAvailability` est un **créneau daté avec capacité** (`startAt`, `endAt`, `capacity`, `reservedCount`), pas un jour unique — il sert à la fois aux départs de voyage (places), aux rendez-vous, aux nuitées et aux visites. Les tables d'extension typées (§4.5.2 `XxxDetails`) et les modèles dédiés (§4.5.3 et suivants) arrivent avec chaque secteur.
 
 ### 4.5.1 Registre secteurs / modules
 

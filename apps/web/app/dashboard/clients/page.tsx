@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/yc/panel";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { CustomersPanel } from "@/components/dashboard/customers-panel";
 
@@ -16,10 +17,8 @@ export default async function ClientsPage() {
   if (!membership) redirect("/dashboard");
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-gray-200 bg-white p-4">
-        <h1 className="text-lg font-semibold text-gray-900">Clients</h1>
-      </header>
+    <div>
+      <PageHeader eyebrow="Ventes" title="Clients" description="Vos clients, leurs commandes et leur historique d'achat." />
       <CustomersPanel />
     </div>
   );

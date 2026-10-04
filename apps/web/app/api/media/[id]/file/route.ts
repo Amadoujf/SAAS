@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { withSuperAdminAccess, isMediaAssetPubliclyUsedByProduct } from "@yamacommerce/database";
-import { requireTenantPermission } from "@/lib/tenant-permissions";
+import { requireAnyTenantPermission } from "@/lib/tenant-permissions";
 import { storageProvider } from "@/lib/media/storage-config";
 
 /**
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
   const grantedPublicly = publicAccess === "full" || (publicAccess === "variant-only" && isKnownSizeVariant);
   if (!grantedPublicly) {
-    const actor = await requireTenantPermission(asset.tenantId, "products.view");
+    const actor = await requireAnyTenantPermission(asset.tenantId, ["products.view", "listings.view"]);
     if (!actor) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
   }
 

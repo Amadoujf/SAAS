@@ -56,6 +56,7 @@ export function CustomizationPanel({
   onUpdateAnimation,
   onUpdateSiteSettings,
   mediaApiBase,
+  siteSettingsElsewhere,
 }: {
   mode: "section" | "site";
   onModeChange: (mode: "section" | "site") => void;
@@ -76,6 +77,10 @@ export function CustomizationPanel({
   /** Voir docs/12 §12.2, « INTÉGRATION À L'ÉDITEUR » — absent = pas de médiathèque
    *  disponible (comportement d'avant son ajout, champs "url" restent du texte libre). */
   mediaApiBase?: string;
+  /** Réglages généraux gérés AILLEURS (éditeur d'une vraie entreprise : son identité
+   *  vit dans « Mon site » et s'applique à tout le site) — l'onglet l'explique et y
+   *  mène, au lieu de proposer des réglages qui ne seraient pas repris sur le site. */
+  siteSettingsElsewhere?: { href: string; text: string; linkLabel: string };
 }) {
   const [tab, setTab] = useState<Tab>("content");
 
@@ -103,7 +108,16 @@ export function CustomizationPanel({
         </button>
       </div>
 
-      {mode === "site" && (
+      {mode === "site" && siteSettingsElsewhere && (
+        <div className="flex flex-col gap-3 p-4 text-[13px] leading-relaxed text-gray-600">
+          <p>{siteSettingsElsewhere.text}</p>
+          <a href={siteSettingsElsewhere.href} className="self-start rounded-md bg-indigo-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-indigo-700">
+            {siteSettingsElsewhere.linkLabel}
+          </a>
+        </div>
+      )}
+
+      {mode === "site" && !siteSettingsElsewhere && (
         <div className="min-h-0 flex-1 overflow-y-auto p-3">
           <SiteSettingsPanel
             settings={siteSettings}

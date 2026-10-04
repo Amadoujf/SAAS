@@ -5,6 +5,9 @@ import type { FieldDescriptor } from "@/lib/editor/schema-introspect";
 import { emptyValueForField } from "@/lib/editor/schema-introspect";
 import { CloseSmallIcon, ResetIcon } from "@/components/editor/editor-icons";
 import { MediaLibrary } from "@/components/media/media-library";
+import { ENUM_LABELS } from "@/lib/editor/section-names";
+import { useEditorIdOptions } from "@/lib/editor/id-options-context";
+import { toPortableUrl } from "@/lib/editor/portable-url";
 
 /**
  * Formulaire générique généré à partir d'une liste de `FieldDescriptor` (voir
@@ -50,6 +53,10 @@ export interface SchemaFormProps {
    *  texte (comportement d'avant l'ajout de la médiathèque, inchangé) ; fourni =
    *  chacun gagne un bouton "Média" ouvrant `MediaLibrary` en mode sélection. */
   mediaApiBase?: string;
+  /** Champ sans effet compte tenu des choix déjà faits : masqué (sa valeur est gardée). */
+  isHidden?: (name: string) => boolean;
+  /** Idem pour les champs DES ÉLÉMENTS d'une liste (`listName` = nom du tableau). */
+  isItemHidden?: (listName: string, name: string) => boolean;
 }
 
 export function SchemaForm({
@@ -60,6 +67,8 @@ export function SchemaForm({
   originalValue,
   idPrefix = "f",
   mediaApiBase,
+  isHidden,
+  isItemHidden,
 }: SchemaFormProps) {
   function setField(name: string, next: unknown) {
     onChange({ ...value, [name]: next });
@@ -78,7 +87,7 @@ export function SchemaForm({
 
   return (
     <div className="flex flex-col gap-4">
-      {fields.map((field) => {
+      {fields.filter((field) => !isHidden?.(field.name)).map((field) => {
         const current = fieldValue(value, field);
         const original = originalValue ? fieldValue(originalValue, field) : undefined;
         const customized = originalValue ? isCustomized(field, current, original) : false;
@@ -119,6 +128,7 @@ export function SchemaForm({
               onChange={(next) => setField(field.name, next)}
               hasError={Boolean(fieldErrors?.length)}
               mediaApiBase={mediaApiBase}
+              isItemHidden={isItemHidden ? (name) => isItemHidden(field.name, name) : undefined}
             />
 
             {fieldErrors?.map((message, index) => (
@@ -140,6 +150,7 @@ function FieldInput({
   onChange,
   hasError,
   mediaApiBase,
+  isItemHidden,
 }: {
   id: string;
   field: FieldDescriptor;
@@ -147,6 +158,7 @@ function FieldInput({
   onChange: (next: unknown) => void;
   hasError: boolean;
   mediaApiBase?: string;
+  isItemHidden?: (name: string) => boolean;
 }) {
   const baseInputClass = `w-full rounded-md border px-2.5 py-1.5 text-[13px] text-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/30 ${
     hasError ? "border-red-400" : "border-gray-300 focus:border-indigo-500"
@@ -155,6 +167,7 @@ function FieldInput({
   switch (field.kind) {
     case "text":
     case "email":
+      if (field.name === "recordId") return <RecordIdInput id={id} value={typeof value === "string" ? value : ""} onChange={onChange} className={baseInputClass} />;
       return (
         <input
           id={id}
@@ -225,7 +238,7 @@ function FieldInput({
           {!field.required && <option value="">— Hériter du template —</option>}
           {field.enumOptions?.map((option) => (
             <option key={option} value={option}>
-              {option}
+              {ENUM_LABELS[option] ?? option}
             </option>
           ))}
         </select>
@@ -237,6 +250,7 @@ function FieldInput({
     case "id-list":
       return (
         <IdListInput
+          name={field.name}
           value={Array.isArray(value) ? (value as string[]) : []}
           onChange={onChange}
         />
@@ -263,6 +277,7 @@ function FieldInput({
           onChange={onChange}
           idPrefix={id}
           mediaApiBase={mediaApiBase}
+          isItemHidden={isItemHidden}
         />
       );
 
@@ -326,7 +341,7 @@ function UrlFieldInput({
             <MediaLibrary
               apiBase={mediaApiBase}
               onSelect={(asset) => {
-                onChange(asset.url);
+                onChange(toPortableUrl(asset.url, window.location.origin));
                 setPickerOpen(false);
               }}
               onClose={() => setPickerOpen(false)}
@@ -369,14 +384,63 @@ function ColorInput({
   );
 }
 
+/** Un enregistrement réel (produit ou fiche) choisi par son nom — jamais un identifiant
+ *  saisi à la main quand l'éditeur connaît les contenus de l'entreprise. */
+function RecordIdInput({ id, value, onChange, className }: { id: string; value: string; onChange: (next: unknown) => void; className: string }) {
+  const options = useEditorIdOptions().recordId;
+  if (!options) return <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} className={className} />;
+  return (
+    <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={className}>
+      <option value="">Choisir…</option>
+      {value && !options.some((o) => o.id === value) && <option value={value}>Contenu supprimé</option>}
+      {options.map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+    </select>
+  );
+}
+
 function IdListInput({
+  name,
   value,
   onChange,
 }: {
+  name: string;
   value: string[];
   onChange: (next: string[]) => void;
 }) {
   const [draft, setDraft] = useState("");
+  const options = useEditorIdOptions()[name];
+  if (options) {
+    // Contenus réels de l'entreprise, choisis par leur nom ; l'ordre de sélection est
+    // l'ordre d'affichage. Rien de coché = sélection automatique (les plus récents).
+    const labelOf = new Map(options.map((o) => [o.id, o.label]));
+    return (
+      <div className="flex flex-col gap-2">
+        {value.length > 0 && (
+          <ol className="flex flex-col gap-1">
+            {value.map((id, i) => (
+              <li key={id} className="flex items-center gap-2 rounded bg-indigo-50 px-2 py-1 text-[12px] text-indigo-800">
+                <span className="w-4 text-right tabular-nums text-indigo-400">{i + 1}.</span>
+                <span className="min-w-0 flex-1 truncate">{labelOf.get(id) ?? "Contenu supprimé"}</span>
+                <button type="button" onClick={() => onChange(value.filter((v) => v !== id))} aria-label={`Retirer ${labelOf.get(id) ?? id}`} className="text-indigo-400 hover:text-indigo-700">
+                  <CloseSmallIcon className="h-3 w-3" />
+                </button>
+              </li>
+            ))}
+          </ol>
+        )}
+        <select
+          value=""
+          onChange={(e) => e.target.value && onChange([...value, e.target.value])}
+          className="rounded-md border border-gray-300 px-2 py-1.5 text-[12px]"
+          aria-label="Ajouter un contenu"
+        >
+          <option value="">{options.length ? "+ Ajouter…" : "Aucun contenu publié"}</option>
+          {options.filter((o) => !value.includes(o.id)).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+        {value.length === 0 && <p className="text-[11px] text-gray-500">Aucun choix : les plus récents sont affichés automatiquement.</p>}
+      </div>
+    );
+  }
 
   function addId() {
     const trimmed = draft.trim();
@@ -440,12 +504,14 @@ function ArrayObjectInput({
   onChange,
   idPrefix,
   mediaApiBase,
+  isItemHidden,
 }: {
   field: FieldDescriptor;
   value: Record<string, unknown>[];
   onChange: (next: Record<string, unknown>[]) => void;
   idPrefix: string;
   mediaApiBase?: string;
+  isItemHidden?: (name: string) => boolean;
 }) {
   const itemFields = field.itemFields ?? [];
   const canRemove = field.min === undefined || value.length > field.min;
@@ -474,6 +540,7 @@ function ArrayObjectInput({
             onChange={(next) => onChange(value.map((existing, i) => (i === index ? next : existing)))}
             idPrefix={`${idPrefix}-${index}`}
             mediaApiBase={mediaApiBase}
+            isHidden={isItemHidden}
           />
         </div>
       ))}

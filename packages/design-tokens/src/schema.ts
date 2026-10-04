@@ -124,8 +124,13 @@ export const formStyleSchema = z.object({
 /** Les 3 niveaux d'animation validés — voir docs/12 §12.2. */
 export const animationLevelSchema = z.enum(["discreet", "dynamic", "immersive"]);
 
+/** Animations sur téléphone : identiques, allégées (niveau « discret ») ou coupées. */
+export const mobileAnimationSchema = z.enum(["same", "reduced", "none"]);
+
 export const animationSchema = z.object({
   level: animationLevelSchema,
+  /** Réglage propre aux petits écrans (< 768 px) — absent = identique à l'ordinateur. */
+  mobile: mobileAnimationSchema.optional(),
   durations: z.object({
     fast: z.number().int().positive(),
     base: z.number().int().positive(),
@@ -156,6 +161,7 @@ export const designTokensSchema = z.object({
 
 export type DesignTokens = z.infer<typeof designTokensSchema>;
 export type AnimationLevel = z.infer<typeof animationLevelSchema>;
+export type MobileAnimation = z.infer<typeof mobileAnimationSchema>;
 
 /** Surcharge partielle à deux niveaux (groupe puis clé) — voir merge.ts. */
 export type DesignTokensOverrides = {

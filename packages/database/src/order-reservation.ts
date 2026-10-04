@@ -65,10 +65,18 @@ export async function releaseExpiredReservationTx(
   // oublier cette clause et reproduire le bug) ; la migration
   // `20260927000000_reservation_expiry_timestamptz` élimine la classe de bug entière
   // en changeant le TYPE de la colonne, pas seulement cette requête.
+  //
+  // `FOR UPDATE` : sérialise les appels concurrents sur la MÊME commande (deux workers
+  // sur le même job, ou un job individuel contre le balayage périodique, ou un
+  // paiement en cours). Sous READ COMMITTED, un appel bloqué ici réévalue la clause
+  // WHERE sur la version validée de la ligne une fois le verrou obtenu : si un autre
+  // appel a déjà annulé (ou si un paiement a déjà confirmé), la ligne ne correspond
+  // plus et cet appel est proprement `skipped` — il ne peut jamais agir une seconde fois.
   const candidates = await tx.$queryRaw<{ id: string }[]>`
     SELECT "id" FROM "Order"
     WHERE "id" = ${orderId} AND "tenantId" = ${tenantId}
       AND "status" = 'AWAITING_PAYMENT' AND "reservationExpiresAt" < NOW()
+    FOR UPDATE
   `;
   if (candidates.length === 0) {
     return { outcome: "skipped", reason: "not_awaiting_payment_or_not_yet_expired" };

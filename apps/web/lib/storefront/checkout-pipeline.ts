@@ -3,7 +3,11 @@ import {
   withTenant,
   getOrCreateActiveCart,
   convertCartToOrder,
+  getManualPaymentInstructions,
+  isManualPaymentMethod,
+  MANUAL_PROVIDER_BY_METHOD,
   type ConvertCartToOrderInput,
+  type OrderPaymentMethod,
 } from "@yamacommerce/database";
 import {
   resolveProviderForTenant,
@@ -13,6 +17,7 @@ import {
 } from "@yamacommerce/payments";
 import { stockReservationExpiryQueue, QUEUE_NAMES } from "@yamacommerce/queue";
 import { isOrdersModuleEnabled } from "@/lib/catalog/require-orders-module";
+import { planOrderNotifications, dispatchPlannedNotifications, type PlannedNotification } from "@/lib/orders/notify";
 
 /**
  * Couche métier du checkout storefront — étape 2 (clients/panier/commandes/
@@ -36,7 +41,7 @@ export interface CheckoutInput {
   deliveryMethod: "delivery" | "pickup";
   deliveryZoneId?: string | null;
   deliveryAddress?: ConvertCartToOrderInput["deliveryAddress"];
-  paymentMethod: "cod" | "online";
+  paymentMethod: OrderPaymentMethod;
   promoCode?: string | null;
   notes?: string | null;
 }
@@ -62,6 +67,12 @@ export async function checkoutAction(
 ): Promise<CheckoutResult | null> {
   if (!(await isOrdersModuleEnabled(tenantId))) return null;
 
+  // Le moyen de paiement doit être RÉELLEMENT proposé par la boutique — jamais deviné
+  // ni simulé. Chariow n'intervient jamais ici : il est réservé aux abonnements SaaS.
+  const available = await getAvailablePaymentMethods(tenantId);
+  if (!available.some((m) => m.method === input.paymentMethod)) {
+    throw new Error("Ce moyen de paiement n'est pas proposé par cette boutique — choisissez-en un autre.");
+  }
   let provider: PaymentProviderName = "cod";
   if (input.paymentMethod === "online") {
     const enabled = await resolveEnabledOnlineProvider(tenantId);
@@ -71,9 +82,10 @@ export async function checkoutAction(
     provider = enabled;
   }
 
-  const { order } = await withTenant(tenantId, async (tx) => {
+  let planned: PlannedNotification[] = [];
+  const { order, alreadyExisted } = await withTenant(tenantId, async (tx) => {
     const cart = await getOrCreateActiveCart(tx, tenantId, visitorToken);
-    return convertCartToOrder(tx, tenantId, {
+    const result = await convertCartToOrder(tx, tenantId, {
       cartId: cart.id,
       customer: input.customer,
       deliveryMethod: input.deliveryMethod,
@@ -84,7 +96,10 @@ export async function checkoutAction(
       notes: input.notes ?? null,
       channel: "web",
     });
+    if (!result.alreadyExisted) planned = await planOrderNotifications(tx, tenantId, result.order.id, "order_received");
+    return result;
   });
+  if (!alreadyExisted) await dispatchPlannedNotifications(tenantId, planned);
 
   // Planifie l'expiration automatique de la réservation — étape 2 (M4). `jobId:
   // order.id` dédoublonne nativement (un rejeu idempotent de checkout, ou une
@@ -100,6 +115,15 @@ export async function checkoutAction(
       { jobId: order.id, delay },
     );
   }
+
+  if (isManualPaymentMethod(input.paymentMethod)) {
+    const manualProvider = MANUAL_PROVIDER_BY_METHOD[input.paymentMethod];
+    await withTenant(tenantId, (tx) =>
+      reserveOrReusePendingPayment(tx, { tenantId, orderId: order.id, provider: manualProvider, amount: order.total, type: "full" }),
+    );
+    return summarize(order, null);
+  }
+  if (input.paymentMethod === "cod") return summarize(order, null);
 
   const adapter = await resolveProviderForTenant(tenantId, provider, tenantName);
   const { payment } = await withTenant(tenantId, (tx) =>
@@ -139,6 +163,13 @@ export async function checkoutAction(
     checkoutUrl = result.checkoutUrl;
   }
 
+  return summarize(order, checkoutUrl);
+}
+
+function summarize(
+  order: { id: string; orderNumber: string; accessToken: string; status: string; total: number; currency: string },
+  checkoutUrl: string | null,
+): CheckoutResult {
   return {
     orderId: order.id,
     orderNumber: order.orderNumber,
@@ -146,6 +177,42 @@ export async function checkoutAction(
     status: order.status,
     total: order.total,
     currency: order.currency,
-    checkoutUrl: input.paymentMethod === "online" ? checkoutUrl : null,
+    checkoutUrl,
   };
+}
+
+export interface AvailablePaymentMethod {
+  method: OrderPaymentMethod;
+  label: string;
+  description: string;
+  accountNumber?: string;
+  accountHolderName?: string | null;
+  instructions?: string | null;
+}
+
+/** Moyens de paiement RÉELLEMENT configurés et actifs pour cette boutique. */
+export async function getAvailablePaymentMethods(tenantId: string): Promise<AvailablePaymentMethod[]> {
+  const [cod, manual, online] = await Promise.all([
+    withTenant(tenantId, (tx) => tx.paymentProviderConfig.findUnique({ where: { tenantId_provider: { tenantId, provider: "cod" } } })),
+    withTenant(tenantId, (tx) => getManualPaymentInstructions(tx, tenantId)),
+    resolveEnabledOnlineProvider(tenantId).catch(() => null),
+  ]);
+  const methods: AvailablePaymentMethod[] = [];
+  for (const m of manual) {
+    methods.push({
+      method: m.method,
+      label: m.label,
+      description: `Transfert vers ${m.accountNumber}, puis indiquez la référence reçue par SMS.`,
+      accountNumber: m.accountNumber,
+      accountHolderName: m.accountHolderName,
+      instructions: m.instructions,
+    });
+  }
+  if (online && online !== "wave_direct" && online !== "orange_money_direct") {
+    methods.push({ method: "online", label: "Carte ou mobile money en ligne", description: "Paiement sécurisé sur la page de notre prestataire." });
+  }
+  if (cod?.isEnabled) {
+    methods.push({ method: "cod", label: "Paiement à la livraison", description: "Vous payez à la réception de votre commande." });
+  }
+  return methods;
 }
