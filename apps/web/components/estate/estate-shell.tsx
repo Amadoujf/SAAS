@@ -5,6 +5,7 @@ import type { EstateContext } from "@/lib/real-estate/estate-context";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { EstateHeader } from "./estate-header";
 import { DemoBanner } from "@/components/demo/demo-banner";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /** Coque du site d'une agence : couleurs, polices et rayons de SON template et de SA
  *  personnalisation. Rien de l'identité Y-COM, hormis la mention en pied de page. */
@@ -43,6 +44,7 @@ export function EstateShell({ estate, children }: { estate: EstateContext; child
           </address>
         </div>
         <p className="border-t border-white/10 px-5 py-4 text-center text-xs text-white/55">Site propulsé par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1320px)] px-5 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     </div>
   );

@@ -11,6 +11,7 @@ import { TemplateShowcase } from "./template-showcase";
 import { SectorUniverses } from "./sector-universes";
 import { QuoteForm } from "./quote-form";
 import { planPerks, FICHE_DEFINITIONS, NEVER_COUNTED } from "@/lib/billing/plan-catalog";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 export interface LandingPlan { name: string; priceMonthly: number; priceYearly: number; trialDays: number; maxProducts: number; maxEmployees: number; maxCustomDomains: number; maxAIGenerationsPerMonth: number; isQuoteOnly: boolean }
 
@@ -261,6 +262,7 @@ export function Landing({ plans, sectorOptions, availableSectors }: { plans: Lan
             <li className="flex items-center gap-2"><IconMapPin size={16} /> Conçu à Dakar</li>
           </ul>
         </div>
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     </div>
   );

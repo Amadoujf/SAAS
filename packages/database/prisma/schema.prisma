@@ -186,6 +186,7 @@ model Tenant {
   pages                    Page[]
   mediaAssets              MediaAsset[]
   sizeGuides               SizeGuide[]
+  legalProfile             TenantLegalProfile?
 
   @@index([status])
 }
@@ -1288,6 +1289,29 @@ model Category {
 
 /// Guide des tailles modifiable par l'entreprise (colonnes et lignes libres : tailles,
 /// mesures en cm, pointures…). Rattaché à une catégorie, remplaçable par produit.
+/// Informations légales d'une entreprise, affichées sur SON site (mentions légales,
+/// conditions de vente, confidentialité). Champs facultatifs : une page légale montre
+/// ce qui est renseigné et signale honnêtement ce qui manque, sans jamais l'inventer.
+model TenantLegalProfile {
+  id                  String   @id @default(uuid())
+  tenantId            String   @unique
+  tenant              Tenant   @relation(fields: [tenantId], references: [id])
+  legalName           String?
+  legalForm           String?
+  ninea               String?
+  rccm                String?
+  address             String?
+  email               String?
+  phone               String?
+  publicationDirector String?
+  /// Politique de retour, d'échange ou d'annulation propre à l'entreprise.
+  returnPolicy        String?
+  /// Clauses complémentaires de l'entreprise, ajoutées à ses conditions de vente.
+  additionalTerms     String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
 model SizeGuide {
   id        String   @id @default(uuid())
   tenantId  String
