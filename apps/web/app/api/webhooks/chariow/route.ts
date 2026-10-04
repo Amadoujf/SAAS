@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { readBodyWithLimit } from "@/lib/media/read-body-limit";
 import { saasBillingWebhooksQueue } from "@yamacommerce/queue";
 
 /**
@@ -14,7 +15,10 @@ import { saasBillingWebhooksQueue } from "@yamacommerce/queue";
  * rapprochement complets côté worker.
  */
 export async function POST(request: NextRequest) {
-  const rawBody = await request.text();
+  // Un webhook légitime pèse quelques Ko : au-delà de 64 Ko, refus avant toute mise en file.
+  const body = await readBodyWithLimit(request, 64 * 1024);
+  if (!body) return NextResponse.json({ error: "Requête trop volumineuse." }, { status: 413 });
+  const rawBody = new TextDecoder().decode(body);
   const headers = Object.fromEntries(request.headers.entries());
 
   try {

@@ -1,6 +1,6 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import sharp from "sharp";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocalStorageProvider, quotaConfigFromMB, type MediaQuotaConfig } from "@yamacommerce/storage";
@@ -177,7 +177,15 @@ describe("completeMediaUpload — rejets", () => {
     // quelle que soit sa résolution déclarée, et ne testerait rien du tout ici.
     const validJpeg = await syntheticJpeg(200, 200);
     const bigBuffer = Buffer.concat([validJpeg, Buffer.alloc(6 * 1024 * 1024)]);
-    await browserUploads(request.uploadUrl, bigBuffer);
+    // Stockage local : refusé DÈS LA RÉCEPTION (taille déclarée signée dans le jeton).
+    await expect(browserUploads(request.uploadUrl, bigBuffer)).rejects.toThrow(/taille autorisée/);
+    // Stockage direct (R2, sans ce contrôle à la réception) : le fichier arrive quand même ;
+    // la finalisation le refuse d'après sa taille RÉELLE.
+    const token = new URL(request.uploadUrl, "http://localhost").searchParams.get("token")!;
+    const { storageKey } = JSON.parse(Buffer.from(token.split(".")[0]!, "base64url").toString("utf8")) as { storageKey: string };
+    const path = join(rootDir, ...storageKey.split("/"));
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, bigBuffer);
 
     const outcome = await completeMediaUpload(deps, {
       tenantId: TENANT_A,
