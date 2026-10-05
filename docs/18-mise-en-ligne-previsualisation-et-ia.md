@@ -25,23 +25,35 @@ ligne, fusion et production restent soumis à validation.
    Vérifiez le **prix total affiché** (serveur + IPv4, hors TVA) avant « Create & Buy now ».
 4. Notez l'adresse IPv4 (ex. `203.0.113.10`).
 
-## 2. Préparer le serveur
+## 2. Préparer et durcir le serveur
+
+Activez d'abord la double authentification Hetzner et GitHub (docs/19, section 1).
 
 ```sh
 ssh root@203.0.113.10
 apt-get update && apt-get -y upgrade
 curl -fsSL https://get.docker.com | sh          # Docker Engine + plugin Compose (dépôt officiel Docker)
-adduser --disabled-password --gecos "" ycom && usermod -aG docker ycom
 ```
 
-Récupération du code (dépôt privé) : créer une **clé de déploiement en lecture seule**
-(GitHub → dépôt → Settings → Deploy keys) avec une clé générée sur le serveur
-(`ssh-keygen -t ed25519` en tant que `ycom`), puis :
+Récupération du code (dépôt privé) : sur le serveur, `ssh-keygen -t ed25519 -f
+~/.ssh/ycom_deploy`, puis GitHub → dépôt → Settings → Deploy keys → Add deploy key
+(clé PUBLIQUE, **lecture seule**, « Allow write access » décoché). Ensuite :
 
 ```sh
-su - ycom
-git clone git@github.com:Amadoujf/SAAS.git && cd SAAS
-git checkout feature/commerce-premium-experience
+mkdir -p /home/ycom && cd /home/ycom
+GIT_SSH_COMMAND="ssh -i ~/.ssh/ycom_deploy" git clone git@github.com:Amadoujf/SAAS.git && cd SAAS
+git checkout master        # la version fusionnée et validée, jamais une branche de travail
+bash infra/preview/server/harden.sh    # SSH par clé, root interdit, pare-feu, fail2ban, mises à jour
+```
+
+**Avant de fermer la session root**, ouvrez un second terminal : `ssh ycom@203.0.113.10`
+doit fonctionner. Ensuite, toujours `ssh ycom@…` puis `sudo` ; root n'est plus accessible.
+Confier ensuite le code et la clé de déploiement à ycom (une seule fois, en root) :
+
+```sh
+install -o ycom -g ycom -m 600 /root/.ssh/ycom_deploy* /home/ycom/.ssh/
+chown -R ycom:ycom /home/ycom/SAAS
+sudo -u ycom git -C /home/ycom/SAAS config core.sshCommand "ssh -i ~/.ssh/ycom_deploy"
 ```
 
 ## 3. Renseigner les secrets et la clé IA (jamais dans une conversation)
@@ -60,6 +72,8 @@ nano infra/preview/.env.preview
   `echo` (historique du terminal), jamais dans un message, un ticket ou le dépôt.
 - `AI_MODEL=claude-sonnet-5-5` (défaut) ; `claude-opus-5-5` pour comparer.
 - `AI_PLATFORM_MONTHLY_CAP_XOF=15000`.
+- `REDIS_PASSWORD`, `INTERNAL_WORKER_SECRET` : `openssl rand -hex 32` chacun.
+- `HEALTHCHECK_PING_URL` : facultatif, voir docs/19 (surveillance).
 
 Changer de clé : créer la nouvelle dans la console, la remplacer dans le fichier,
 `docker compose -f infra/preview/docker-compose.yml --env-file infra/preview/.env.preview up -d`,
@@ -96,6 +110,7 @@ pendant l'appel) : le maximum réservé est imputé par précaution.
 
 ```sh
 docker compose -f infra/preview/docker-compose.yml --env-file infra/preview/.env.preview up -d --build
+sudo bash infra/preview/server/setup-ops.sh                  # sauvegardes et surveillance (docs/19)
 sh infra/preview/verify.sh infra/preview/.env.preview      # services, HTTPS, porte, démos
 sh infra/preview/ai-trial/run.sh infra/preview/.env.preview  # banc d'essai IA (≈ 2 $ avec Sonnet)
 ```

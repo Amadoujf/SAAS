@@ -60,12 +60,13 @@ async function main() {
     },
   ];
   // Une base créée avant octobre 2026 appelait « Sur mesure » « Entreprise ».
-  await prisma.subscriptionPlan.updateMany({ where: { name: "Entreprise" }, data: { name: "Sur mesure" } });
-  const plans = await Promise.all(
-    PLAN_DEFINITIONS.map((def) =>
-      prisma.subscriptionPlan.upsert({ where: { name: def.name }, update: def, create: { ...def, status: "PUBLISHED" } }),
-    ),
-  );
+  // Référentiels globaux : écriture réservée à l'accès super-administrateur (RLS).
+  const plans = await withSuperAdminAccess(async (tx) => {
+    await tx.subscriptionPlan.updateMany({ where: { name: "Entreprise" }, data: { name: "Sur mesure" } });
+    const out = [];
+    for (const def of PLAN_DEFINITIONS) out.push(await tx.subscriptionPlan.upsert({ where: { name: def.name }, update: def, create: { ...def, status: "PUBLISHED" } }));
+    return out;
+  });
   const essentiel = plans[0]!;
   console.info(`  ✓ ${plans.length} formules d'abonnement`);
 
@@ -416,8 +417,10 @@ const MODULES: Array<{
 ];
 
 async function seedSectorAndModuleRegistry() {
+  // Référentiels globaux : écriture réservée à l'accès super-administrateur (RLS).
+  await withSuperAdminAccess(async (tx) => {
   for (const moduleDef of MODULES) {
-    await prisma.module.upsert({
+    await tx.module.upsert({
       where: { key: moduleDef.key },
       update: {
         name: moduleDef.name,
@@ -432,7 +435,7 @@ async function seedSectorAndModuleRegistry() {
   // d'entreprise (les autres sont affichés « À venir »). Tenu à jour à chaque secteur livré.
   const OPERATIONAL_SECTOR_KEYS: string[] = ["ecommerce", "fashion", "real_estate", "travel_agency", "services", "hospitality", "restaurant", "automobile", "education", "delivery"];
   for (const sectorDef of SECTORS) {
-    await prisma.sector.upsert({
+    await tx.sector.upsert({
       where: { key: sectorDef.key },
       update: { name: sectorDef.name, defaultModuleKeys: sectorDef.defaultModuleKeys, isAvailable: OPERATIONAL_SECTOR_KEYS.includes(sectorDef.key) },
       create: {
@@ -444,6 +447,7 @@ async function seedSectorAndModuleRegistry() {
       },
     });
   }
+  });
 }
 
 async function seedDemoTenant(input: {

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isInternalCallAuthorized } from "@/lib/internal-secret";
 import type { NextRequest } from "next/server";
 import { withSuperAdminAccess, listDomainsNeedingRecheck } from "@yamacommerce/database";
 import { QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
@@ -12,9 +13,7 @@ import { QUEUE_NAMES, domainDnsCheckQueue } from "@yamacommerce/queue";
  * ou retiré par le client.
  */
 export async function POST(request: NextRequest) {
-  const expectedSecret = process.env.INTERNAL_WORKER_SECRET;
-  const providedSecret = request.headers.get("x-internal-secret");
-  if (!expectedSecret || providedSecret !== expectedSecret) {
+  if (!isInternalCallAuthorized(request.headers.get("x-internal-secret"))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

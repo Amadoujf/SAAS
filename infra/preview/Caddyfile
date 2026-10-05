@@ -1,4 +1,8 @@
 {
+	# En-têtes de requête bornés (requêtes anormales refusées).
+	servers {
+		max_header_size 32KB
+	}
 	# Certificats des sous-domaines émis à la demande, uniquement pour ceux que Y-COM
 	# reconnaît (entreprises de démonstration actives).
 	on_demand_tls {
@@ -6,10 +10,32 @@
 	}
 }
 
+# En-têtes de sécurité communs (HTTPS strict, pas de devinette de type, pas d'intégration
+# par un autre site, pas de fuite de l'adresse d'origine, capteurs désactivés) et taille
+# maximale d'une requête (envois de fichiers compris).
+(securite) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		X-Robots-Tag "noindex, nofollow"
+		-Server
+		-X-Powered-By
+	}
+	request_body {
+		max_size 210MB
+	}
+	# Appels internes (worker → web) : jamais depuis Internet.
+	@internes path /api/internal/*
+	respond @internes 404
+}
+
 # Domaine de la plateforme (connexion, tableau de bord, studio) : certificat classique,
 # demandé au démarrage — il n'est pas un domaine d'entreprise, `ask` le refuserait.
 {$PREVIEW_DOMAIN} {
-	header X-Robots-Tag "noindex, nofollow"
+	import securite
 	reverse_proxy web:3000
 }
 
@@ -18,6 +44,6 @@
 	tls {
 		on_demand
 	}
-	header X-Robots-Tag "noindex, nofollow"
+	import securite
 	reverse_proxy web:3000
 }

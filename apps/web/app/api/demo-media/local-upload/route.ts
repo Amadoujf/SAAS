@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { InvalidTokenError } from "@yamacommerce/storage";
 import { demoLocalStorageProvider } from "@/lib/media/demo-media-context";
+import { HARD_UPLOAD_LIMIT_BYTES, readBodyWithLimit } from "@/lib/media/read-body-limit";
 
 /**
  * Réception RÉELLE des octets pour l'adaptateur de stockage local de démonstration —
@@ -16,7 +17,19 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Paramètre 'token' manquant." }, { status: 400 });
   }
 
-  const bytes = new Uint8Array(await request.arrayBuffer());
+  // Taille refusée AVANT de lire les octets (voir app/api/media/local-upload).
+  let limit: number;
+  try {
+    limit = Math.min(demoLocalStorageProvider.maxUploadBytes(token) ?? HARD_UPLOAD_LIMIT_BYTES, HARD_UPLOAD_LIMIT_BYTES);
+  } catch (error) {
+    if (error instanceof InvalidTokenError) return NextResponse.json({ error: error.message }, { status: 403 });
+    throw error;
+  }
+  if (Number(request.headers.get("content-length") ?? 0) > limit) {
+    return NextResponse.json({ error: "Fichier plus volumineux que la taille autorisée." }, { status: 413 });
+  }
+  const bytes = await readBodyWithLimit(request, limit);
+  if (!bytes) return NextResponse.json({ error: "Fichier plus volumineux que la taille autorisée." }, { status: 413 });
   try {
     await demoLocalStorageProvider.writeUploadedBytes(token, bytes);
     return NextResponse.json({ ok: true });

@@ -17,12 +17,15 @@ export async function previewFingerprint(code: string) {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Chemins toujours accessibles : la page du code, sa vérification, le contrôle TLS de Caddy, les ressources. */
+/** Chemins toujours accessibles : la page du code, sa vérification, le contrôle TLS de Caddy, les appels internes, les ressources. */
 export function isPreviewExempt(pathname: string) {
   return (
     pathname === "/acces-previsualisation" ||
     pathname === "/api/preview-access" ||
     pathname === "/api/domains/ask" ||
+    // Appels internes worker → web : protégés par leur propre secret, et refusés depuis
+    // Internet par Caddy (infra/preview/Caddyfile) — jamais par le code d'accès.
+    pathname.startsWith("/api/internal/") ||
     pathname === "/robots.txt" ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/fonts/") ||

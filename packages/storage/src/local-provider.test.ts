@@ -179,4 +179,12 @@ describe("LocalStorageProvider — ISOLATION ENTRE TENANTS", () => {
     const usageB = await provider.getUsage(TENANT_B);
     expect(usageB.totalBytes).toBe(10);
   });
+
+  it("TAILLE : un envoi plus gros que la taille déclarée à l'autorisation est refusé", async () => {
+    const { uploadUrl } = await provider.createUpload({ tenantId: TENANT_A, keySegments: ["originals", "f.jpg"], contentType: "image/jpeg", expectedSizeBytes: 4 });
+    const token = new URL(uploadUrl, "http://x").searchParams.get("token")!;
+    expect(provider.maxUploadBytes(token)).toBe(4);
+    await expect(provider.writeUploadedBytes(token, Buffer.from("trop long"))).rejects.toThrow(InvalidTokenError);
+    await expect(provider.writeUploadedBytes(token, Buffer.from("ok!!"))).resolves.toMatchObject({ tenantId: TENANT_A });
+  });
 });

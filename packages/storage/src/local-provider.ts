@@ -47,6 +47,8 @@ interface TokenPayload {
   /** "upload" | "download" — un jeton d'upload ne doit jamais servir à télécharger,
    *  et inversement (portées disjointes, voir `signToken`). */
   scope: "upload" | "download";
+  /** Jeton d'upload : taille maximale acceptée (celle déclarée à l'autorisation). */
+  maxBytes?: number;
 }
 
 function signToken(payload: TokenPayload, secret: string): string {
@@ -84,8 +86,19 @@ function verifyToken(token: string, secret: string, expectedScope: "upload" | "d
   return payload;
 }
 
+/** Taille maximale autorisée par un jeton d'upload (lecture seule, signature vérifiée) —
+ *  pour refuser un envoi trop gros AVANT d'en lire les octets. */
+export function uploadTokenMaxBytes(token: string, secret: string): number | undefined {
+  return verifyToken(token, secret, "upload").maxBytes;
+}
+
 export class LocalStorageProvider implements StorageProvider {
   constructor(private readonly options: LocalStorageProviderOptions) {}
+
+  /** Taille maximale portée par un jeton d'upload valide (undefined : pas de limite déclarée). */
+  maxUploadBytes(token: string): number | undefined {
+    return uploadTokenMaxBytes(token, this.options.signingSecret);
+  }
 
   private absolutePath(storageKey: string): string {
     // `storageKey` est déjà validée (voir assertOwnedKey/buildStorageKey) — aucun
@@ -97,7 +110,7 @@ export class LocalStorageProvider implements StorageProvider {
     const storageKey = buildStorageKey(input.tenantId, ...input.keySegments);
     const expiresAt = new Date(Date.now() + (input.expiresInSeconds ?? 900) * 1000);
     const token = signToken(
-      { tenantId: input.tenantId, storageKey, expiresAt: expiresAt.getTime(), scope: "upload" },
+      { tenantId: input.tenantId, storageKey, expiresAt: expiresAt.getTime(), scope: "upload", ...(input.expectedSizeBytes ? { maxBytes: input.expectedSizeBytes } : {}) },
       this.options.signingSecret,
     );
     return {
@@ -113,6 +126,9 @@ export class LocalStorageProvider implements StorageProvider {
    *  reçoit le PUT du navigateur — vérifie le jeton puis écrit les octets. */
   async writeUploadedBytes(token: string, body: Uint8Array): Promise<{ storageKey: string; tenantId: string }> {
     const payload = verifyToken(token, this.options.signingSecret, "upload");
+    if (payload.maxBytes !== undefined && body.byteLength > payload.maxBytes) {
+      throw new InvalidTokenError("Fichier plus volumineux que la taille autorisée.");
+    }
     const path = this.absolutePath(payload.storageKey);
     await mkdir(dirname(path), { recursive: true });
     await writeFile(path, body);

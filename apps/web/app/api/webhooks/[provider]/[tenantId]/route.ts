@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { readBodyWithLimit } from "@/lib/media/read-body-limit";
 import { webhooksPaymentsQueue } from "@yamacommerce/queue";
 
 const KNOWN_PROVIDERS = ["paydunya", "paytech", "cod", "wave_direct", "orange_money_direct"];
@@ -25,7 +26,10 @@ export async function POST(request: NextRequest, { params }: { params: { provide
     return NextResponse.json({ error: "Prestataire inconnu." }, { status: 404 });
   }
 
-  const rawBody = await request.text();
+  // Un webhook légitime pèse quelques Ko : au-delà de 64 Ko, refus avant toute mise en file.
+  const body = await readBodyWithLimit(request, 64 * 1024);
+  if (!body) return NextResponse.json({ error: "Requête trop volumineuse." }, { status: 413 });
+  const rawBody = new TextDecoder().decode(body);
   const headers = Object.fromEntries(request.headers.entries());
 
   try {
