@@ -5,6 +5,7 @@ import type { CourierContext } from "@/lib/courier/courier-context";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { CourierHeader } from "./courier-header";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /** Tracé pointillé du trajet (élément signature du template « Trajet ») : la ligne s'étire,
  *  les repères de retrait et de remise restent ronds quelle que soit la largeur. */
@@ -56,6 +57,7 @@ export function CourierShell({ company, children }: { company: CourierContext; c
           </address>
         </div>
         <p className="border-t border-white/10 px-5 py-4 text-center text-xs text-white/45">Site propulsé par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1240px)] px-5 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     </div>
   );

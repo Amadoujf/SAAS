@@ -5,6 +5,7 @@ import type { SalonContext } from "@/lib/salon/salon-context";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { SalonHeader } from "./salon-header";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /** Coque du site d'un salon : couleurs, polices et rayons de SON template et de SA
  *  personnalisation. Rien de l'identité Y-COM, hormis la mention en pied de page. */
@@ -44,6 +45,7 @@ export function SalonShell({ salon, children, bookingBar = true }: { salon: Salo
           </address>
         </div>
         <p className="border-t border-white/10 px-5 py-4 text-center text-xs text-white/45">Site propulsé par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1280px)] px-5 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
       {bookingBar && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[var(--color-border)] bg-[color-mix(in_srgb,var(--color-background)_94%,transparent)] px-4 py-3 backdrop-blur-md lg:hidden">

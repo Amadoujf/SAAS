@@ -6,6 +6,7 @@ import { hoursByDay } from "@/lib/auto/labels";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { AutoHeader } from "./auto-header";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /** Coque du site d'une concession : SON template et SA personnalisation. */
 export function AutoShell({ auto, children }: { auto: AutoContext; children: ReactNode }) {
@@ -48,6 +49,7 @@ export function AutoShell({ auto, children }: { auto: AutoContext; children: Rea
           </address>
         </div>
         <p className="border-t border-white/10 px-5 py-4 text-center text-xs text-white/45">Site propulsé par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1320px)] px-5 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     </div>
   );

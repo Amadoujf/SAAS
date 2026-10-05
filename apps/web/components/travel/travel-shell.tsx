@@ -5,6 +5,7 @@ import type { TravelContext } from "@/lib/travel/travel-context";
 import { templateFontVariables } from "@/lib/storefront/template-fonts";
 import { DemoBanner } from "@/components/demo/demo-banner";
 import { TravelHeader } from "./travel-header";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 /** Coque du site d'une agence de voyage : couleurs, polices et rayons de SON template et
  *  de SA personnalisation. Rien de l'identité Y-COM, hormis la mention en pied de page. */
@@ -44,6 +45,7 @@ export function TravelShell({ travel, children }: { travel: TravelContext; child
           </address>
         </div>
         <p className="border-t border-white/10 px-5 py-4 text-center text-xs text-white/50">Site propulsé par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1320px)] px-5 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     </div>
   );

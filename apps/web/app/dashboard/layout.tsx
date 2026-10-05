@@ -269,6 +269,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     manage.push(
       { href: "/dashboard/services", label: "État des services", icon: "settings", permission: "payments.view" },
       { href: "/dashboard/equipe", label: "Équipe", icon: "customers", permission: "employees.view" },
+      { href: "/dashboard/informations-legales", label: "Informations légales", icon: "folder", permission: "settings.branding" },
       { href: "/dashboard/facturation", label: "Facturation", icon: "billing", permission: "settings.subscription" },
     );
   }

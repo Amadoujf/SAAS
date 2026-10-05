@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { WhatsappIcon } from "@/components/ui/icons";
 import { useLocale } from "@/lib/locale-context";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 export interface FooterLinkGroup {
   title: string;
@@ -143,6 +144,7 @@ export function Footer({
           </p>
         </div>
       </div>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pb-8"><LegalLinks /></div>
     </footer>
   );
 }

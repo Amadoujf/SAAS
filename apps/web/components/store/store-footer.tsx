@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { StoreLayout } from "@/lib/storefront/store-templates";
+import { LegalLinks } from "@/components/legal/legal-links";
 
 interface FooterProps {
   tenantName: string;
@@ -36,6 +37,7 @@ export function StoreFooter({ tenantName, layout, categories }: FooterProps) {
           </div>
           <p className="mt-14 border-t border-[var(--color-border)] pt-6 text-center text-xs text-[var(--color-text-muted)]">© {year} {tenantName} · Boutique propulsée par Y-COM</p>
         </div>
+        <div className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 sm:px-8 pb-8"><LegalLinks className="justify-center" /></div>
       </footer>
     );
   }
@@ -56,6 +58,7 @@ export function StoreFooter({ tenantName, layout, categories }: FooterProps) {
           </div>
         </div>
         <p className="mx-auto max-w-[var(--content-max-width,1280px)] border-t border-[var(--color-border)] px-4 py-6 text-xs text-[var(--color-text-muted)] sm:px-8">© {year} {tenantName} · Boutique propulsée par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     );
   }
@@ -73,6 +76,7 @@ export function StoreFooter({ tenantName, layout, categories }: FooterProps) {
           {tenantName}
         </p>
         <p className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 pb-6 pt-4 text-xs text-white/70 sm:px-6">© {year} {tenantName} · Boutique propulsée par Y-COM</p>
+        <div className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 sm:px-8 pb-8"><LegalLinks /></div>
       </footer>
     );
   }
@@ -91,6 +95,7 @@ export function StoreFooter({ tenantName, layout, categories }: FooterProps) {
         </nav>
         <p className="text-xs text-[var(--color-text-muted)] sm:text-right">Boutique propulsée par Y-COM</p>
       </div>
+      <div className="mx-auto max-w-[var(--content-max-width,1280px)] px-4 sm:px-8 pb-8"><LegalLinks /></div>
     </footer>
   );
 }

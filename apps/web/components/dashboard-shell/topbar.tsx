@@ -18,6 +18,7 @@ const SECTION_LABELS: [string, string][] = [
   ["/dashboard/guides-tailles", "Guides des tailles"],
   ["/dashboard/facturation", "Facturation"],
   ["/dashboard/equipe", "Équipe"],
+  ["/dashboard/informations-legales", "Informations légales"],
   ["/dashboard/mon-site", "Mon site"],
   ["/dashboard/mediatheque", "Médiathèque"],
   ["/dashboard/biens", "Biens"],
