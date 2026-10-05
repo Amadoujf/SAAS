@@ -128,7 +128,7 @@ Le workflow [.github/workflows/ci.yml](.github/workflows/ci.yml) reproduit fidè
 
 Le workflow échoue automatiquement si : une migration Prisma échoue, le lint ou le typecheck échoue, un test échoue — **ou** si le test d'isolation détecte qu'un tenant peut lire/modifier/supprimer les données d'un autre, ou qu'une requête métier sans contexte tenant renvoie des données.
 
-Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url>` puis `git push -u origin main`) — aucune configuration de secret n'est nécessaire, toutes les valeurs utilisées par la CI sont des identifiants de test jetables générés dans le workflow lui-même.
+Pour le déclencher : pousser ce dépôt sur GitHub (`git remote add origin <url>` puis `git push -u origin master`) — aucune configuration de secret n'est nécessaire, toutes les valeurs utilisées par la CI sont des identifiants de test jetables générés dans le workflow lui-même.
 
 ## Phase 1 — avancement
 
