@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Omnivox">
+<meta name="theme-color" content="#f7892f">
+<title>Omnivox</title>
+<style>
+  :root{
+    --orange:#f68a2e; --orange2:#ff8500; --blue:#1a5bd8; --link:#4a8fe0;
+    --bg:#f3f3f3; --text:#222; --muted:#666; --line:#d9d9d9; --red:#d72a20;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+  header{position:fixed;top:0;left:0;right:0;z-index:10;background:var(--orange);
+    padding:calc(env(safe-area-inset-top) + 14px) 12px 10px;border-bottom:1px solid #d9772a}
+  header h1{color:#fff;font-size:32px;font-weight:700;letter-spacing:.2px}
+  main{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 66px);bottom:calc(env(safe-area-inset-bottom) + 60px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .page{display:none}.page.active{display:block}
+
+  /* Tab bar */
+  nav{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;background:#f7f7f7;border-top:1px solid #ccc;padding-bottom:env(safe-area-inset-bottom)}
+  nav button{flex:1;border:0;background:none;padding:6px 0 4px;color:#777;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative;border-top:3px solid transparent;font-family:inherit}
+  nav button svg{width:34px;height:30px;stroke:#777;fill:none;stroke-width:1.4}
+  nav button.active{background:#fbeee3;color:var(--link);border-top-color:var(--orange)}
+  nav button.active svg{stroke:var(--link)}
+  .badge{position:absolute;top:4px;left:58%;background:var(--red);color:#fff;font-size:12px;font-weight:700;border-radius:50%;width:19px;height:19px;display:flex;align-items:center;justify-content:center}
+
+  /* Logo */
+  .logo{display:block}
+  /* Hero news */
+  .hero{position:relative;height:260px;background:linear-gradient(#e6e6e6 0%,#d0d0d0 45%,#111 100%);display:flex;justify-content:center;overflow:hidden}
+  .hero .logo{width:150px;height:150px;margin-top:28px;opacity:.9}
+  .hero .cap{position:absolute;left:0;right:0;bottom:0;padding:0 18px 12px;background:linear-gradient(transparent,#000 40%)}
+  .hero h2,.news h2{color:#fff;font-size:21px;line-height:1.25;font-weight:700}
+  .meta{color:#ccc;font-size:12.5px;margin-top:8px;display:flex;align-items:center;gap:6px}
+  .meta svg{width:15px;height:15px;stroke:#ccc;fill:none;stroke-width:2}
+
+  /* Next class */
+  .next{padding:20px 12px 18px;border-bottom:1px solid var(--line);background:var(--bg)}
+  .next h3{color:#2f5be8;font-size:21px;font-weight:700}
+  .next .b{font-weight:700;font-size:15px;margin-top:6px;line-height:1.35}
+  .next .s{color:var(--muted);font-size:14px;margin:18px 0 14px}
+  .next p{font-size:15px;line-height:1.45}
+  .btn{margin-top:14px;display:inline-block;border:1px solid #ccc;background:#fff;border-radius:6px;padding:12px 22px;color:#2f5be8;font-weight:700;letter-spacing:1px;font-size:14px;text-decoration:none}
+
+  /* Sections */
+  .sec{padding:22px 0 18px;border-bottom:1px solid var(--line)}
+  .sechead{display:flex;align-items:center;padding:0 16px;margin-bottom:22px}
+  .sechead h3{font-size:24px;font-weight:700;flex:1}
+  .sechead .filter{width:30px;margin-right:22px}
+  .voir{color:var(--link);font-size:16px;display:flex;align-items:center;gap:10px}
+  .voir svg{width:14px;height:22px;stroke:var(--link);stroke-width:2.5;fill:none}
+  .hscroll{display:flex;gap:18px;overflow-x:auto;padding:0 16px 18px;scroll-snap-type:x mandatory}
+  .hscroll::-webkit-scrollbar{height:3px}.hscroll::-webkit-scrollbar-thumb{background:#999;border-radius:2px}
+
+  .ev{flex:0 0 172px;height:252px;background:#fff;border-radius:6px;box-shadow:0 1px 4px rgba(0,0,0,.25);overflow:hidden;scroll-snap-align:start}
+  .ev .d{background:linear-gradient(#f4f5f8,#e1e5ed);text-align:center;padding:6px 0 4px;color:#555}
+  .ev .d small{font-size:15px;display:block}
+  .ev .d b{font-size:34px;color:#555;line-height:1.1;display:block}
+  .ev .bar{height:19px;background:#47718f}
+  .ev .bar.o{background:#c8521f}
+  .ev .t{padding:10px 8px;font-weight:700;font-size:14px;line-height:1.4}
+  .ev .tp{padding:10px 8px;font-size:11px;color:#c8521f}
+  .ev .tp b{display:block;font-size:11.5px}
+  .ev .tp span{display:block;color:var(--link);font-size:14px;margin-top:6px}
+
+  .com{flex:0 0 188px;height:175px;background:#fff;border-radius:4px;box-shadow:0 1px 4px rgba(0,0,0,.25);position:relative;scroll-snap-align:start}
+  .com .img{height:108px;display:flex;justify-content:center;align-items:center;border-bottom:3px solid #3ecf6a;position:relative}
+  .com .img .logo{width:60px;height:60px}
+  .com .img.big .logo{width:92px;height:92px;margin-top:2px}
+  .vie{position:absolute;bottom:4px;left:0;right:0;text-align:center;font:italic 900 23px Georgia,serif;color:#3ca24a;-webkit-text-stroke:1px #1f6b2a;letter-spacing:-.5px}
+  .com .n{padding:8px 10px;color:#1e64c8;font-size:14px;line-height:1.3}
+  .com .badge{left:auto;right:-8px;top:-8px;width:30px;height:30px;font-size:15px;border:2px solid #fff}
+
+  .actu{padding:22px 10px 30px}
+  .actu>h3{font-size:24px;font-weight:700;margin:0 6px 22px}
+  .news{position:relative;border-radius:10px;overflow:hidden;margin-bottom:30px;box-shadow:0 2px 6px rgba(0,0,0,.3);background:#000}
+  .news .top{height:230px;background:linear-gradient(#ececec,#cfcfcf 50%,#000);display:flex;justify-content:center;align-items:flex-start}
+  .news .top .logo{width:130px;height:130px;margin-top:20px}
+  .news .cap{padding:12px 18px 18px;background:#000}
+  .cal{background:#fbf3e8;padding:10px 10px 6px;height:240px;position:relative;overflow:hidden}
+  .cal .ttl{text-align:center;font:900 26px "Arial Black",Arial,sans-serif;color:#1d2a4a}
+  .cal .ttl em{color:#e8701e;font-style:normal}
+  .cal .sub{text-align:center;font:italic 10px Georgia,serif;color:#444;margin-bottom:5px}
+  .cal table{width:100%;border-collapse:separate;border-spacing:2px;font-size:8px;table-layout:fixed}
+  .cal th{color:#fff;font-size:7px;padding:3px 0;border-radius:2px}
+  .cal td{background:#f3ece4;height:26px;vertical-align:top;padding:2px;font-weight:700;color:#334}
+  .cal td i{display:block;font-size:6px;font-weight:600;font-style:normal;color:#555}
+  .cal::after{content:"";position:absolute;inset:45% 0 0 0;background:linear-gradient(transparent,#000)}
+  .cal2{background:linear-gradient(135deg,#f6d9b9,#e9b98a)}
+  .cal2 .ttl{font:900 40px Georgia,serif;color:#111;text-align:right;padding-right:10px}
+  .cal2 .ttl small{font-size:14px;color:#6a4b2a;margin-left:6px}
+  .cal2 td{background:transparent;border-left:1px solid #c79b6d;color:#5a3d22}
+
+  .foot{text-align:center;color:#bbb;font-size:15px;line-height:1.9;padding:14px 0 18px;border-top:1px solid var(--line)}
+
+  /* Services */
+  .qdn{background:#b82a0d;color:#fff;font-size:20px;font-weight:700;padding:4px 12px}
+  .tiles{padding:20px 14px}
+  .tile{display:flex;border:2px solid;border-radius:6px;overflow:hidden;height:92px;margin-bottom:14px;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+  .tile .ic{width:92px;display:flex;align-items:center;justify-content:center}
+  .tile .ic svg{width:44px;height:44px}
+  .tile .tx{display:flex;align-items:center;padding-left:12px;color:#1e5bc6;font-size:15px}
+  .tile.mio{border-color:#5aa6ef}.tile.mio .ic{background:linear-gradient(135deg,#6bb6f5,#0f4fb0)}
+  .tile.pay{border-color:#6ec11d}.tile.pay .ic{background:linear-gradient(135deg,#a2e81a,#4a9d16)}
+  .sbar{background:#0a74f0;color:#fff;font-size:20px;font-weight:700;padding:4px 12px}
+  .svc{display:flex;align-items:center;background:#fff;border-bottom:1px solid var(--line);height:78px;padding:0 12px}
+  .svc .i{width:78px;display:flex;justify-content:center;margin-right:14px}
+  .svc .i svg{width:52px;height:52px;fill:#3c3c3c}
+  .svc .l{color:#1a5bd8;font-size:20px;font-weight:700}
+  .svc.off .l{color:#7a7a7a}
+  .svc .l small{display:block;font-size:12px;font-weight:400;color:#666}
+
+  /* Generic list pages */
+  .list{background:#fff}
+  .row{padding:14px 14px;border-bottom:1px solid var(--line)}
+  .row b{display:block;font-size:15px}
+  .row span{font-size:13px;color:var(--muted)}
+  .row.unread b::before{content:"";display:inline-block;width:8px;height:8px;background:var(--blue);border-radius:50%;margin-right:8px;vertical-align:middle}
+  .ptitle{padding:14px;font-size:20px;font-weight:700;background:var(--bg)}
+</style>
+</head>
+<body>
+
+<header><h1>Omnivox</h1></header>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="age" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46" fill="#fff" stroke="#3fa34d" stroke-width="3"/>
+      <text x="50" y="25" text-anchor="middle" font-family="Arial" font-weight="700" font-size="13" fill="#3fa34d" letter-spacing="2">AGÉ</text>
+      <path d="M22 45h22v22h-22z M28 51h10v10h-10z" fill="none" stroke="#6b6b6b" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M56 45h22v6h-16v10h16v6h-22z" fill="none" stroke="#6b6b6b" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M38 30v36q0 12 12 12t12-12v-36" fill="none" stroke="#3fa34d" stroke-width="5"/>
+      <path d="M44 30v34q0 6 6 6t6-6v-34" fill="none" stroke="#3fa34d" stroke-width="3"/>
+    </symbol>
+  </defs>
+</svg>
+
+<main id="main">
+
+<!-- ============ ACCUEIL ============ -->
+<section class="page active" id="accueil">
+  <div class="hero">
+    <svg class="logo"><use href="#age"/></svg>
+    <div class="cap">
+      <h2>Conseiller(ère) à la vente et caissier(ère) (temps partiel) Aubainerie</h2>
+      <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div>
+    </div>
+  </div>
+
+  <div class="next">
+    <h3>Votre prochaine classe à distance</h3>
+    <div class="b">Vous pourrez rejoindre cette classe via Omnivox 15 minutes avant son heure de début.</div>
+    <div class="s">Classe offerte par visioconférence Zoom</div>
+    <p><b>Sécurité de l'infrastructure d'un réseau local</b><br>
+    420-E16-UC gr. 49140<br>Gedeon Ghislain Nkwewo Ngoufo<br>Vendredi 30 octobre de 18:00 à 21:00</p>
+    <a class="btn" href="#">Aide</a>
+  </div>
+
+  <div class="sec">
+    <div class="sechead">
+      <svg class="filter" viewBox="0 0 30 20"><path d="M2 3h26M7 10h16M12 17h6" stroke="#4a8fe0" stroke-width="3" stroke-linecap="round"/></svg>
+      <h3>Évènements</h3>
+      <span class="voir">Voir tout <svg viewBox="0 0 14 22"><path d="M2 2l9 9-9 9"/></svg></span>
+    </div>
+    <div class="hscroll">
+      <div class="ev"><div class="d"><small>Jeudi</small><b>29</b><small>octobre</small></div><div class="bar" style="background:#999"></div><div class="t">Cours auto-défense</div></div>
+      <div class="ev"><div class="d"><small>Vendredi</small><b>30</b><small>octobre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
+      <div class="ev"><div class="d"><small>Lundi</small><b>2</b><small>novembre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
+      <div class="ev"><div class="d"><small>Mardi</small><b>3</b><small>novembre</small></div><div class="bar o"></div><div class="tp"><b>TRAVAIL</b>Gestion de réseaux<br>420-E15-UC<span>TP - OSSIM simplifié</span></div></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <div class="sechead">
+      <h3>Communautés</h3>
+      <span class="voir">Voir tout <svg viewBox="0 0 14 22"><path d="M2 2l9 9-9 9"/></svg></span>
+    </div>
+    <div class="hscroll" style="padding-top:10px">
+      <div class="com"><span class="badge">3</span><div class="img"><svg class="logo"><use href="#age"/></svg></div><div class="n">Emplois-Jobs</div></div>
+      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Gatineau</div></div>
+      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Montréal</div></div>
+      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Formation à distance</div></div>
+    </div>
+  </div>
+
+  <div class="actu">
+    <h3>Actualités</h3>
+
+    <div class="news"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
+      <div class="cap"><h2>Agent·e de ventes chez Vidéotron-Promenades de Gatineau</h2>
+      <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
+
+    <div class="news"><div class="cal" id="cal1"></div>
+      <div class="cap"><h2>Calendrier octobre 2026 - Campus Montréal</h2>
+      <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Jeu. 1 octobre</div></div></div>
+
+    <div class="news"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
+      <div class="cap"><h2>Offre d'emploi - préposé(e) à domicile</h2>
+      <div class="meta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Jeu. 17 septembre</div></div></div>
+
+    <div class="news"><div class="cal cal2" id="cal2"></div>
+      <div class="cap"><h2>Calendrier de la vie étudiante - Campus Gatineau</h2>
+      <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
+  </div>
+
+  <div class="foot">Ibrahima Diallo (2438307)<br>Collège Universel</div>
+</section>
+
+<!-- ============ MIO ============ -->
+<section class="page" id="mio">
+  <div class="ptitle">Mio — 73 nouveaux</div>
+  <div class="list">
+    <div class="row unread"><b>Gedeon Ghislain Nkwewo Ngoufo</b><span>Rappel : classe Zoom ce soir à 18:00</span></div>
+    <div class="row unread"><b>Vie étudiante - Gatineau</b><span>Décoration de citrouilles jeudi 13h00</span></div>
+    <div class="row unread"><b>Service aux étudiants</b><span>Appréciation de l'enseignement disponible</span></div>
+    <div class="row"><b>Emplois-Jobs</b><span>Nouvelles offres d'emploi publiées</span></div>
+  </div>
+</section>
+
+<!-- ============ LÉA ============ -->
+<section class="page" id="lea">
+  <div class="ptitle">Léa — Mes cours</div>
+  <div class="list">
+    <div class="row unread"><b>Sécurité de l'infrastructure d'un réseau local</b><span>420-E16-UC gr. 49140 · 3 nouveautés</span></div>
+    <div class="row unread"><b>Gestion de réseaux</b><span>420-E15-UC · TP - OSSIM simplifié</span></div>
+    <div class="row"><b>Documents de cours</b><span>4 nouveaux documents</span></div>
+  </div>
+</section>
+
+<!-- ============ SERVICES ============ -->
+<section class="page" id="services">
+  <div class="qdn">Quoi de neuf?</div>
+  <div class="tiles">
+    <div class="tile mio"><div class="ic"><svg viewBox="0 0 48 48"><rect x="4" y="11" width="40" height="27" rx="2" fill="#fff"/><path d="M4 12l20 15 20-15" stroke="#2a74d6" stroke-width="3" fill="none"/></svg></div><div class="tx">73 nouveaux Mio</div></div>
+    <div class="tile pay"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 3379,00 $</div></div>
+  </div>
+  <div class="sbar">Services Omnivox</div>
+  <div id="svcList"></div>
+</section>
+
+<!-- ============ AVIS ============ -->
+<section class="page" id="avis">
+  <div class="ptitle">Avis</div>
+  <div class="list">
+    <div class="row"><b>Semaine de relâche</b><span>Du 12 au 16 octobre — aucun cours</span></div>
+    <div class="row"><b>Appréciation de l'enseignement</b><span>Du 30 octobre au 2 novembre</span></div>
+  </div>
+</section>
+
+</main>
+
+<nav>
+  <button class="active" data-p="accueil"><svg viewBox="0 0 34 30"><path d="M3 15L17 3l14 12M7 12v15h7v-8h6v8h7V12"/></svg>Accueil</button>
+  <button data-p="mio"><svg viewBox="0 0 34 30"><rect x="2" y="4" width="30" height="22"/><path d="M2 4l15 12L32 4M2 26l11-11M32 26L21 15"/></svg>Mio</button>
+  <button data-p="lea"><span class="badge">7</span><svg viewBox="0 0 40 30"><circle cx="8" cy="9" r="5"/><circle cx="20" cy="9" r="5"/><circle cx="32" cy="9" r="5"/><path d="M1 26v-6q0-5 7-5t6 5v6M13 26v-6q0-5 7-5t7 5v6M26 26v-6q0-5 6-5t7 5v6"/></svg>Léa</button>
+  <button data-p="services"><span class="badge">2</span><svg viewBox="0 0 34 30"><circle cx="17" cy="15" r="4"/><circle cx="17" cy="6" r="5"/><circle cx="17" cy="24" r="5"/><circle cx="9" cy="10.5" r="5"/><circle cx="25" cy="10.5" r="5"/><circle cx="9" cy="19.5" r="5"/><circle cx="25" cy="19.5" r="5"/></svg>Services</button>
+  <button data-p="avis"><svg viewBox="0 0 34 30"><path d="M17 2a9 9 0 0 0-5 16v4h10v-4a9 9 0 0 0-5-16zM13 25h8M14 28h6"/></svg>Avis</button>
+</nav>
+
+<script>
+  // Tab navigation
+  const btns = document.querySelectorAll('nav button');
+  btns.forEach(b => b.addEventListener('click', () => {
+    btns.forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === b.dataset.p));
+    document.getElementById('main').scrollTop = 0;
+  }));
+
+  // Services list
+  const I = {
+    at:'<path d="M26 4a22 22 0 1 0 12 40l-2-4a18 18 0 1 1 8-15c0 5-2 8-5 8s-4-2-4-5V14h-4v2a10 10 0 1 0 1 14c1 3 4 5 7 5 6 0 9-5 9-10A22 22 0 0 0 26 4zm0 29a7 7 0 1 1 0-14 7 7 0 0 1 0 14z"/>',
+    dir:'<rect x="6" y="4" width="6" height="44" rx="1"/><path d="M15 4h29a2 2 0 0 1 2 2v40a2 2 0 0 1-2 2H15z"/><circle cx="30" cy="20" r="6" fill="#fff"/><path d="M20 38q0-9 10-9t10 9z" fill="#fff"/>',
+    dev:'<rect x="8" y="3" width="26" height="46" rx="4" fill="none" stroke="#888" stroke-width="3"/><path d="M28 18l12 4v8c0 7-5 11-12 13-7-2-12-6-12-13v-8z" fill="#fff" stroke="#888" stroke-width="3"/><path d="M22 28l5 5 8-9" fill="none" stroke="#888" stroke-width="3"/>',
+    opus:'<rect x="2" y="10" width="48" height="34" rx="2"/><rect x="8" y="18" width="5" height="5" fill="#fff"/><path d="M18 44q10-20 32-24M28 44q8-14 22-18" stroke="#fff" stroke-width="3" fill="none"/>',
+    card:'<rect x="2" y="8" width="48" height="36" rx="4" fill="none" stroke="#3c3c3c" stroke-width="3"/><circle cx="14" cy="22" r="5" fill="none" stroke="#3c3c3c" stroke-width="3"/><path d="M6 36q0-7 8-7t8 7" fill="none" stroke="#3c3c3c" stroke-width="3"/><path d="M26 18h18M26 24h18M26 30h18M26 36h18" stroke="#3c3c3c" stroke-width="3"/>',
+    lock:'<rect x="6" y="4" width="18" height="44" rx="1"/><rect x="27" y="4" width="18" height="44" rx="1"/><path d="M9 9h12M30 9h12M9 13h12M30 13h12" stroke="#fff" stroke-width="2"/><circle cx="11" cy="26" r="2" fill="#fff"/><circle cx="32" cy="26" r="2" fill="#fff"/>',
+    pay:'<path d="M10 2h24l10 10v38H10z"/><path d="M16 16h16M16 23h12M16 30h12M16 37h12" stroke="#fff" stroke-width="3"/><text x="37" y="40" font-size="15" font-weight="700" fill="#fff" text-anchor="middle">$</text>',
+    ab:'<rect x="4" y="4" width="44" height="44" fill="#999"/><path d="M4 48L48 4" stroke="#fff" stroke-width="3"/><text x="13" y="22" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">A</text><text x="40" y="44" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">B</text>',
+    lang:'<path d="M10 2h24l10 10v38H10z"/><circle cx="20" cy="17" r="7" fill="none" stroke="#fff" stroke-width="2"/><path d="M13 17h14M20 10v14" stroke="#fff" stroke-width="2"/><path d="M14 31h4M22 31h18M14 39h4M22 39h18" stroke="#fff" stroke-width="3"/>',
+    x:'<circle cx="26" cy="26" r="23"/><path d="M17 17l18 18M35 17L17 35" stroke="#fff" stroke-width="6"/>',
+    car:'<path d="M6 46V24l6-16q2-4 6-4h16q4 0 6 4l6 16v22h-8v-4H14v4z"/><circle cx="19" cy="18" r="5" fill="#fff"/><circle cx="33" cy="18" r="5" fill="#fff"/><path d="M11 30q8-6 15 0 7-6 15 0" fill="#fff"/><circle cx="12" cy="36" r="3" fill="#fff"/><circle cx="40" cy="36" r="3" fill="#fff"/>',
+    print:'<path d="M14 2h18l6 6v12H14z"/><rect x="2" y="18" width="48" height="22" rx="3"/><rect x="12" y="32" width="28" height="16" fill="#fff" stroke="#3c3c3c" stroke-width="3"/><path d="M17 38h18M17 43h18" stroke="#3c3c3c" stroke-width="2"/><circle cx="43" cy="25" r="2" fill="#fff"/>',
+    dish:'<path d="M6 16l30 30q-14 8-26-2T6 16z"/><path d="M30 6l3 6M38 10l-4 4M44 18l-6 2" stroke="#3c3c3c" stroke-width="4" stroke-linecap="round"/>',
+    folder:'<path d="M2 8h18l4 6h26v34H2z"/><circle cx="26" cy="26" r="5" fill="#fff"/><path d="M18 40q0-8 8-8t8 8z" fill="#fff"/>'
+  };
+  const svcs = [
+    ['at','Adresse courriel'],['dir','Annuaire des enseignants'],['dev','Appareils de confiance',1],
+    ['opus','Carte OPUS à tarif réduit'],['card','Carte étudiante'],['lock','Casiers'],
+    ['pay','Centre de paiement'],['ab','Choix de cours',1],['lang','Classement en langue'],
+    ['x','Cours annulés'],['car','Covoiturage'],['print',"Crédits d'impression"],
+    ['dish','Documents et messages'],['folder','Dossier personnel']
+  ];
+  document.getElementById('svcList').innerHTML = svcs.map(([i,l,off]) =>
+    `<div class="svc${off?' off':''}"><div class="i"><svg viewBox="0 0 52 52">${I[i]}</svg></div>
+     <div class="l">${l}${off?'<small>présentement désactivé</small>':''}</div></div>`).join('');
+
+  // Calendar thumbnails for news cards
+  function cal(id, headColors, events, offset){
+    const days=['LUNDI','MARDI','MERCREDI','JEUDI','VENDREDI','SAMEDI','DIMANCHE'];
+    let h='<table><tr>'+days.map((d,i)=>`<th style="background:${headColors[i%headColors.length]}">${d}</th>`).join('')+'</tr>';
+    let d=1-offset;
+    for(let w=0;w<5;w++){h+='<tr>';for(let c=0;c<7;c++,d++){h+= d>=1&&d<=31?`<td>${d}<i>${events[d]||''}</i></td>`:'<td></td>';}h+='</tr>';}
+    document.getElementById(id).innerHTML += h+'</table>';
+  }
+  document.getElementById('cal1').innerHTML='<div class="ttl">OCTOBRE <em>2026</em></div><div class="sub">Un mois pour créer, partager et s\'épanouir !</div>';
+  cal('cal1',['#1d3a6e','#2f6fd0','#2a9a8a','#7a3fa0','#c8306a','#f08a24','#e0552a'],
+    {7:'Atelier de crochet',8:'Rencontre de podcast',20:'Atelier de cuisine',28:'Décoration de petites citrouilles'},3);
+  document.getElementById('cal2').innerHTML='<div class="ttl">Octobre<small>2026</small></div>';
+  cal('cal2',['#b07a45'],
+    {1:'Cours auto-défense 13h00',7:'Décorer le campus pour Halloween',8:'Génies en herbe 13h00',12:'semaine de relâche',13:'semaine de relâche',14:'semaine de relâche',15:'semaine de relâche',16:'semaine de relâche',22:'Atelier Finances',27:'Photobooth Halloween',29:'Décoration de citrouilles 13h00',30:'Tournée Universitaire'},3);
+</script>
+</body>
+</html>
