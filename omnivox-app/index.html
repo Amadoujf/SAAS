@@ -155,6 +155,13 @@
   .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}
   .kv:last-child{border:0}
   .tot{font-weight:700;font-size:18px;color:var(--red)}
+  .upl{display:block;text-align:center;border:2px dashed #4a8fe0;border-radius:8px;padding:22px 10px;color:#1a5bd8;font-weight:700;cursor:pointer}
+  .upl small{display:block;font-weight:400;color:var(--muted);margin-top:4px}
+  .upl input{display:none}
+  .doc img{width:100%;border-radius:6px;margin:10px 0;border:1px solid #ddd}
+  .doc .acts{display:flex;gap:10px;margin-top:8px}
+  .doc .acts a,.doc .acts button{flex:1;text-align:center;border:1px solid #ccc;background:#fff;border-radius:6px;padding:10px;font:600 14px inherit;color:#1a5bd8;text-decoration:none}
+  .doc .acts button{color:var(--red)}
 
   /* Toast */
   #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 80px);transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
@@ -425,11 +432,59 @@
     const [, label, off] = svcs[el.dataset.svc];
     if (off) return toast(label + ' : présentement désactivé');
     if (label === 'Centre de paiement') return openDetail(...D.paiement);
+    if (label === 'Carte OPUS à tarif réduit') return openOpus();
     if (label === 'Horaire') return openDetail(label, `<div class="card"><h3>Vendredi</h3><div class="m">18:00 - 21:00 · Zoom</div>Sécurité de l'infrastructure d'un réseau local<br>420-E16-UC gr. 49140</div>
       <div class="card"><h3>Mardi</h3><div class="m">18:00 - 21:00 · Zoom</div>Gestion de réseaux<br>420-E15-UC</div>`);
     openDetail(label, `<div class="card">Aucune information à afficher pour le moment.</div>`);
   });
   document.getElementById('mioTile').onclick = () => document.querySelector('nav button[data-p=mio]').click();
+
+  // ---------- Carte OPUS: documents saved on the device (IndexedDB) ----------
+  const docsDB = new Promise((ok, ko) => {
+    try {
+      const r = indexedDB.open('omnivox', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('opus', { keyPath: 'id', autoIncrement: true });
+      r.onsuccess = () => ok(r.result); r.onerror = () => ko(r.error);
+    } catch (e) { ko(e); }
+  });
+  function opusStore(mode, fn){
+    return docsDB.then(db => new Promise((ok, ko) => {
+      const tx = db.transaction('opus', mode), req = fn(tx.objectStore('opus'));
+      tx.oncomplete = () => ok(req && req.result); tx.onerror = () => ko(tx.error);
+    }));
+  }
+  let opusUrls = [];
+  async function openOpus(){
+    opusUrls.forEach(URL.revokeObjectURL); opusUrls = [];
+    let docs = [], err = '';
+    try { docs = await opusStore('readonly', s => s.getAll()); } catch (e) { err = 'Stockage indisponible sur cet appareil.'; }
+    const esc = t => t.replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const list = docs.map(d => {
+      const url = URL.createObjectURL(d.blob); opusUrls.push(url);
+      return `<div class="card doc"><b>${esc(d.name)}</b><div class="m" style="margin:2px 0 0">Ajouté le ${new Date(d.date).toLocaleDateString('fr-CA')}</div>
+        ${d.type.startsWith('image/') ? `<img src="${url}" alt="">` : ''}
+        <div class="acts"><a href="${url}" target="_blank" download="${esc(d.name)}">Ouvrir</a><button data-del="${d.id}">Supprimer</button></div></div>`;
+    }).join('');
+    openDetail('Carte OPUS à tarif réduit', `<div class="card"><h3>Ma lettre de carte OPUS</h3>
+      <div class="m">Conservez ici votre lettre ou attestation (photo ou PDF). Les fichiers restent sur ce téléphone.</div>
+      <label class="upl">+ Ajouter un fichier<small>Photo ou PDF</small><input type="file" id="opusFile" accept="image/*,application/pdf"></label>
+      ${err ? `<p class="m" style="margin-top:10px">${err}</p>` : ''}</div>${list}`);
+  }
+  document.getElementById('dBody').addEventListener('change', async e => {
+    if (e.target.id !== 'opusFile' || !e.target.files[0]) return;
+    const f = e.target.files[0];
+    try {
+      await opusStore('readwrite', s => s.add({ name: f.name, type: f.type || 'application/octet-stream', blob: f, date: Date.now() }));
+      toast('Fichier enregistré');
+    } catch (err) { toast("Impossible d'enregistrer le fichier"); }
+    openOpus();
+  });
+  document.getElementById('dBody').addEventListener('click', async e => {
+    const b = e.target.closest('[data-del]'); if (!b) return;
+    if (!confirm('Supprimer ce fichier ?')) return;
+    await opusStore('readwrite', s => s.delete(+b.dataset.del));
+    toast('Fichier supprimé'); openOpus();
+  });
 
   // ---------- Mio ----------
   const MIO_TOTAL = 73;
