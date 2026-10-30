@@ -9,6 +9,9 @@
 <meta name="apple-mobile-web-app-title" content="Omnivox">
 <meta name="theme-color" content="#f7892f">
 <title>Omnivox</title>
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
 <style>
   :root{
     --orange:#f68a2e; --orange2:#ff8500; --blue:#1a5bd8; --link:#4a8fe0;
@@ -124,6 +127,38 @@
   .row span{font-size:13px;color:var(--muted)}
   .row.unread b::before{content:"";display:inline-block;width:8px;height:8px;background:var(--blue);border-radius:50%;margin-right:8px;vertical-align:middle}
   .ptitle{padding:14px;font-size:20px;font-weight:700;background:var(--bg)}
+  .row{display:flex;align-items:center;gap:10px}
+  .row>div{flex:1;min-width:0}
+  .row .when{font-size:12px;color:#999;flex:none}
+  .row .cnt{flex:none;background:var(--red);color:#fff;font-size:12px;font-weight:700;border-radius:10px;padding:2px 7px}
+  .row span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row.unread b{color:#000}
+  [data-open],.svc,.tile,.row{cursor:pointer}
+  [data-open]:active,.svc:active,.tile:active,.row:active,.com:active,.ev:active{opacity:.7}
+
+  /* Join button */
+  .join{display:none;margin:14px 10px 0 0;border:0;background:var(--orange2);color:#fff;border-radius:6px;padding:12px 18px;font-weight:700;font-size:14px;letter-spacing:.5px}
+  .join.on{display:inline-block}
+  .cd{display:block;color:var(--muted);font-size:13px;margin-top:10px}
+
+  /* Detail screen */
+  #detail{position:fixed;inset:0;z-index:20;background:var(--bg);transform:translateX(100%);transition:transform .25s ease;display:flex;flex-direction:column}
+  #detail.open{transform:none}
+  #detail .dh{background:var(--orange);padding:calc(env(safe-area-inset-top) + 14px) 10px 12px;display:flex;align-items:center;gap:6px;color:#fff}
+  #detail .dh button{border:0;background:none;color:#fff;font-size:30px;line-height:1;padding:0 8px}
+  #detail .dh h2{font-size:19px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #detail .db{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(env(safe-area-inset-bottom) + 20px)}
+  .card{background:#fff;margin:12px;border-radius:8px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.15);font-size:15px;line-height:1.5}
+  .card h3{font-size:18px;margin-bottom:6px}
+  .card .m{color:var(--muted);font-size:13px;margin-bottom:10px}
+  .card ul{padding-left:20px}
+  .kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #eee}
+  .kv:last-child{border:0}
+  .tot{font-weight:700;font-size:18px;color:var(--red)}
+
+  /* Toast */
+  #toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 80px);transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap}
+  #toast.on{opacity:1}
 </style>
 </head>
 <body>
@@ -147,7 +182,7 @@
 
 <!-- ============ ACCUEIL ============ -->
 <section class="page active" id="accueil">
-  <div class="hero">
+  <div class="hero" data-open="n0">
     <svg class="logo"><use href="#age"/></svg>
     <div class="cap">
       <h2>Conseiller(ère) à la vente et caissier(ère) (temps partiel) Aubainerie</h2>
@@ -161,7 +196,9 @@
     <div class="s">Classe offerte par visioconférence Zoom</div>
     <p><b>Sécurité de l'infrastructure d'un réseau local</b><br>
     420-E16-UC gr. 49140<br>Gedeon Ghislain Nkwewo Ngoufo<br>Vendredi 30 octobre de 18:00 à 21:00</p>
-    <a class="btn" href="#">Aide</a>
+    <button class="join" id="join">Rejoindre la classe</button>
+    <a class="btn" href="#" data-open="aide">Aide</a>
+    <span class="cd" id="cd"></span>
   </div>
 
   <div class="sec">
@@ -171,10 +208,10 @@
       <span class="voir">Voir tout <svg viewBox="0 0 14 22"><path d="M2 2l9 9-9 9"/></svg></span>
     </div>
     <div class="hscroll">
-      <div class="ev"><div class="d"><small>Jeudi</small><b>29</b><small>octobre</small></div><div class="bar" style="background:#999"></div><div class="t">Cours auto-défense</div></div>
-      <div class="ev"><div class="d"><small>Vendredi</small><b>30</b><small>octobre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
-      <div class="ev"><div class="d"><small>Lundi</small><b>2</b><small>novembre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
-      <div class="ev"><div class="d"><small>Mardi</small><b>3</b><small>novembre</small></div><div class="bar o"></div><div class="tp"><b>TRAVAIL</b>Gestion de réseaux<br>420-E15-UC<span>TP - OSSIM simplifié</span></div></div>
+      <div class="ev" data-open="e0"><div class="d"><small>Jeudi</small><b>29</b><small>octobre</small></div><div class="bar" style="background:#999"></div><div class="t">Cours auto-défense</div></div>
+      <div class="ev" data-open="e1"><div class="d"><small>Vendredi</small><b>30</b><small>octobre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
+      <div class="ev" data-open="e1"><div class="d"><small>Lundi</small><b>2</b><small>novembre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
+      <div class="ev" data-open="e2"><div class="d"><small>Mardi</small><b>3</b><small>novembre</small></div><div class="bar o"></div><div class="tp"><b>TRAVAIL</b>Gestion de réseaux<br>420-E15-UC<span>TP - OSSIM simplifié</span></div></div>
     </div>
   </div>
 
@@ -184,29 +221,29 @@
       <span class="voir">Voir tout <svg viewBox="0 0 14 22"><path d="M2 2l9 9-9 9"/></svg></span>
     </div>
     <div class="hscroll" style="padding-top:10px">
-      <div class="com"><span class="badge">3</span><div class="img"><svg class="logo"><use href="#age"/></svg></div><div class="n">Emplois-Jobs</div></div>
-      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Gatineau</div></div>
-      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Montréal</div></div>
-      <div class="com"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Formation à distance</div></div>
+      <div class="com" data-open="c0"><span class="badge" id="jobsBadge">3</span><div class="img"><svg class="logo"><use href="#age"/></svg></div><div class="n">Emplois-Jobs</div></div>
+      <div class="com" data-open="c1"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Gatineau</div></div>
+      <div class="com" data-open="c2"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Montréal</div></div>
+      <div class="com" data-open="c3"><div class="img big"><svg class="logo"><use href="#age"/></svg><div class="vie">Vie étudiante</div></div><div class="n">Vie étudiante - Formation à distance</div></div>
     </div>
   </div>
 
   <div class="actu">
     <h3>Actualités</h3>
 
-    <div class="news"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
+    <div class="news" data-open="n1"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
       <div class="cap"><h2>Agent·e de ventes chez Vidéotron-Promenades de Gatineau</h2>
       <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
 
-    <div class="news"><div class="cal" id="cal1"></div>
+    <div class="news" data-open="n2"><div class="cal" id="cal1"></div>
       <div class="cap"><h2>Calendrier octobre 2026 - Campus Montréal</h2>
       <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Jeu. 1 octobre</div></div></div>
 
-    <div class="news"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
+    <div class="news" data-open="n3"><div class="top"><svg class="logo"><use href="#age"/></svg></div>
       <div class="cap"><h2>Offre d'emploi - préposé(e) à domicile</h2>
       <div class="meta"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Jeu. 17 septembre</div></div></div>
 
-    <div class="news"><div class="cal cal2" id="cal2"></div>
+    <div class="news" data-open="n4"><div class="cal cal2" id="cal2"></div>
       <div class="cap"><h2>Calendrier de la vie étudiante - Campus Gatineau</h2>
       <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
   </div>
@@ -216,31 +253,22 @@
 
 <!-- ============ MIO ============ -->
 <section class="page" id="mio">
-  <div class="ptitle">Mio — 73 nouveaux</div>
-  <div class="list">
-    <div class="row unread"><b>Gedeon Ghislain Nkwewo Ngoufo</b><span>Rappel : classe Zoom ce soir à 18:00</span></div>
-    <div class="row unread"><b>Vie étudiante - Gatineau</b><span>Décoration de citrouilles jeudi 13h00</span></div>
-    <div class="row unread"><b>Service aux étudiants</b><span>Appréciation de l'enseignement disponible</span></div>
-    <div class="row"><b>Emplois-Jobs</b><span>Nouvelles offres d'emploi publiées</span></div>
-  </div>
+  <div class="ptitle" id="mioTitle">Mio</div>
+  <div class="list" id="mioList"></div>
 </section>
 
 <!-- ============ LÉA ============ -->
 <section class="page" id="lea">
-  <div class="ptitle">Léa — Mes cours</div>
-  <div class="list">
-    <div class="row unread"><b>Sécurité de l'infrastructure d'un réseau local</b><span>420-E16-UC gr. 49140 · 3 nouveautés</span></div>
-    <div class="row unread"><b>Gestion de réseaux</b><span>420-E15-UC · TP - OSSIM simplifié</span></div>
-    <div class="row"><b>Documents de cours</b><span>4 nouveaux documents</span></div>
-  </div>
+  <div class="ptitle">Léa — Automne 2026</div>
+  <div class="list" id="leaList"></div>
 </section>
 
 <!-- ============ SERVICES ============ -->
 <section class="page" id="services">
   <div class="qdn">Quoi de neuf?</div>
   <div class="tiles">
-    <div class="tile mio"><div class="ic"><svg viewBox="0 0 48 48"><rect x="4" y="11" width="40" height="27" rx="2" fill="#fff"/><path d="M4 12l20 15 20-15" stroke="#2a74d6" stroke-width="3" fill="none"/></svg></div><div class="tx">73 nouveaux Mio</div></div>
-    <div class="tile pay"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 3379,00 $</div></div>
+    <div class="tile mio" id="mioTile"><div class="ic"><svg viewBox="0 0 48 48"><rect x="4" y="11" width="40" height="27" rx="2" fill="#fff"/><path d="M4 12l20 15 20-15" stroke="#2a74d6" stroke-width="3" fill="none"/></svg></div><div class="tx" id="mioTileTx">73 nouveaux Mio</div></div>
+    <div class="tile pay" data-open="paiement"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 3379,00 $</div></div>
   </div>
   <div class="sbar">Services Omnivox</div>
   <div id="svcList"></div>
@@ -257,10 +285,13 @@
 
 </main>
 
+<div id="detail"><div class="dh"><button id="back" aria-label="Retour">‹</button><h2 id="dTitle"></h2></div><div class="db" id="dBody"></div></div>
+<div id="toast"></div>
+
 <nav>
   <button class="active" data-p="accueil"><svg viewBox="0 0 34 30"><path d="M3 15L17 3l14 12M7 12v15h7v-8h6v8h7V12"/></svg>Accueil</button>
   <button data-p="mio"><svg viewBox="0 0 34 30"><rect x="2" y="4" width="30" height="22"/><path d="M2 4l15 12L32 4M2 26l11-11M32 26L21 15"/></svg>Mio</button>
-  <button data-p="lea"><span class="badge">7</span><svg viewBox="0 0 40 30"><circle cx="8" cy="9" r="5"/><circle cx="20" cy="9" r="5"/><circle cx="32" cy="9" r="5"/><path d="M1 26v-6q0-5 7-5t6 5v6M13 26v-6q0-5 7-5t7 5v6M26 26v-6q0-5 6-5t7 5v6"/></svg>Léa</button>
+  <button data-p="lea"><span class="badge" id="leaBadge">7</span><svg viewBox="0 0 40 30"><circle cx="8" cy="9" r="5"/><circle cx="20" cy="9" r="5"/><circle cx="32" cy="9" r="5"/><path d="M1 26v-6q0-5 7-5t6 5v6M13 26v-6q0-5 7-5t7 5v6M26 26v-6q0-5 6-5t7 5v6"/></svg>Léa</button>
   <button data-p="services"><span class="badge">2</span><svg viewBox="0 0 34 30"><circle cx="17" cy="15" r="4"/><circle cx="17" cy="6" r="5"/><circle cx="17" cy="24" r="5"/><circle cx="9" cy="10.5" r="5"/><circle cx="25" cy="10.5" r="5"/><circle cx="9" cy="19.5" r="5"/><circle cx="25" cy="19.5" r="5"/></svg>Services</button>
   <button data-p="avis"><svg viewBox="0 0 34 30"><path d="M17 2a9 9 0 0 0-5 16v4h10v-4a9 9 0 0 0-5-16zM13 25h8M14 28h6"/></svg>Avis</button>
 </nav>
@@ -297,10 +328,11 @@
     ['opus','Carte OPUS à tarif réduit'],['card','Carte étudiante'],['lock','Casiers'],
     ['pay','Centre de paiement'],['ab','Choix de cours',1],['lang','Classement en langue'],
     ['x','Cours annulés'],['car','Covoiturage'],['print',"Crédits d'impression"],
-    ['dish','Documents et messages'],['folder','Dossier personnel']
+    ['dish','Documents et messages'],['folder','Dossier personnel'],
+    ['card','Horaire'],['lang','Relevé de notes'],['pay',"Reçus d'impôt"],['x','Absences']
   ];
-  document.getElementById('svcList').innerHTML = svcs.map(([i,l,off]) =>
-    `<div class="svc${off?' off':''}"><div class="i"><svg viewBox="0 0 52 52">${I[i]}</svg></div>
+  document.getElementById('svcList').innerHTML = svcs.map(([i,l,off],k) =>
+    `<div class="svc${off?' off':''}" data-svc="${k}"><div class="i"><svg viewBox="0 0 52 52">${I[i]}</svg></div>
      <div class="l">${l}${off?'<small>présentement désactivé</small>':''}</div></div>`).join('');
 
   // Calendar thumbnails for news cards
@@ -317,6 +349,156 @@
   document.getElementById('cal2').innerHTML='<div class="ttl">Octobre<small>2026</small></div>';
   cal('cal2',['#b07a45'],
     {1:'Cours auto-défense 13h00',7:'Décorer le campus pour Halloween',8:'Génies en herbe 13h00',12:'semaine de relâche',13:'semaine de relâche',14:'semaine de relâche',15:'semaine de relâche',16:'semaine de relâche',22:'Atelier Finances',27:'Photobooth Halloween',29:'Décoration de citrouilles 13h00',30:'Tournée Universitaire'},3);
+
+  // ---------- Saved state (read messages, seen courses) ----------
+  const store = {
+    get(k, d){ try { return JSON.parse(localStorage.getItem('omx_'+k)) ?? d; } catch(e){ return d; } },
+    set(k, v){ try { localStorage.setItem('omx_'+k, JSON.stringify(v)); } catch(e){} }
+  };
+  let readMio = store.get('readMio', []);
+  let seenLea = store.get('seenLea', []);
+
+  // ---------- Detail screen ----------
+  const detail = document.getElementById('detail');
+  function openDetail(title, html){
+    document.getElementById('dTitle').textContent = title;
+    document.getElementById('dBody').innerHTML = html;
+    document.getElementById('dBody').scrollTop = 0;
+    detail.classList.add('open');
+  }
+  document.getElementById('back').onclick = () => detail.classList.remove('open');
+
+  let toastT;
+  function toast(msg){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2000);
+  }
+
+  const job = (t, emp, lieu, h, desc) => `<div class="card"><h3>${t}</h3><div class="m">Emplois-Jobs · ${emp}</div>
+    <div class="kv"><span>Lieu</span><b>${lieu}</b></div><div class="kv"><span>Horaire</span><b>${h}</b></div>
+    <p style="margin-top:12px">${desc}</p><p style="margin-top:12px">Pour postuler, envoyer votre CV au Service de placement par Mio.</p></div>`;
+  const D = {
+    n0: ['Emplois-Jobs', job("Conseiller(ère) à la vente et caissier(ère) (temps partiel)", 'Aubainerie', 'Gatineau', 'Temps partiel, soirs et fins de semaine',
+      "Accueillir et conseiller la clientèle, effectuer les transactions à la caisse, maintenir la présentation du magasin.")],
+    n1: ['Emplois-Jobs', job('Agent·e de ventes', 'Vidéotron', 'Promenades de Gatineau', 'Temps partiel, horaire flexible',
+      "Présenter les produits et services Vidéotron, conclure des ventes et offrir un service client de qualité.")],
+    n2: ['Vie étudiante - Montréal', `<div class="card"><h3>Calendrier octobre 2026 - Campus Montréal</h3><div class="m">Jeu. 1 octobre</div>
+      <ul><li><b>7 oct.</b> — Atelier de crochet</li><li><b>8 oct.</b> — Rencontre de podcast</li><li><b>20 oct.</b> — Atelier de cuisine</li><li><b>28 oct.</b> — Décoration de petites citrouilles</li></ul></div>`],
+    n3: ['Emplois-Jobs', job('Préposé(e) à domicile', 'Soins à domicile', 'Gatineau', 'Temps partiel',
+      "Accompagner des personnes à domicile dans les activités de la vie quotidienne.")],
+    n4: ['Vie étudiante - Gatineau', `<div class="card"><h3>Calendrier de la vie étudiante - Campus Gatineau</h3><div class="m">Il y a 6 jours</div>
+      <ul><li><b>1 et 8 oct.</b> — Cours auto-défense 13h00</li><li><b>7 oct.</b> — Décorer le campus pour Halloween</li><li><b>8 oct.</b> — Génies en herbe 13h00, kiosque cancer du sein</li>
+      <li><b>12 au 16 oct.</b> — Semaine de relâche</li><li><b>19 oct.</b> — Midi musique</li><li><b>22 oct.</b> — Atelier Finances, rencontre interculturelle</li>
+      <li><b>27-28 oct.</b> — Photobooth Halloween</li><li><b>29 oct.</b> — Décoration de citrouilles 13h00</li><li><b>30 oct.</b> — Tournée universitaire 11h00</li></ul></div>`],
+    e0: ['Évènement', `<div class="card"><h3>Cours auto-défense</h3><div class="m">Jeudi 29 octobre · 13h00</div>Campus Gatineau. Activité gratuite, inscription à la vie étudiante.</div>`],
+    e1: ['Évènement', `<div class="card"><h3>Appréciation de l'enseignement</h3><div class="m">Du vendredi 30 octobre au lundi 2 novembre</div>
+      Donnez votre avis sur vos cours de la session. Le questionnaire est anonyme et prend environ 5 minutes.</div>`],
+    e2: ['Travail', `<div class="card"><h3>TP - OSSIM simplifié</h3><div class="m">Gestion de réseaux · 420-E15-UC · Remise le mardi 3 novembre</div>
+      Installer et configurer OSSIM, puis remettre le rapport dans Léa.</div>`],
+    aide: ['Aide', `<div class="card"><h3>Rejoindre une classe à distance</h3><ul>
+      <li>Le bouton « Rejoindre la classe » apparaît 15 minutes avant le début du cours.</li><li>Installez l'application Zoom à l'avance.</li>
+      <li>Utilisez votre nom complet à l'entrée.</li><li>En cas de problème, écrivez un Mio à votre enseignant.</li></ul></div>`],
+    paiement: ['Centre de paiement', `<div class="card"><h3>État de compte</h3><div class="m">Session Automne 2026</div>
+      <div class="kv"><b>Solde à payer</b><span class="tot">3 379,00 $</span></div></div>`]
+  };
+  const coms = [
+    ['Emplois-Jobs', ['Conseiller(ère) à la vente — Aubainerie','Agent·e de ventes — Vidéotron','Préposé(e) à domicile']],
+    ['Vie étudiante - Gatineau', ['Décoration de citrouilles jeudi 13h00','Photobooth Halloween','Tournée universitaire vendredi 11h00']],
+    ['Vie étudiante - Montréal', ['Atelier de cuisine','Décoration de petites citrouilles']],
+    ['Vie étudiante - Formation à distance', ['Café virtuel le mercredi midi','Conseils pour réussir à distance']]
+  ];
+  coms.forEach(([t, posts], k) => D['c'+k] = [t, posts.map(p => `<div class="card"><b>${p}</b><div class="m" style="margin:4px 0 0">${t}</div></div>`).join('')]);
+
+  document.addEventListener('click', e => {
+    const el = e.target.closest('[data-open]');
+    if (!el) return;
+    e.preventDefault();
+    const d = D[el.dataset.open];
+    if (d) openDetail(d[0], d[1]);
+    if (el.dataset.open === 'c0') document.getElementById('jobsBadge').style.display = 'none';
+  });
+
+  // ---------- Services ----------
+  document.getElementById('svcList').addEventListener('click', e => {
+    const el = e.target.closest('.svc'); if (!el) return;
+    const [, label, off] = svcs[el.dataset.svc];
+    if (off) return toast(label + ' : présentement désactivé');
+    if (label === 'Centre de paiement') return openDetail(...D.paiement);
+    if (label === 'Horaire') return openDetail(label, `<div class="card"><h3>Vendredi</h3><div class="m">18:00 - 21:00 · Zoom</div>Sécurité de l'infrastructure d'un réseau local<br>420-E16-UC gr. 49140</div>
+      <div class="card"><h3>Mardi</h3><div class="m">18:00 - 21:00 · Zoom</div>Gestion de réseaux<br>420-E15-UC</div>`);
+    openDetail(label, `<div class="card">Aucune information à afficher pour le moment.</div>`);
+  });
+  document.getElementById('mioTile').onclick = () => document.querySelector('nav button[data-p=mio]').click();
+
+  // ---------- Mio ----------
+  const MIO_TOTAL = 73;
+  const mios = [
+    ['Gedeon Ghislain Nkwewo Ngoufo', 'Rappel : classe Zoom ce soir à 18:00', "Bonsoir à tous,\n\nPetit rappel : notre classe a lieu ce soir de 18:00 à 21:00 sur Zoom. Le lien est disponible dans Omnivox 15 minutes avant.\n\nBonne soirée.", '30 oct.'],
+    ['Service aux étudiants', "Appréciation de l'enseignement", "L'appréciation de l'enseignement est ouverte du 30 octobre au 2 novembre. Merci de prendre quelques minutes pour remplir le questionnaire.", '29 oct.'],
+    ['Vie étudiante - Gatineau', 'Décoration de citrouilles jeudi 13h00', 'Rejoignez-nous à la cafétéria jeudi à 13h00 pour décorer des citrouilles. Matériel fourni !', '28 oct.'],
+    ['Emplois-Jobs', "3 nouvelles offres d'emploi", "De nouvelles offres ont été publiées : Aubainerie, Vidéotron et préposé(e) à domicile. Consultez la communauté Emplois-Jobs.", '24 oct.'],
+    ['Centre de paiement', 'Rappel : solde à payer', 'Votre solde à payer est de 3 379,00 $. Consultez le Centre de paiement pour les modalités.', '20 oct.'],
+    ['Vie étudiante - Gatineau', 'Atelier Finances Jean Châtelain', "Atelier gratuit sur le budget étudiant le jeudi 22 octobre à 13h00.", '19 oct.'],
+    ['Registrariat', 'Semaine de relâche', 'Aucun cours du 12 au 16 octobre. Bonne relâche !', '9 oct.']
+  ];
+  function renderMio(){
+    const unread = MIO_TOTAL - readMio.length;
+    document.getElementById('mioTitle').textContent = `Mio — ${unread} nouveaux`;
+    document.getElementById('mioTileTx').textContent = `${unread} nouveaux Mio`;
+    document.getElementById('mioList').innerHTML = mios.map(([from, subj, , when], k) =>
+      `<div class="row${readMio.includes(k) ? '' : ' unread'}" data-mio="${k}"><div><b>${from}</b><span>${subj}</span></div><span class="when">${when}</span></div>`).join('');
+  }
+  document.getElementById('mioList').addEventListener('click', e => {
+    const el = e.target.closest('[data-mio]'); if (!el) return;
+    const k = +el.dataset.mio, [from, subj, body, when] = mios[k];
+    if (!readMio.includes(k)) { readMio.push(k); store.set('readMio', readMio); renderMio(); }
+    openDetail('Mio', `<div class="card"><h3>${subj}</h3><div class="m">De : ${from} · ${when}</div>${body.replace(/\n/g, '<br>')}</div>`);
+  });
+
+  // ---------- Léa ----------
+  const courses = [
+    ["Sécurité de l'infrastructure d'un réseau local", '420-E16-UC gr. 49140', 'Gedeon Ghislain Nkwewo Ngoufo',
+      ['Nouveau document : Semaine 9 - Pare-feu', 'Nouvelle note : Quiz 2 — 17/20', 'Nouvel avis : classe de ce soir']],
+    ['Gestion de réseaux', '420-E15-UC', '',
+      ['Nouveau travail : TP - OSSIM simplifié (remise 3 nov.)', 'Nouveau document : Guide OSSIM', 'Nouvelle note : TP 3 — 85 %', 'Nouvel avis : local de laboratoire']]
+  ];
+  function renderLea(){
+    let total = 0;
+    document.getElementById('leaList').innerHTML = courses.map(([t, code, prof, news], k) => {
+      const n = seenLea.includes(k) ? 0 : news.length; total += n;
+      return `<div class="row${n ? ' unread' : ''}" data-lea="${k}"><div><b>${t}</b><span>${code}${prof ? ' · ' + prof : ''}</span></div>${n ? `<span class="cnt">${n}</span>` : ''}</div>`;
+    }).join('');
+    const b = document.getElementById('leaBadge');
+    b.textContent = total; b.style.display = total ? '' : 'none';
+  }
+  document.getElementById('leaList').addEventListener('click', e => {
+    const el = e.target.closest('[data-lea]'); if (!el) return;
+    const k = +el.dataset.lea, [t, code, prof, news] = courses[k];
+    if (!seenLea.includes(k)) { seenLea.push(k); store.set('seenLea', seenLea); renderLea(); }
+    openDetail(t, `<div class="card"><h3>${t}</h3><div class="m">${code}${prof ? '<br>' + prof : ''}</div></div>` +
+      news.map(n => `<div class="card">${n}</div>`).join(''));
+  });
+
+  // ---------- Avis ----------
+  document.querySelectorAll('#avis .row').forEach(r => r.addEventListener('click', () =>
+    openDetail('Avis', `<div class="card"><h3>${r.querySelector('b').textContent}</h3>${r.querySelector('span').textContent}</div>`)));
+
+  // ---------- Next class: join button + countdown ----------
+  const classStart = new Date(2026, 9, 30, 18, 0), classEnd = new Date(2026, 9, 30, 21, 0);
+  function tick(){
+    const now = new Date(), opens = classStart - 15 * 60000;
+    const join = document.getElementById('join'), cd = document.getElementById('cd');
+    join.classList.toggle('on', now >= opens && now < classEnd);
+    if (now < opens) {
+      const m = Math.ceil((opens - now) / 60000), h = Math.floor(m / 60);
+      cd.textContent = `Ouverture dans ${h ? h + ' h ' : ''}${m % 60} min`;
+    } else cd.textContent = now < classEnd ? (now < classStart ? 'La classe commence bientôt' : 'Classe en cours') : 'Classe terminée';
+  }
+  document.getElementById('join').onclick = () => toast('Ouverture de Zoom…');
+  tick(); setInterval(tick, 30000);
+
+  renderMio(); renderLea();
 </script>
 </body>
 </html>
