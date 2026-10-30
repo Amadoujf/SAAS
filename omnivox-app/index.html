@@ -22,6 +22,8 @@
   body{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
   header{position:fixed;top:0;left:0;right:0;z-index:10;background:var(--orange);
     padding:calc(env(safe-area-inset-top) + 14px) 12px 10px;border-bottom:1px solid #d9772a}
+  header{display:flex;align-items:center;justify-content:space-between}
+  .demo{flex:none;background:#ffe14d;color:#5a3d00;font-size:12px;font-weight:800;letter-spacing:1px;padding:4px 9px;border-radius:12px;margin-left:auto}
   header h1{color:#fff;font-size:32px;font-weight:700;letter-spacing:.2px}
   main{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 66px);bottom:calc(env(safe-area-inset-bottom) + 60px);overflow-y:auto;-webkit-overflow-scrolling:touch}
   .page{display:none}.page.active{display:block}
@@ -170,7 +172,7 @@
 </head>
 <body>
 
-<header><h1>Omnivox</h1></header>
+<header><h1>Omnivox</h1><span class="demo">DÉMO</span></header>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -201,8 +203,8 @@
     <h3>Votre prochaine classe à distance</h3>
     <div class="b">Vous pourrez rejoindre cette classe via Omnivox 15 minutes avant son heure de début.</div>
     <div class="s">Classe offerte par visioconférence Zoom</div>
-    <p><b>Sécurité de l'infrastructure d'un réseau local</b><br>
-    420-E16-UC gr. 49140<br>Gedeon Ghislain Nkwewo Ngoufo<br>Vendredi 30 octobre de 18:00 à 21:00</p>
+    <p><b>Introduction à la programmation</b><br>
+    DEMO-101 gr. 00001<br>Enseignant Démo<br>Vendredi 30 octobre de 18:00 à 21:00</p>
     <button class="join" id="join">Rejoindre la classe</button>
     <a class="btn" href="#" data-open="aide">Aide</a>
     <span class="cd" id="cd"></span>
@@ -218,7 +220,7 @@
       <div class="ev" data-open="e0"><div class="d"><small>Jeudi</small><b>29</b><small>octobre</small></div><div class="bar" style="background:#999"></div><div class="t">Cours auto-défense</div></div>
       <div class="ev" data-open="e1"><div class="d"><small>Vendredi</small><b>30</b><small>octobre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
       <div class="ev" data-open="e1"><div class="d"><small>Lundi</small><b>2</b><small>novembre</small></div><div class="bar"></div><div class="t">Appréciation de l'enseignement</div></div>
-      <div class="ev" data-open="e2"><div class="d"><small>Mardi</small><b>3</b><small>novembre</small></div><div class="bar o"></div><div class="tp"><b>TRAVAIL</b>Gestion de réseaux<br>420-E15-UC<span>TP - OSSIM simplifié</span></div></div>
+      <div class="ev" data-open="e2"><div class="d"><small>Mardi</small><b>3</b><small>novembre</small></div><div class="bar o"></div><div class="tp"><b>TRAVAIL</b>Bases de données<br>DEMO-102<span>TP - Requêtes SQL</span></div></div>
     </div>
   </div>
 
@@ -255,7 +257,7 @@
       <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
   </div>
 
-  <div class="foot">Ibrahima Diallo (2438307)<br>Collège Universel</div>
+  <div class="foot">Amadou Boury Diouf<br>Compte démo — pas un vrai compte</div>
 </section>
 
 <!-- ============ MIO ============ -->
@@ -275,7 +277,7 @@
   <div class="qdn">Quoi de neuf?</div>
   <div class="tiles">
     <div class="tile mio" id="mioTile"><div class="ic"><svg viewBox="0 0 48 48"><rect x="4" y="11" width="40" height="27" rx="2" fill="#fff"/><path d="M4 12l20 15 20-15" stroke="#2a74d6" stroke-width="3" fill="none"/></svg></div><div class="tx" id="mioTileTx">73 nouveaux Mio</div></div>
-    <div class="tile pay" data-open="paiement"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 3379,00 $</div></div>
+    <div class="tile pay" data-open="paiement"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 1 234,56 $</div></div>
   </div>
   <div class="sbar">Services Omnivox</div>
   <div id="svcList"></div>
@@ -292,7 +294,7 @@
 
 </main>
 
-<div id="detail"><div class="dh"><button id="back" aria-label="Retour">‹</button><h2 id="dTitle"></h2></div><div class="db" id="dBody"></div></div>
+<div id="detail"><div class="dh"><button id="back" aria-label="Retour">‹</button><h2 id="dTitle"></h2><span class="demo">DÉMO</span></div><div class="db" id="dBody"></div></div>
 <div id="toast"></div>
 
 <nav>
@@ -401,13 +403,13 @@
     e0: ['Évènement', `<div class="card"><h3>Cours auto-défense</h3><div class="m">Jeudi 29 octobre · 13h00</div>Campus Gatineau. Activité gratuite, inscription à la vie étudiante.</div>`],
     e1: ['Évènement', `<div class="card"><h3>Appréciation de l'enseignement</h3><div class="m">Du vendredi 30 octobre au lundi 2 novembre</div>
       Donnez votre avis sur vos cours de la session. Le questionnaire est anonyme et prend environ 5 minutes.</div>`],
-    e2: ['Travail', `<div class="card"><h3>TP - OSSIM simplifié</h3><div class="m">Gestion de réseaux · 420-E15-UC · Remise le mardi 3 novembre</div>
-      Installer et configurer OSSIM, puis remettre le rapport dans Léa.</div>`],
+    e2: ['Travail', `<div class="card"><h3>TP - Requêtes SQL</h3><div class="m">Bases de données · DEMO-102 · Remise le mardi 3 novembre</div>
+      Écrire les requêtes demandées, puis remettre le fichier dans Léa.</div>`],
     aide: ['Aide', `<div class="card"><h3>Rejoindre une classe à distance</h3><ul>
       <li>Le bouton « Rejoindre la classe » apparaît 15 minutes avant le début du cours.</li><li>Installez l'application Zoom à l'avance.</li>
       <li>Utilisez votre nom complet à l'entrée.</li><li>En cas de problème, écrivez un Mio à votre enseignant.</li></ul></div>`],
     paiement: ['Centre de paiement', `<div class="card"><h3>État de compte</h3><div class="m">Session Automne 2026</div>
-      <div class="kv"><b>Solde à payer</b><span class="tot">3 379,00 $</span></div></div>`]
+      <div class="kv"><b>Solde à payer</b><span class="tot">1 234,56 $</span></div></div>`]
   };
   const coms = [
     ['Emplois-Jobs', ['Conseiller(ère) à la vente — Aubainerie','Agent·e de ventes — Vidéotron','Préposé(e) à domicile']],
@@ -433,8 +435,8 @@
     if (off) return toast(label + ' : présentement désactivé');
     if (label === 'Centre de paiement') return openDetail(...D.paiement);
     if (label === 'Carte OPUS à tarif réduit') return openOpus();
-    if (label === 'Horaire') return openDetail(label, `<div class="card"><h3>Vendredi</h3><div class="m">18:00 - 21:00 · Zoom</div>Sécurité de l'infrastructure d'un réseau local<br>420-E16-UC gr. 49140</div>
-      <div class="card"><h3>Mardi</h3><div class="m">18:00 - 21:00 · Zoom</div>Gestion de réseaux<br>420-E15-UC</div>`);
+    if (label === 'Horaire') return openDetail(label, `<div class="card"><h3>Vendredi</h3><div class="m">18:00 - 21:00 · Zoom</div>Introduction à la programmation<br>DEMO-101 gr. 00001</div>
+      <div class="card"><h3>Mardi</h3><div class="m">18:00 - 21:00 · Zoom</div>Bases de données<br>DEMO-102</div>`);
     openDetail(label, `<div class="card">Aucune information à afficher pour le moment.</div>`);
   });
   document.getElementById('mioTile').onclick = () => document.querySelector('nav button[data-p=mio]').click();
@@ -489,11 +491,11 @@
   // ---------- Mio ----------
   const MIO_TOTAL = 73;
   const mios = [
-    ['Gedeon Ghislain Nkwewo Ngoufo', 'Rappel : classe Zoom ce soir à 18:00', "Bonsoir à tous,\n\nPetit rappel : notre classe a lieu ce soir de 18:00 à 21:00 sur Zoom. Le lien est disponible dans Omnivox 15 minutes avant.\n\nBonne soirée.", '30 oct.'],
+    ['Enseignant Démo', 'Rappel : classe Zoom ce soir à 18:00', "Bonsoir à tous,\n\nPetit rappel : notre classe a lieu ce soir de 18:00 à 21:00 sur Zoom. Le lien est disponible dans Omnivox 15 minutes avant.\n\nBonne soirée.", '30 oct.'],
     ['Service aux étudiants', "Appréciation de l'enseignement", "L'appréciation de l'enseignement est ouverte du 30 octobre au 2 novembre. Merci de prendre quelques minutes pour remplir le questionnaire.", '29 oct.'],
     ['Vie étudiante - Gatineau', 'Décoration de citrouilles jeudi 13h00', 'Rejoignez-nous à la cafétéria jeudi à 13h00 pour décorer des citrouilles. Matériel fourni !', '28 oct.'],
     ['Emplois-Jobs', "3 nouvelles offres d'emploi", "De nouvelles offres ont été publiées : Aubainerie, Vidéotron et préposé(e) à domicile. Consultez la communauté Emplois-Jobs.", '24 oct.'],
-    ['Centre de paiement', 'Rappel : solde à payer', 'Votre solde à payer est de 3 379,00 $. Consultez le Centre de paiement pour les modalités.', '20 oct.'],
+    ['Centre de paiement', 'Rappel : solde à payer', 'Votre solde à payer est de 1 234,56 $. Consultez le Centre de paiement pour les modalités.', '20 oct.'],
     ['Vie étudiante - Gatineau', 'Atelier Finances Jean Châtelain', "Atelier gratuit sur le budget étudiant le jeudi 22 octobre à 13h00.", '19 oct.'],
     ['Registrariat', 'Semaine de relâche', 'Aucun cours du 12 au 16 octobre. Bonne relâche !', '9 oct.']
   ];
@@ -513,10 +515,10 @@
 
   // ---------- Léa ----------
   const courses = [
-    ["Sécurité de l'infrastructure d'un réseau local", '420-E16-UC gr. 49140', 'Gedeon Ghislain Nkwewo Ngoufo',
-      ['Nouveau document : Semaine 9 - Pare-feu', 'Nouvelle note : Quiz 2 — 17/20', 'Nouvel avis : classe de ce soir']],
-    ['Gestion de réseaux', '420-E15-UC', '',
-      ['Nouveau travail : TP - OSSIM simplifié (remise 3 nov.)', 'Nouveau document : Guide OSSIM', 'Nouvelle note : TP 3 — 85 %', 'Nouvel avis : local de laboratoire']]
+    ["Introduction à la programmation", 'DEMO-101 gr. 00001', 'Enseignant Démo',
+      ['Nouveau document : Semaine 9 - Boucles', 'Nouvelle note : Quiz 2 — 17/20', 'Nouvel avis : classe de ce soir']],
+    ['Bases de données', 'DEMO-102', '',
+      ['Nouveau travail : TP - Requêtes SQL (remise 3 nov.)', 'Nouveau document : Guide SQL', 'Nouvelle note : TP 3 — 85 %', 'Nouvel avis : local de laboratoire']]
   ];
   function renderLea(){
     let total = 0;
