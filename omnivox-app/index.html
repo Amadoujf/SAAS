@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Omnivox">
+<meta name="apple-mobile-web-app-title" content="Mon Campus">
 <meta name="theme-color" content="#f7892f">
-<title>Omnivox</title>
+<title>Mon Campus</title>
 <link rel="apple-touch-icon" href="icon.png">
 <link rel="icon" href="icon.png">
 <link rel="manifest" href="manifest.json">
@@ -171,17 +171,15 @@
 </head>
 <body>
 
-<header><h1>Omnivox</h1></header>
+<header><h1>Mon Campus</h1></header>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <symbol id="age" viewBox="0 0 100 100">
       <circle cx="50" cy="50" r="46" fill="#fff" stroke="#3fa34d" stroke-width="3"/>
-      <text x="50" y="25" text-anchor="middle" font-family="Arial" font-weight="700" font-size="13" fill="#3fa34d" letter-spacing="2">AGÉ</text>
-      <path d="M22 45h22v22h-22z M28 51h10v10h-10z" fill="none" stroke="#6b6b6b" stroke-width="5" stroke-linejoin="round"/>
-      <path d="M56 45h22v6h-16v10h16v6h-22z" fill="none" stroke="#6b6b6b" stroke-width="5" stroke-linejoin="round"/>
-      <path d="M38 30v36q0 12 12 12t12-12v-36" fill="none" stroke="#3fa34d" stroke-width="5"/>
-      <path d="M44 30v34q0 6 6 6t6-6v-34" fill="none" stroke="#3fa34d" stroke-width="3"/>
+      <path d="M50 26L14 42l36 16 36-16z" fill="#3fa34d"/>
+      <path d="M28 49v14q22 12 44 0V49L50 59z" fill="#6b6b6b"/>
+      <path d="M80 44v18" stroke="#3fa34d" stroke-width="3"/><circle cx="80" cy="64" r="3.5" fill="#3fa34d"/>
     </symbol>
   </defs>
 </svg>
@@ -200,7 +198,7 @@
 
   <div class="next">
     <h3>Votre prochaine classe à distance</h3>
-    <div class="b">Vous pourrez rejoindre cette classe via Omnivox 15 minutes avant son heure de début.</div>
+    <div class="b">Vous pourrez rejoindre cette classe via Mon Campus 15 minutes avant son heure de début.</div>
     <div class="s">Classe offerte par visioconférence Zoom</div>
     <p><b>Introduction à la programmation</b><br>
     DEMO-101 gr. 00001<br>Enseignant Démo<br>Vendredi 30 octobre de 18:00 à 21:00</p>
@@ -256,7 +254,7 @@
       <div class="meta"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5"/></svg>Il y a 6 jours</div></div></div>
   </div>
 
-  <div class="foot">Amadou Boury Diouf<br>Compte démo — pas un vrai compte</div>
+  <div class="foot">Amadou Boury Diouf</div>
 </section>
 
 <!-- ============ MIO ============ -->
@@ -278,7 +276,7 @@
     <div class="tile mio" id="mioTile"><div class="ic"><svg viewBox="0 0 48 48"><rect x="4" y="11" width="40" height="27" rx="2" fill="#fff"/><path d="M4 12l20 15 20-15" stroke="#2a74d6" stroke-width="3" fill="none"/></svg></div><div class="tx" id="mioTileTx">73 nouveaux Mio</div></div>
     <div class="tile pay" data-open="paiement"><div class="ic"><svg viewBox="0 0 48 48"><path d="M10 4h20l8 8v32H10z" fill="#fff"/><path d="M15 16h12M15 22h18M15 28h10M15 34h10" stroke="#5aa61a" stroke-width="2.5"/><text x="34" y="38" font-size="12" font-weight="700" fill="#5aa61a" text-anchor="middle">$</text></svg></div><div class="tx">Solde à payer de 1 234,56 $</div></div>
   </div>
-  <div class="sbar">Services Omnivox</div>
+  <div class="sbar">Mes services</div>
   <div id="svcList"></div>
 </section>
 
@@ -490,7 +488,7 @@
   // ---------- Mio ----------
   const MIO_TOTAL = 73;
   const mios = [
-    ['Enseignant Démo', 'Rappel : classe Zoom ce soir à 18:00', "Bonsoir à tous,\n\nPetit rappel : notre classe a lieu ce soir de 18:00 à 21:00 sur Zoom. Le lien est disponible dans Omnivox 15 minutes avant.\n\nBonne soirée.", '30 oct.'],
+    ['Enseignant Démo', 'Rappel : classe Zoom ce soir à 18:00', "Bonsoir à tous,\n\nPetit rappel : notre classe a lieu ce soir de 18:00 à 21:00 sur Zoom. Le lien est disponible dans Mon Campus 15 minutes avant.\n\nBonne soirée.", '30 oct.'],
     ['Service aux étudiants', "Appréciation de l'enseignement", "L'appréciation de l'enseignement est ouverte du 30 octobre au 2 novembre. Merci de prendre quelques minutes pour remplir le questionnaire.", '29 oct.'],
     ['Vie étudiante - Gatineau', 'Décoration de citrouilles jeudi 13h00', 'Rejoignez-nous à la cafétéria jeudi à 13h00 pour décorer des citrouilles. Matériel fourni !', '28 oct.'],
     ['Emplois-Jobs', "3 nouvelles offres d'emploi", "De nouvelles offres ont été publiées : Aubainerie, Vidéotron et préposé(e) à domicile. Consultez la communauté Emplois-Jobs.", '24 oct.'],
