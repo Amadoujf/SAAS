@@ -276,30 +276,49 @@ interface Unwrapped {
   defaultValue?: unknown;
 }
 
+/** Définition interne d'un schéma Zod 4 (`_zod.def`), lue par son `type` déclaré —
+ *  plus stable que les noms de classes, qui ont changé entre Zod 3 et Zod 4. */
+type Def = {
+  type: string;
+  innerType?: z.ZodTypeAny;
+  defaultValue?: unknown;
+  in?: z.ZodTypeAny;
+  element?: z.ZodTypeAny;
+  entries?: Record<string, string | number>;
+  format?: string;
+  checks?: { _zod: { def: CheckDef } }[];
+};
+type CheckDef = { check: string; value?: number; minimum?: number; maximum?: number; format?: string };
+
+const defOf = (schema: z.ZodTypeAny): Def => (schema as unknown as { _zod: { def: Def } })._zod.def;
+const checksOf = (schema: z.ZodTypeAny): CheckDef[] => (defOf(schema).checks ?? []).map((c) => c._zod.def);
+
 function unwrap(schema: z.ZodTypeAny): Unwrapped {
   let required = true;
   let defaultValue: unknown;
   let current = schema;
   for (;;) {
-    if (current instanceof z.ZodDefault) {
-      defaultValue = current._def.defaultValue();
+    const def = defOf(current);
+    if (def.type === "default" || def.type === "prefault") {
+      defaultValue = def.defaultValue;
       required = false;
-      current = current._def.innerType;
+      current = def.innerType!;
       continue;
     }
-    if (current instanceof z.ZodOptional) {
+    if (def.type === "optional") {
       required = false;
-      current = current.unwrap();
+      current = def.innerType!;
       continue;
     }
-    if (current instanceof z.ZodNullable) {
-      current = current.unwrap();
+    if (def.type === "nullable") {
+      current = def.innerType!;
       continue;
     }
-    // Règle de validation personnalisée (`.refine`) : le champ garde la forme de son
-    // schéma interne (chaîne, nombre…), la règle reste appliquée à l'enregistrement.
-    if (current instanceof z.ZodEffects) {
-      current = current.innerType();
+    // Transformation (`.transform`, Zod 4 : « pipe ») : le champ garde la forme de son
+    // schéma d'entrée. Une règle `.refine` n'enveloppe plus le schéma en Zod 4 (elle
+    // s'ajoute à ses vérifications) : rien à déballer.
+    if (def.type === "pipe" && def.in) {
+      current = def.in;
       continue;
     }
     break;
@@ -325,10 +344,14 @@ export function describeField(name: string, rawSchema: z.ZodTypeAny): FieldDescr
   const { schema, required, defaultValue } = unwrap(rawSchema);
   const label = humanizeFieldName(name);
   const base = { name, label, required, defaultValue };
+  const def = defOf(schema);
 
-  if (schema instanceof z.ZodString) {
-    const isUrl = schema._def.checks?.some((check) => check.kind === "url") ?? false;
-    const isEmail = schema._def.checks?.some((check) => check.kind === "email") ?? false;
+  if (def.type === "string") {
+    // Format de la chaîne : sur le schéma lui-même (`z.url()`) ou dans ses
+    // vérifications (`z.string().url()`).
+    const formats = new Set([def.format, ...checksOf(schema).map((c) => c.format)].filter(Boolean));
+    const isUrl = formats.has("url");
+    const isEmail = formats.has("email");
     const isColor = /color/i.test(name);
     // Référence d'image (URL absolue OU chemin de la médiathèque) : même champ « lien »
     // que les URL, donc même bouton Médiathèque — jamais pour un texte alternatif.
@@ -342,29 +365,30 @@ export function describeField(name: string, rawSchema: z.ZodTypeAny): FieldDescr
     return { ...base, kind: "text" };
   }
 
-  if (schema instanceof z.ZodNumber) {
-    const minCheck = schema._def.checks?.find((check) => check.kind === "min") as
-      | { value: number }
-      | undefined;
-    const maxCheck = schema._def.checks?.find((check) => check.kind === "max") as
-      | { value: number }
-      | undefined;
-    return { ...base, kind: "number", min: minCheck?.value, max: maxCheck?.value };
+  if (def.type === "number") {
+    // Bornes explicites (`.min()`/`.max()`) uniquement : `.int()` ajoute en Zod 4 des
+    // bornes d'entier « sûr » qui ne sont pas des limites métier.
+    const checks = checksOf(schema);
+    const min = checks.find((c) => c.check === "greater_than")?.value;
+    const max = checks.find((c) => c.check === "less_than")?.value;
+    return { ...base, kind: "number", min, max };
   }
 
-  if (schema instanceof z.ZodBoolean) {
+  if (def.type === "boolean") {
     return { ...base, kind: "boolean" };
   }
 
-  if (schema instanceof z.ZodEnum) {
-    return { ...base, kind: "enum", enumOptions: schema.options as string[] };
+  if (def.type === "enum") {
+    return { ...base, kind: "enum", enumOptions: Object.values(def.entries ?? {}).map(String) };
   }
 
-  if (schema instanceof z.ZodArray) {
-    const { schema: element } = unwrap(schema._def.type as z.ZodTypeAny);
-    const min = schema._def.minLength?.value;
-    const max = schema._def.maxLength?.value;
-    if (element instanceof z.ZodString) {
+  if (def.type === "array" && def.element) {
+    const { schema: element } = unwrap(def.element);
+    const checks = checksOf(schema);
+    const min = checks.find((c) => c.check === "min_length")?.minimum;
+    const max = checks.find((c) => c.check === "max_length")?.maximum;
+    const elementType = defOf(element).type;
+    if (elementType === "string") {
       // Convention utilisée par toutes les sections e-commerce ET compatible avec
       // n'importe quel futur secteur : un tableau de chaînes nommé "...Ids" référence
       // des éléments métier externes (catalogue, base tenant) — édité comme une simple
@@ -372,20 +396,20 @@ export function describeField(name: string, rawSchema: z.ZodTypeAny): FieldDescr
       // limite assumée : pas d'accès catalogue en direct dans l'éditeur).
       return { ...base, kind: "id-list", min, max };
     }
-    if (element instanceof z.ZodObject) {
+    if (elementType === "object") {
       return {
         ...base,
         kind: "array-object",
         min,
         max,
-        itemFields: describeObjectSchema(element),
+        itemFields: describeObjectSchema(element as z.ZodObject<z.ZodRawShape>),
       };
     }
     return { ...base, kind: "unsupported" };
   }
 
-  if (schema instanceof z.ZodObject) {
-    return { ...base, kind: "object", fields: describeObjectSchema(schema) };
+  if (def.type === "object") {
+    return { ...base, kind: "object", fields: describeObjectSchema(schema as z.ZodObject<z.ZodRawShape>) };
   }
 
   return { ...base, kind: "unsupported" };

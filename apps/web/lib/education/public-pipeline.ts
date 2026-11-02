@@ -25,7 +25,7 @@ export const enrollmentSchema = z.object({
   studentLastName: z.string().trim().max(80).optional().default(""),
   birthDate: z.string().refine((v) => v === "" || isIsoDate(v), "Date de naissance invalide.").optional().default(""),
   note: z.string().trim().max(600).optional().default(""),
-  consent: z.literal(true, { errorMap: () => ({ message: "Acceptez d'être recontacté par l'établissement." }) }),
+  consent: z.literal(true, { error: "Acceptez d'être recontacté par l'établissement." }),
 });
 
 /**

@@ -12,7 +12,7 @@ const variantSchema = z.object({
   barcode: z.string().nullable().optional(),
   weightGrams: z.number().int().nonnegative().nullable().optional(),
   volumeCm3: z.number().int().nonnegative().nullable().optional(),
-  attributes: z.record(z.string()).optional(),
+  attributes: z.record(z.string(), z.string()).optional(),
 });
 
 export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {

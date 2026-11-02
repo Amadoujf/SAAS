@@ -58,7 +58,7 @@ export const requestSchema = z.object({
   feePaidBy: z.enum(["sender", "recipient"]),
   instructions: z.string().trim().max(300).optional().default(""),
   scheduledDate: z.string().max(10).optional().default(""),
-  consent: z.literal(true, { errorMap: () => ({ message: "Confirmez que le colis ne contient rien d'interdit ni de dangereux." }) }),
+  consent: z.literal(true, { error: "Confirmez que le colis ne contient rien d'interdit ni de dangereux." }),
 });
 
 /** Demande de course en ligne : l'expéditeur reçoit son lien de suivi ; aucun paiement en ligne. */

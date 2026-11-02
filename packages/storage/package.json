@@ -14,7 +14,7 @@
     "@aws-sdk/client-s3": "^3.686.0",
     "@aws-sdk/s3-request-presigner": "^3.686.0",
     "sharp": "0.35.5",
-    "zod": "^3.24.1"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/node": "^20.17.9",
