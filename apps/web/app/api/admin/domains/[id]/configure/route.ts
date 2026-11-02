@@ -24,7 +24,7 @@ const bodySchema = z.object({
   priceBilledXOF: z.number().nullable().optional(),
   paymentStatus: z.string().nullable().optional(),
   legalOwnerName: z.string().nullable().optional(),
-  legalOwnerContact: z.record(z.unknown()).nullable().optional(),
+  legalOwnerContact: z.record(z.string(), z.unknown()).nullable().optional(),
   transferStatus: z.string().nullable().optional(),
   isLocked: z.boolean().optional(),
 });

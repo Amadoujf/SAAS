@@ -40,7 +40,7 @@ export type PageForPreview = z.infer<typeof pageForPreviewSchema>;
  *  structuré, qui ne sait transporter que cela. On ne valide pas sa forme précise ici
  *  (elle dépend du secteur/catalogue, hors du contrat générique de l'éditeur) — un
  *  enregistrement libre, revalidé de toute façon par `SectionRenderer` à l'affichage. */
-const resolvedContentSchema = z.record(z.unknown());
+const resolvedContentSchema = z.record(z.string(), z.unknown());
 
 /** Message ENVOYÉ PAR LE PARENT (éditeur) VERS l'iframe (aperçu). */
 export const parentToFrameMessageSchema = z.discriminatedUnion("type", [

@@ -626,7 +626,7 @@ export const sectionInstanceSchema = z.object({
   id: z.string(),
   sectionKey: z.enum(SECTION_KEYS),
   variant: z.string(),
-  params: z.record(z.unknown()),
+  params: z.record(z.string(), z.unknown()),
   order: z.number().int(),
   isEnabled: z.boolean().default(true),
   /** "inherit" = suit le niveau d'animation du site ; sinon override ponctuel. */

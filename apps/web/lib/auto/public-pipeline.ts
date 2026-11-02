@@ -61,7 +61,7 @@ export const testDriveSchema = z.object({
   lastName: z.string().trim().max(80).optional().default(""),
   phone: z.string().trim().min(6, "Indiquez votre téléphone.").max(20),
   email: z.string().trim().email("E-mail invalide.").max(160).optional().or(z.literal("")).default(""),
-  licenseConfirmed: z.literal(true, { errorMap: () => ({ message: "Confirmez que vous avez un permis de conduire valide." }) }),
+  licenseConfirmed: z.literal(true, { error: "Confirmez que vous avez un permis de conduire valide." }),
   note: z.string().trim().max(400).optional().default(""),
 });
 

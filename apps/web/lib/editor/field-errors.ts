@@ -7,47 +7,49 @@ import { z } from "zod";
  * message — robuste à n'importe quel schéma, y compris ceux d'un futur secteur, sans
  * dictionnaire de champs à maintenir.
  */
-function translateIssue(issue: z.ZodIssue): string {
+function translateIssue(issue: z.core.$ZodIssue): string {
   switch (issue.code) {
-    case z.ZodIssueCode.invalid_type:
-      if (issue.received === "undefined" || issue.received === "null") {
+    case "invalid_type": {
+      // Valeur absente : Zod 4 ne garde la valeur reçue que sur demande (`reportInput`,
+      // voir `validateWithMessages`), sinon seul son message la mentionne.
+      const input = (issue as { input?: unknown }).input;
+      if (("input" in issue && (input === undefined || input === null)) || /received (undefined|null)\b/.test(issue.message)) {
         return "Ce champ est requis.";
       }
       return `Valeur invalide (type attendu : ${issue.expected}).`;
+    }
 
-    case z.ZodIssueCode.too_small:
-      if (issue.type === "string") {
-        return issue.minimum === 1
-          ? "Ce champ est requis."
-          : `Doit contenir au moins ${issue.minimum} caractères.`;
+    case "too_small": {
+      const minimum = Number(issue.minimum);
+      if (issue.origin === "string") {
+        return minimum === 1 ? "Ce champ est requis." : `Doit contenir au moins ${minimum} caractères.`;
       }
-      if (issue.type === "array") {
-        return `Sélectionnez au moins ${issue.minimum} élément(s).`;
+      if (issue.origin === "array" || issue.origin === "set") {
+        return `Sélectionnez au moins ${minimum} élément(s).`;
       }
-      if (issue.type === "number") {
-        return `Doit être supérieur ou égal à ${issue.minimum}.`;
+      if (issue.origin === "number" || issue.origin === "int" || issue.origin === "bigint") {
+        return `Doit être supérieur ou égal à ${minimum}.`;
       }
       return "Valeur trop petite.";
+    }
 
-    case z.ZodIssueCode.too_big:
-      if (issue.type === "string") {
-        return `Doit contenir au plus ${issue.maximum} caractères.`;
-      }
-      if (issue.type === "array") {
-        return `Sélectionnez au plus ${issue.maximum} élément(s).`;
-      }
-      if (issue.type === "number") {
-        return `Doit être inférieur ou égal à ${issue.maximum}.`;
+    case "too_big": {
+      const maximum = Number(issue.maximum);
+      if (issue.origin === "string") return `Doit contenir au plus ${maximum} caractères.`;
+      if (issue.origin === "array" || issue.origin === "set") return `Sélectionnez au plus ${maximum} élément(s).`;
+      if (issue.origin === "number" || issue.origin === "int" || issue.origin === "bigint") {
+        return `Doit être inférieur ou égal à ${maximum}.`;
       }
       return "Valeur trop grande.";
+    }
 
-    case z.ZodIssueCode.invalid_string:
-      if (issue.validation === "url") return "Doit être un lien valide (ex. https://...).";
-      if (issue.validation === "email") return "Doit être une adresse courriel valide.";
+    case "invalid_format":
+      if (issue.format === "url") return "Doit être un lien valide (ex. https://...).";
+      if (issue.format === "email") return "Doit être une adresse courriel valide.";
       return "Format invalide.";
 
-    case z.ZodIssueCode.invalid_enum_value:
-      return `Valeur invalide. Choisissez parmi : ${issue.options.join(", ")}.`;
+    case "invalid_value":
+      return `Valeur invalide. Choisissez parmi : ${issue.values.map(String).join(", ")}.`;
 
     default:
       return issue.message || "Valeur invalide.";
@@ -76,7 +78,7 @@ export function validateWithMessages<T>(
   schema: z.ZodType<T>,
   value: unknown,
 ): FieldValidationResult<T> {
-  const result = schema.safeParse(value);
+  const result = schema.safeParse(value, { reportInput: true });
   if (result.success) {
     return { success: true, data: result.data, fieldErrors: {} };
   }
