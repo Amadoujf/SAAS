@@ -12,7 +12,8 @@ import { VisitRequestForm } from "@/components/estate/visit-request-form";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const r = await resolveEstate(`/biens/${params.slug}`);
   if (r.status !== "ok") return {};
   const l = await withTenant(r.estate.tenantId, (tx) => getPublishedPropertyBySlug(tx, r.estate.tenantId, params.slug));
@@ -23,7 +24,8 @@ const nf = new Intl.NumberFormat("fr-FR");
 
 /** Fiche publique d'un bien PUBLIÉ : galerie, caractéristiques, description,
  *  équipements, localisation (commune et quartier seulement) et demande de visite. */
-export default async function PropertyPage({ params }: { params: { slug: string } }) {
+export default async function PropertyPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const r = await resolveEstate(`/biens/${params.slug}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

@@ -14,7 +14,8 @@ import { PhoneBookingForm } from "@/components/dashboard-travel/phone-booking-fo
 export const metadata: Metadata = { title: "Manifeste du départ — Y-COM", robots: { index: false, follow: false } };
 
 /** Manifeste d'un départ : chaque voyageur, ses pièces, l'état du paiement de sa réservation. */
-export default async function ManifestPage({ params }: { params: { id: string } }) {
+export default async function ManifestPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireTravelPage("reservations.view");
   const manifest = await withTenant(membership.tenantId, (tx) => departureManifest(tx, membership.tenantId, params.id));
   if (!manifest) notFound();

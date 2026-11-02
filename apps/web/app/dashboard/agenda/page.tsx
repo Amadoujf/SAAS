@@ -19,7 +19,8 @@ const PX_PER_MIN = 1.3;
  * absences, rendez-vous positionnés à la minute (couleur = statut), ligne de l'heure
  * actuelle. Chaque rendez-vous ouvre sa fiche ; « + » ouvre une prise de rendez-vous.
  */
-export default async function AgendaPage({ searchParams }: { searchParams: { jour?: string } }) {
+export default async function AgendaPage(props: { searchParams: Promise<{ jour?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireSalonPage("reservations.view");
   const canBook = hasPermission(membership.permissions, "reservations.update_status");
   const data = await withTenant(membership.tenantId, async (tx) => {

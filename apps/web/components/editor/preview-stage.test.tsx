@@ -213,7 +213,7 @@ describe("PreviewStage — communication avec l'iframe d'aperçu", () => {
     });
     rerender(<PreviewStage {...baseProps({ onSelectSection, selectedSectionId: "hero-1" })} />);
     const scrollCalls = postMessageSpy.mock.calls.filter(
-      (call) => (call[0] as { type?: string })?.type === "SCROLL_TO_SECTION",
+      (call: unknown[]) => (call[0] as { type?: string })?.type === "SCROLL_TO_SECTION",
     );
     expect(scrollCalls).toHaveLength(0);
   });

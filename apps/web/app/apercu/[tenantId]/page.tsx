@@ -36,13 +36,14 @@ export const metadata: Metadata = {
  * par `postMessage` pour prévisualiser des modifications NON enregistrées (voir
  * PreviewStage) — jamais persisté par ce document, qui reste un simple afficheur.
  */
-export default async function TenantDraftPreviewPage({
-  params,
-  searchParams,
-}: {
-  params: { tenantId: string };
-  searchParams: { page?: string };
-}) {
+export default async function TenantDraftPreviewPage(
+  props: {
+    params: Promise<{ tenantId: string }>;
+    searchParams: Promise<{ page?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const session = await auth();
   if (!session?.user) {
     redirect("/connexion");

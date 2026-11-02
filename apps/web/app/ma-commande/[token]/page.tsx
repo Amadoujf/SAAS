@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 const STEPS = ["new", "accepted", "preparing", "ready", "completed"] as const;
 
 /** Suivi d'une commande par son jeton : le client ne voit que LA SIENNE. */
-export default async function OrderTrackingPage({ params }: { params: { token: string } }) {
+export default async function OrderTrackingPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveRestaurant(`/ma-commande/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

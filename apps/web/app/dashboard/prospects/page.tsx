@@ -14,7 +14,10 @@ export const dynamic = "force-dynamic";
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 
 /** Prospects par étape : demandes du site, essais, négociations ; perte toujours motivée. */
-export default async function LeadsPage({ searchParams }: { searchParams: { ouvert?: string; q?: string; clos?: string } }) {
+export default async function LeadsPage(
+  props: { searchParams: Promise<{ ouvert?: string; q?: string; clos?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const membership = await requireAutoPage("customers.view");
   const tenantId = membership.tenantId;
   const openId = searchParams.ouvert && /^[0-9a-f-]{36}$/.test(searchParams.ouvert) ? searchParams.ouvert : null;

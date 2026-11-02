@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 const uuid = (v?: string) => (v && /^[0-9a-f-]{36}$/.test(v) ? v : null);
 
 /** Dossiers de vente : un par véhicule, encaissements par le service commun, remise après règlement. */
-export default async function SalesPage({ searchParams }: { searchParams: { vehicule?: string; prospect?: string } }) {
+export default async function SalesPage(props: { searchParams: Promise<{ vehicule?: string; prospect?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireAutoPage("reservations.view");
   const tenantId = membership.tenantId;
   const data = await withTenant(tenantId, async (tx) => ({

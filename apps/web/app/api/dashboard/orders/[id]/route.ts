@@ -15,7 +15,8 @@ const bodySchema = z.discriminatedUnion("action", [
 
 /** Actions du dashboard sur UNE commande — permission vérifiée par action dans
  *  `dashboard-pipeline.ts`, isolation tenant par RLS. */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Requête invalide." }, { status: 400 });

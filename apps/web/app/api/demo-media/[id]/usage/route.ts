@@ -15,7 +15,8 @@ import {
  * visuel (voir lib/editor/media-references.ts, basé sur l'introspection de schéma —
  * fonctionne pour n'importe quelle section/secteur).
  */
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   await ensureDemoMediaSeeded(request.nextUrl.origin);
   const asset = await demoMediaRepositoryInstance().get(DEMO_TENANT_ID, params.id);
   if (!asset) {

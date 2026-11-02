@@ -11,7 +11,8 @@ export const metadata: Metadata = { title: "Commander à table", robots: { index
 export const dynamic = "force-dynamic";
 
 /** Carte ouverte par le QR code posé sur une table : la commande part en cuisine pour CETTE table. */
-export default async function TableOrderPage({ params }: { params: { qrToken: string } }) {
+export default async function TableOrderPage(props: { params: Promise<{ qrToken: string }> }) {
+  const params = await props.params;
   const r = await resolveRestaurant(`/table/${params.qrToken}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

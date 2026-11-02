@@ -13,7 +13,8 @@ const body = z.discriminatedUnion("action", [
 ]);
 
 /** Actions du client sur SA commande — le jeton d'accès est exigé à chaque appel. */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const active = await resolveActiveTenant(request.headers.get("host") ?? "");
   if (active.status !== "ok") return NextResponse.json({ error: "Boutique introuvable." }, { status: 404 });

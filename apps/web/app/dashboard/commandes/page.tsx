@@ -14,7 +14,8 @@ import { IconChevronRight, IconDownload, IconSearch, IconStore, IconTruck } from
 
 export const metadata: Metadata = { title: "Commandes — Y-COM", robots: { index: false, follow: false } };
 
-export default async function OrdersPage({ searchParams }: { searchParams: Record<string, string | undefined> }) {
+export default async function OrdersPage(props: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const searchParams = await props.searchParams;
   const ctx = await resolveDashboardTenant("orders.view");
   if (!ctx) redirect("/dashboard");
   const filter = parseOrderFilters(searchParams);

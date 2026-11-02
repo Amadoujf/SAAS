@@ -27,7 +27,8 @@ const PAY: Record<string, { label: string; tone: "success" | "warning" | "neutra
 };
 
 /** Commandes du restaurant : du jour, en cours, à encaisser, historique. */
-export default async function RestaurantOrdersPage({ searchParams }: { searchParams: { file?: string; q?: string } }) {
+export default async function RestaurantOrdersPage(props: { searchParams: Promise<{ file?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireRestaurantPage("orders.view");
   const queue = QUEUES.find((q) => q.key === (searchParams.file ?? ""))?.key ?? "";
   const search = searchParams.q?.trim().slice(0, 60) || undefined;

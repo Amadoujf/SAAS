@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type Sharp } from "sharp";
 
 /**
  * Génération des variantes d'image — voir docs/12 §12.2, « médiathèque R2 » (21
@@ -40,7 +40,7 @@ export interface GeneratedVariant {
 }
 
 async function encodeAt(
-  image: sharp.Sharp,
+  image: Sharp,
   format: EncodedFormat,
 ): Promise<{ bytes: Buffer; width: number; height: number }> {
   const pipeline =
@@ -59,7 +59,7 @@ async function encodeAt(
  *  PLUS LÉGER — voir la documentation de tête de fichier. `sourceFormat` (jpeg/png)
  *  est toujours candidat ; WebP et AVIF le sont EN PLUS, jamais à la place. */
 async function smallestEncoding(
-  resized: sharp.Sharp,
+  resized: Sharp,
   sourceFormat: "jpeg" | "png",
 ): Promise<{ format: EncodedFormat; bytes: Buffer; width: number; height: number }> {
   const candidates = await Promise.all([

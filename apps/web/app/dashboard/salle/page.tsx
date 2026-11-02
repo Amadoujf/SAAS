@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Réservations — Y-COM", robots: { 
 export const dynamic = "force-dynamic";
 
 /** Réservations de table d'une journée : couverts, placement, arrivées. */
-export default async function DiningRoomPage({ searchParams }: { searchParams: { date?: string } }) {
+export default async function DiningRoomPage(props: { searchParams: Promise<{ date?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireRestaurantPage("reservations.view");
   const data = await withTenant(membership.tenantId, async (tx) => {
     const tz = (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar";

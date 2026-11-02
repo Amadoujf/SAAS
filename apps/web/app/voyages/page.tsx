@@ -17,7 +17,8 @@ type Params = { type?: string; pays?: string; mois?: string; budget?: string; q?
 
 /** Catalogue des voyages : filtres partageables dans l'adresse (type, destination, mois
  *  de départ, budget). Seuls les voyages publiés apparaissent. */
-export default async function TripsPage({ searchParams }: { searchParams: Params }) {
+export default async function TripsPage(props: { searchParams: Promise<Params> }) {
+  const searchParams = await props.searchParams;
   const r = await resolveTravel("/voyages");
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

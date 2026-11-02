@@ -7,7 +7,8 @@ import { requireSuperAdmin } from "@/lib/domains/require-super-admin";
  *  TOUS les événements, y compris les webhooks rejetés (signature invalide déjà
  *  exclue en amont — voir packages/billing, celle-là ne peut pas être rattachée à un
  *  tenant — mais montant/produit/session incohérents SONT journalisés ici). */
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const admin = await requireSuperAdmin();
   if (!admin) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 

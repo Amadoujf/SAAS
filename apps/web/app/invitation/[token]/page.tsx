@@ -9,7 +9,8 @@ import { InvitationForm } from "./invitation-form";
 
 export const metadata: Metadata = { title: "Invitation — Y-COM", robots: { index: false, follow: false } };
 
-export default async function InvitationPage({ params }: { params: { token: string } }) {
+export default async function InvitationPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const [invitation, session] = await Promise.all([withSuperAdminAccess((tx) => findInvitationByToken(tx, params.token)), auth()]);
   const sessionEmail = session?.user?.email?.toLowerCase() ?? null;
   return (

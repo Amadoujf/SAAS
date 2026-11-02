@@ -7,7 +7,8 @@ export const metadata: Metadata = { title: "Prévisualisation privée", robots: 
 export const dynamic = "force-dynamic";
 
 /** Porte de la prévisualisation privée : un code, puis la page demandée. */
-export default function PreviewGatePage({ searchParams }: { searchParams: { suite?: string; erreur?: string } }) {
+export default async function PreviewGatePage(props: { searchParams: Promise<{ suite?: string; erreur?: string }> }) {
+  const searchParams = await props.searchParams;
   if (!previewEnabled()) redirect("/");
   const next = safeNext(searchParams.suite);
   const error = searchParams.erreur === "code" ? "Code incorrect." : searchParams.erreur === "trop" ? "Trop d'essais : réessayez dans quelques minutes." : null;

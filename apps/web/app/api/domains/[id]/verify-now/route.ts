@@ -16,7 +16,8 @@ const VERIFY_NOW_WINDOW_MS = 5 * 60 * 1000;
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());

@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 const KIND: Record<string, string> = { deposit: "Acompte", balance: "Solde", other: "Autre" };
 const when = (d: Date) => new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Dakar" }).format(d);
 
-export default async function SalePage({ params }: { params: { id: string } }) {
+export default async function SalePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireAutoPage("reservations.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const s = await withTenant(membership.tenantId, (tx) => getSale(tx, membership.tenantId, params.id));

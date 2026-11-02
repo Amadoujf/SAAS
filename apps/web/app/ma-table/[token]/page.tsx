@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Ma réservation", robots: { index: f
 export const dynamic = "force-dynamic";
 
 /** Réservation de table par son jeton : le client ne voit que LA SIENNE. */
-export default async function MyTablePage({ params }: { params: { token: string } }) {
+export default async function MyTablePage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveRestaurant(`/ma-table/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

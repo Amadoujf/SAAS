@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { PrismaClient, prisma, withSuperAdminAccess, withTenant } from "@yamacommerce/database";
 
 /** Client élevé (rôle propriétaire), réservé au nettoyage de test — voir
@@ -146,7 +146,7 @@ describe.skipIf(!databaseAvailable)("Invalidation du cache — pipeline catalogu
     });
   });
 
-  let invalidateCache: ReturnType<typeof vi.fn>;
+  let invalidateCache: Mock<(tenantId: string) => void>;
   beforeEach(() => {
     invalidateCache = vi.fn();
     mockSuperAdminSession(); // réinitialisé avant chaque test — voir "Permissions distinctes" plus bas, qui le remplace ponctuellement.

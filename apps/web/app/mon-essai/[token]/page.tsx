@@ -13,7 +13,8 @@ export const metadata: Metadata = { title: "Mon essai", robots: { index: false, 
 export const dynamic = "force-dynamic";
 
 /** Suivi d'un essai par son jeton : le client ne voit que LE SIEN. */
-export default async function TestDriveTrackingPage({ params }: { params: { token: string } }) {
+export default async function TestDriveTrackingPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveAuto(`/mon-essai/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;
