@@ -3,7 +3,8 @@ import { DEMO_TENANT_ID, demoMediaRepositoryInstance } from "@/lib/media/demo-me
 
 /** Déplace un média dans la corbeille — voir « Déplacer d'abord le fichier dans la
  *  corbeille » (jamais une suppression directe et définitive depuis l'interface). */
-export async function POST(_request: Request, { params }: { params: { id: string } }) {
+export async function POST(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   try {
     await demoMediaRepositoryInstance().trash(DEMO_TENANT_ID, params.id);
     return NextResponse.json({ ok: true });

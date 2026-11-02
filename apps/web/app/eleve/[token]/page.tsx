@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Espace élève", robots: { index: fa
 export const dynamic = "force-dynamic";
 
 /** Espace élève par lien personnel : ses classes, son emploi du temps, ses présences et notes publiées. */
-export default async function StudentPage({ params }: { params: { token: string } }) {
+export default async function StudentPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveEducation(`/eleve/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

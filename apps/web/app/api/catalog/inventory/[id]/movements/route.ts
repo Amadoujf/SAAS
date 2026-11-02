@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { listStockMovementsAction } from "@/lib/catalog/stock-pipeline";
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 

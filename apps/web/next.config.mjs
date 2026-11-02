@@ -12,11 +12,10 @@ const nextConfig = {
     "@yamacommerce/storage",
     "@yamacommerce/templates",
   ],
-  experimental: {
-    // Prisma Client (moteur natif) ne doit pas être bundlé par Webpack pour les Server
-    // Components / Route Handlers.
-    serverComponentsExternalPackages: ["@prisma/client", "sharp"],
-  },
+  // Prisma Client (moteur natif) et sharp ne doivent pas être bundlés par Webpack pour
+  // les Server Components / Route Handlers (Next 15 : clé `serverExternalPackages`,
+  // anciennement `experimental.serverComponentsExternalPackages`).
+  serverExternalPackages: ["@prisma/client", "sharp"],
   images: {
     // Domaines d'images utilisés par les données de démonstration (voir
     // apps/web/lib/demo/luxury-minimal-template.ts). En production, chaque tenant

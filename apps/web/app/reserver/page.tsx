@@ -13,7 +13,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /** Prise de rendez-vous en ligne (prestation, personne, horaire libre, coordonnées). */
-export default async function BookPage({ searchParams }: { searchParams: { prestation?: string; avec?: string } }) {
+export default async function BookPage(props: { searchParams: Promise<{ prestation?: string; avec?: string }> }) {
+  const searchParams = await props.searchParams;
   const r = await resolveSalon("/reserver");
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

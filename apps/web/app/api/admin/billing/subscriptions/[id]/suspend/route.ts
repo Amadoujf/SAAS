@@ -12,7 +12,8 @@ const bodySchema = z.object({
 /** Suspension manuelle — voir docs/14-facturation-saas-abonnements.md. Ne supprime
  *  JAMAIS aucune donnée : seule la disponibilité du site public et les opérations
  *  payantes sont affectées (voir `resolve-public-site.ts`). */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const admin = await requireSuperAdmin();
   if (!admin) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

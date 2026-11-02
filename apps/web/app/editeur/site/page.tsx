@@ -28,7 +28,8 @@ export const dynamic = "force-dynamic";
  * ligne. Réservé aux membres autorisés à modifier le site ; propositions lues sous
  * isolation (celles d'une autre entreprise sont introuvables).
  */
-export default async function SiteDraftPreviewPage({ searchParams }: { searchParams: { job?: string; d?: string } }) {
+export default async function SiteDraftPreviewPage(props: { searchParams: Promise<{ job?: string; d?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   if (!session?.user) redirect("/connexion");
   const membership = await getCurrentTenantMembership();

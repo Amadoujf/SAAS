@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Catalogue" };
 
 /** Catalogue public RÉEL — mêmes protections domaine/tenant suspendu que le reste du
  *  site (voir `resolveStore`), design tokens de l'entreprise. */
-export default async function CataloguePage({ searchParams }: { searchParams: { categorie?: string; q?: string } }) {
+export default async function CataloguePage(props: { searchParams: Promise<{ categorie?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const resolution = await resolveStore(`/catalogue`);
   if (resolution.status === "suspended") return <PublicSiteSuspended tenantName={resolution.tenantName} />;
   if (resolution.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;

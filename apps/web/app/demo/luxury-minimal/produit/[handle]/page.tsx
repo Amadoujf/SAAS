@@ -30,7 +30,8 @@ export function generateStaticParams() {
   return getAllProductHandles().map((handle) => ({ handle }));
 }
 
-export function generateMetadata({ params }: { params: { handle: string } }): Metadata {
+export async function generateMetadata(props: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const product = getProductByHandle(params.handle);
   if (!product) return {};
   return {
@@ -39,7 +40,8 @@ export function generateMetadata({ params }: { params: { handle: string } }): Me
   };
 }
 
-export default function ProductPage({ params }: { params: { handle: string } }) {
+export default async function ProductPage(props: { params: Promise<{ handle: string }> }) {
+  const params = await props.params;
   const product = getProductByHandle(params.handle);
   if (!product) notFound();
 

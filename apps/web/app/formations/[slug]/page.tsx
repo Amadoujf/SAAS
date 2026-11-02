@@ -11,7 +11,8 @@ import { EnrollmentForm } from "@/components/education/enrollment-form";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const r = await resolveEducation(`/formations/${params.slug}`);
   if (r.status !== "ok") return {};
   const p = await loadProgram(r.school.tenantId, params.slug);
@@ -20,7 +21,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export const dynamic = "force-dynamic";
 
 /** Fiche d'une formation PUBLIÉE : programme, classes et places, frais détaillés, inscription. */
-export default async function ProgramPage({ params }: { params: { slug: string } }) {
+export default async function ProgramPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const r = await resolveEducation(`/formations/${params.slug}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

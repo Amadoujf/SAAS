@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Arrivages — Y-COM", robots: { inde
 export const dynamic = "force-dynamic";
 
 /** Importations : achat → mer → port → douane → prêt ; le client suit par un lien personnel. */
-export default async function ImportsPage({ searchParams }: { searchParams: { vehicule?: string } }) {
+export default async function ImportsPage(props: { searchParams: Promise<{ vehicule?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireAutoPage("listings.view");
   const tenantId = membership.tenantId;
   const data = await withTenant(tenantId, async (tx) => ({

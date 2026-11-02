@@ -14,7 +14,8 @@ import { IconPhone, IconTruck, IconWallet } from "@/components/yc/icons";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const active = await resolveActiveTenant((await headers()).get("host") ?? "");
   if (active.status !== "ok") return {};
   const product = await withTenant(active.tenantId, (tx) => getProductBySlugForTenant(tx, active.tenantId, params.slug, "PUBLISHED"));
@@ -24,7 +25,8 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 /** Fiche produit publique : galerie, choix de variante avec stock réel, ajout au
  *  panier serveur, suggestions de la même catégorie (jamais bloquantes). */
-export default async function ProductDetailPage({ params }: { params: { slug: string } }) {
+export default async function ProductDetailPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const resolution = await resolveStore(`/p/${params.slug}`);
   if (resolution.status === "suspended") return <PublicSiteSuspended tenantName={resolution.tenantName} />;
   if (resolution.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;

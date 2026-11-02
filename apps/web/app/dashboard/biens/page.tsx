@@ -21,7 +21,10 @@ const FILTERS = [
 ] as const;
 
 /** Biens de l'agence : vente et location, statut de publication, quota de fiches. */
-export default async function PropertiesPage({ searchParams }: { searchParams: { statut?: string; transaction?: string; q?: string } }) {
+export default async function PropertiesPage(
+  props: { searchParams: Promise<{ statut?: string; transaction?: string; q?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const membership = await requireRealEstatePage("listings.view");
   const status = FILTERS.some((f) => f.key && f.key === searchParams.statut) ? (searchParams.statut as "published") : undefined;
   const dealType = searchParams.transaction === "sale" || searchParams.transaction === "rent" ? searchParams.transaction : undefined;

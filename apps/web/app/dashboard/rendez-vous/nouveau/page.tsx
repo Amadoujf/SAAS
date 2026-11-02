@@ -8,7 +8,8 @@ import { DeskBookingForm } from "@/components/dashboard-salon/desk-booking-form"
 
 export const metadata: Metadata = { title: "Nouveau rendez-vous — Y-COM", robots: { index: false, follow: false } };
 
-export default async function NewAppointmentPage({ searchParams }: { searchParams: { jour?: string; avec?: string } }) {
+export default async function NewAppointmentPage(props: { searchParams: Promise<{ jour?: string; avec?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireSalonPage("reservations.update_status");
   const data = await withTenant(membership.tenantId, async (tx) => ({
     tz: (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar",

@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Véhicule — Y-COM", robots: { inde
 export const dynamic = "force-dynamic";
 
 /** Fiche d'un véhicule côté équipe : édition, et tout ce qui le concerne (essais, prospects, dossier, importation). */
-export default async function VehiclePage({ params }: { params: { id: string } }) {
+export default async function VehiclePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireAutoPage("listings.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const tenantId = membership.tenantId;

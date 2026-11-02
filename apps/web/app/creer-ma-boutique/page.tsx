@@ -13,7 +13,8 @@ export const metadata: Metadata = { title: "Créer ma boutique — Y-COM" };
 /** Onboarding : compte → boutique (adresse vérifiée en direct) → secteur → style.
  *  La création réelle (entreprise, domaine, essai, propriétaire) est faite par
  *  `provisionTenantForOwner`, en une seule transaction. */
-export default async function CreateStorePage({ searchParams }: { searchParams: { formule?: string } }) {
+export default async function CreateStorePage(props: { searchParams: Promise<{ formule?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   if (session?.user && (await getCurrentTenantMembership())) redirect("/dashboard");
   const [sectors, plan] = await withSuperAdminAccess(async (tx) => [
@@ -22,13 +23,13 @@ export default async function CreateStorePage({ searchParams }: { searchParams: 
   ] as const);
   return (
     <div className={ycFontVariables}>
-    <OnboardingFlow
-      loggedIn={!!session?.user}
-      sectors={sectors.filter((s) => s.isActive && s.key !== "custom").map((s) => ({ key: s.key, name: s.name, available: s.isAvailable }))}
-      templates={STORE_TEMPLATES.map((t) => ({ slug: t.slug, name: t.name, tagline: t.tagline, bg: t.tokens.colors.background, ink: t.tokens.colors.textPrimary, accent: t.tokens.colors.secondary, serif: /serif/i.test(t.tokens.typography.headingFont) && !/sans-serif/i.test(t.tokens.typography.headingFont) }))}
-      plan={plan?.name ?? null}
-      action={createStoreAction}
-    />
+      <OnboardingFlow
+        loggedIn={!!session?.user}
+        sectors={sectors.filter((s) => s.isActive && s.key !== "custom").map((s) => ({ key: s.key, name: s.name, available: s.isAvailable }))}
+        templates={STORE_TEMPLATES.map((t) => ({ slug: t.slug, name: t.name, tagline: t.tagline, bg: t.tokens.colors.background, ink: t.tokens.colors.textPrimary, accent: t.tokens.colors.secondary, serif: /serif/i.test(t.tokens.typography.headingFont) && !/sans-serif/i.test(t.tokens.typography.headingFont) }))}
+        plan={plan?.name ?? null}
+        action={createStoreAction}
+      />
     </div>
   );
 }

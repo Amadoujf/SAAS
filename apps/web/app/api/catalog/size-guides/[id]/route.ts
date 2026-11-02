@@ -4,7 +4,8 @@ import { getCurrentTenantMembership } from "@/lib/current-tenant";
 import { removeSizeGuide, saveSizeGuide } from "@/lib/catalog/size-guide-pipeline";
 import { guideSchema } from "@/lib/catalog/size-guide-schema";
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
@@ -14,7 +15,8 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   return result.ok ? NextResponse.json({ guide: result.data }) : NextResponse.json({ error: result.error }, { status: result.status });
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

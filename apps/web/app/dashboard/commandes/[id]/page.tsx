@@ -22,7 +22,8 @@ const NOTIF_STATUS: Record<string, { label: string; tone: "neutral" | "warning" 
   not_sent_no_provider: { label: "Non envoyée · aucun fournisseur", tone: "neutral" },
 };
 
-export default async function OrderDetailPage({ params }: { params: { id: string } }) {
+export default async function OrderDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const ctx = await resolveDashboardTenant("orders.view");
   if (!ctx) redirect("/dashboard");
   const membership = await getCurrentTenantMembership();

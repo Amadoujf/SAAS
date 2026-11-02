@@ -26,7 +26,8 @@ const TONE: Record<string, string> = {
  * voyageurs, montants — « payé » seulement pour les paiements réellement enregistrés par
  * l'agence —, comment régler l'acompte, pièces à fournir, annulation encadrée.
  */
-export default async function BookingStatusPage({ params }: { params: { token: string } }) {
+export default async function BookingStatusPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveTravel(`/reservation/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

@@ -1,3 +1,4 @@
+import type React from "react";
 import Link from "next/link";
 import type { LegalContext, PlatformLegal, TenantLegal } from "@/lib/legal/legal-context";
 import { tenantContact } from "@/lib/legal/legal-context";
@@ -12,7 +13,7 @@ import { LegalFacts, LegalSection, LegalText } from "./legal-page";
 
 const mail = (v: string | null) => (v ? <a href={`mailto:${v}`}>{v}</a> : null);
 
-function publisherFacts(p: PlatformLegal): [string, string | null | JSX.Element][] {
+function publisherFacts(p: PlatformLegal): [string, string | null | React.JSX.Element][] {
   return [
     ["Raison sociale", p.legalName],
     ["Forme juridique", p.legalForm],
@@ -25,7 +26,7 @@ function publisherFacts(p: PlatformLegal): [string, string | null | JSX.Element]
   ];
 }
 
-function sellerFacts(t: TenantLegal): [string, string | null | JSX.Element][] {
+function sellerFacts(t: TenantLegal): [string, string | null | React.JSX.Element][] {
   const c = tenantContact(t);
   return [
     ["Nom ou raison sociale", c.name],

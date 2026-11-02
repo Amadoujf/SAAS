@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type React from "react";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { z } from "zod";
 import type { sectionParamSchemas } from "@yamacommerce/templates";
@@ -40,7 +41,7 @@ export function ImmersiveShowcaseSection({ variant, params, items }: { variant: 
   const [focused, setFocused] = useState(false);
   const [announce, setAnnounce] = useState(false);
   const amp = useMotionAmplitude("balanced");
-  const inView = useInView(ref);
+  const inView = useInView(ref as React.RefObject<Element>);
   const pageVisible = usePageVisible();
   const count = items.length;
   const running = params.autoplay && count > 1 && !paused && !hovered && !focused && inView && pageVisible && amp > 0;

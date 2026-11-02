@@ -7,7 +7,8 @@ const stamp = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}
 const esc = (s: string) => s.replace(/[\;,]/g, (c) => `\\${c}`).replace(/\n/g, "\\n");
 
 /** Fichier agenda (.ics) du rendez-vous — uniquement pour SON jeton. */
-export async function GET(request: NextRequest, { params }: { params: { token: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const active = await resolveActiveTenant(request.headers.get("host") ?? "");
   if (active.status !== "ok" || !(await isSalonTenant(active.tenantId))) return new Response("Introuvable", { status: 404 });
   const a = await getAppointmentForGuest(active.tenantId, params.token);

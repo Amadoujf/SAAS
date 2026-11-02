@@ -38,7 +38,8 @@ const planUpdateSchema = z
   })
   .partial();
 
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const admin = await requireSuperAdmin();
   if (!admin) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

@@ -22,7 +22,8 @@ const QUEUES = [
 ] as const;
 
 /** Séjours : arrivées et départs du jour, clients sur place, demandes, historique. */
-export default async function StaysPage({ searchParams }: { searchParams: { file?: string; q?: string } }) {
+export default async function StaysPage(props: { searchParams: Promise<{ file?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireHotelPage("reservations.view");
   const queue = QUEUES.find((q) => q.key === (searchParams.file ?? ""))?.key ?? "";
   const search = searchParams.q?.trim().slice(0, 60) || undefined;

@@ -16,7 +16,8 @@ export const dynamic = "force-dynamic";
 const CHANNELS: Record<string, string> = { web: "réservé en ligne", phone: "réservé au téléphone", dashboard: "réservé à la réception", whatsapp: "réservé sur WhatsApp" };
 
 /** Fiche séjour : dates, chambre, voyageurs, arrivée/départ, modifications, encaissements, historique. */
-export default async function StayPage({ params }: { params: { id: string } }) {
+export default async function StayPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireHotelPage("reservations.view");
   const data = await withTenant(membership.tenantId, async (tx) => ({
     tz: (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar",

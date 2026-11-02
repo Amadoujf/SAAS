@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Formation — Y-COM", robots: { inde
 export const dynamic = "force-dynamic";
 
 /** Fiche d'une formation côté équipe : édition, classes (effectifs, enseignants), nouvelle classe. */
-export default async function ProgramPage({ params }: { params: { id: string } }) {
+export default async function ProgramPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireEducationPage("listings.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const tenantId = membership.tenantId;

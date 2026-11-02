@@ -19,7 +19,11 @@ const fcfa = (n: number) => `${new Intl.NumberFormat("fr-SN").format(n)} FCFA`;
 /** Suivi client d'UNE commande — accessible uniquement avec son jeton (lien reçu à la
  *  commande ou via /suivi). Une commande en attente de paiement n'est jamais
  *  présentée comme payée. */
-export default async function OrderTrackingPage({ params, searchParams }: { params: { id: string }; searchParams: { token?: string; nouvelle?: string } }) {
+export default async function OrderTrackingPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ token?: string; nouvelle?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const resolution = await resolveStore(`/commande/${params.id}`);
   if (resolution.status === "suspended") return <PublicSiteSuspended tenantName={resolution.tenantName} />;
   if (resolution.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={resolution.tenantName} />;

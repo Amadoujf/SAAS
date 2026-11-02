@@ -23,7 +23,8 @@ const updateSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export async function PATCH(request: NextRequest, { params }: { params: { addressId: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ addressId: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
@@ -40,7 +41,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { addres
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { addressId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ addressId: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

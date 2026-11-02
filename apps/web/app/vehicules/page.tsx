@@ -24,7 +24,10 @@ const SORTS = [
 ];
 
 /** Stock public filtrable : filtres dans l'adresse (partageables), fonctionnent sans JavaScript. */
-export default async function VehiclesPage({ searchParams }: { searchParams: Record<string, string | string[] | undefined> }) {
+export default async function VehiclesPage(
+  props: { searchParams: Promise<Record<string, string | string[] | undefined>> }
+) {
+  const searchParams = await props.searchParams;
   const r = await resolveAuto("/vehicules");
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

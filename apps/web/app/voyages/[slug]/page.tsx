@@ -12,7 +12,8 @@ import { Reveal } from "@/components/store/reveal";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const r = await resolveTravel(`/voyages/${params.slug}`);
   if (r.status !== "ok") return {};
   const t = await withTenant(r.travel.tenantId, (tx) => getPublishedTravelBySlug(tx, r.travel.tenantId, params.slug));
@@ -21,7 +22,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 /** Fiche publique d'un voyage PUBLIÉ : repères, programme, inclus, pièces à fournir,
  *  conditions de paiement, départs (places réelles) et réservation nominative. */
-export default async function TripPage({ params, searchParams }: { params: { slug: string }; searchParams: { depart?: string } }) {
+export default async function TripPage(
+  props: { params: Promise<{ slug: string }>; searchParams: Promise<{ depart?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const r = await resolveTravel(`/voyages/${params.slug}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

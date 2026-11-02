@@ -10,7 +10,8 @@ import { clockLabel } from "@/lib/salon/labels";
 
 export const metadata: Metadata = { title: "Membre de l'équipe — Y-COM", robots: { index: false, follow: false } };
 
-export default async function StaffMemberPage({ params }: { params: { id: string } }) {
+export default async function StaffMemberPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireSalonPage("listings.manage_availability");
   const data = await withTenant(membership.tenantId, async (tx) => ({
     tz: (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar",

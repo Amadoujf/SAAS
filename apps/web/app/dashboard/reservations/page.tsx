@@ -19,7 +19,8 @@ const QUEUES = [
 ] as const;
 
 /** Réservations de voyage : files de travail (à confirmer, acompte, solde, pièces) et historique. */
-export default async function BookingsPage({ searchParams }: { searchParams: { file?: string; q?: string } }) {
+export default async function BookingsPage(props: { searchParams: Promise<{ file?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireTravelPage("reservations.view");
   const queue = QUEUES.find((q) => q.key === (searchParams.file ?? ""))?.key ?? "";
   const search = searchParams.q?.trim().slice(0, 60) || undefined;

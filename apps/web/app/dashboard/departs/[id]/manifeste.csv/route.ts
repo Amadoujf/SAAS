@@ -13,7 +13,8 @@ const cell = (v: unknown) => {
 };
 
 /** Export du manifeste d'un départ (tableur) : jamais le numéro de passeport complet. */
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await getCurrentTenantMembership();
   if (!membership || !isTravel(await getTenantModuleKeys(membership.tenantId)) || !(await requireTenantPermission(membership.tenantId, "reservations.view"))) {
     return NextResponse.json({ error: "Action non autorisée." }, { status: 403 });

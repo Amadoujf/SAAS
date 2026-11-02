@@ -10,7 +10,8 @@ import { ServiceEditor } from "@/components/dashboard-salon/service-editor";
 
 export const metadata: Metadata = { title: "Prestation — Y-COM", robots: { index: false, follow: false } };
 
-export default async function ServicePage({ params }: { params: { id: string } }) {
+export default async function ServicePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireSalonPage("listings.edit");
   const { staff, services } = await withTenant(membership.tenantId, async (tx) => ({ staff: await listStaff(tx, membership.tenantId), services: await listServices(tx, membership.tenantId) }));
   const s = services.find((x) => x.id === params.id);

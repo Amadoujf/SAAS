@@ -9,7 +9,8 @@ import { withTenant } from "@yamacommerce/database";
 
 export const metadata: Metadata = { title: "Modifier le produit — Dashboard", robots: { index: false, follow: false } };
 
-export default async function EditProductPage({ params }: { params: { id: string } }) {
+export default async function EditProductPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await getCurrentTenantMembership();
   if (!membership) redirect("/dashboard");
   const catalogEnabled = await isCatalogModuleEnabled(membership.tenantId);

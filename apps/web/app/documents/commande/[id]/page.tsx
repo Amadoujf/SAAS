@@ -18,7 +18,11 @@ const TITLES = { preparation: "Bon de préparation", livraison: "Bon de livraiso
  * d'isolation. La facture n'est affichée que si elle a réellement été émise (commande
  * payée) — jamais une facture générée à la volée pour une commande impayée.
  */
-export default async function OrderDocumentPage({ params, searchParams }: { params: { id: string }; searchParams: { type?: string } }) {
+export default async function OrderDocumentPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ type?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const type = (searchParams.type ?? "preparation") as keyof typeof TITLES;
   if (!(type in TITLES)) notFound();
   const ctx = await resolveDashboardTenant(type === "facture" ? "invoices.view" : "orders.view");

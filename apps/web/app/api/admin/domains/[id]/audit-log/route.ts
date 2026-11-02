@@ -3,7 +3,8 @@ import { withSuperAdminAccess } from "@yamacommerce/database";
 import { requireSuperAdmin } from "@/lib/domains/require-super-admin";
 
 /** « Consulter le journal d'audit » — voir docs/13, « INTERFACE SUPER ADMIN ». */
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
+export async function GET(_request: Request, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const admin = await requireSuperAdmin();
   if (!admin) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
 

@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Inscription — Y-COM", robots: { in
 export const dynamic = "force-dynamic";
 
 /** Un dossier d'inscription : élève, responsable, classe, échéancier, encaissements, liens personnels. */
-export default async function EnrollmentPage({ params }: { params: { id: string } }) {
+export default async function EnrollmentPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireEducationPage("reservations.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const tenantId = membership.tenantId;

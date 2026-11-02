@@ -14,7 +14,8 @@ export const metadata: Metadata = { title: "Course — Y-COM", robots: { index: 
 export const dynamic = "force-dynamic";
 
 /** Une course : trajet, colis, sommes, preuve, historique ; actions selon le statut. */
-export default async function JobPage({ params }: { params: { id: string } }) {
+export default async function JobPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireCourierPage("delivery.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const tenantId = membership.tenantId;

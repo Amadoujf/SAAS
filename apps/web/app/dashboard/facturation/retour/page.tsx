@@ -14,11 +14,12 @@ export const metadata: Metadata = { title: "Retour de paiement — Facturation",
  * l'état réel : le webhook peut être arrivé AVANT (affiche "confirmé" directement) ou
  * ne jamais arriver (reste "en attente", jamais un octroi par défaut).
  */
-export default async function BillingReturnPage({
-  searchParams,
-}: {
-  searchParams: { ref?: string };
-}) {
+export default async function BillingReturnPage(
+  props: {
+    searchParams: Promise<{ ref?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const membership = await getCurrentTenantMembership();
   if (!membership) redirect("/dashboard");
 

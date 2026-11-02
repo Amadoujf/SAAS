@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { usePrefersReducedMotion } from "@/lib/motion/animation-level-context";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -13,7 +14,7 @@ import {
 
 export type NavIcon = "home" | "orders" | "customers" | "payments" | "products" | "categories" | "stock" | "delivery" | "settings" | "billing" | "chart" | "site" | "media" | "property" | "calendar" | "key" | "plane" | "ticket" | "scissors" | "bed" | "flame" | "menu" | "table" | "car" | "ship" | "folder" | "school" | "book";
 
-const ICONS: Record<NavIcon, (p: { size?: number }) => JSX.Element> = {
+const ICONS: Record<NavIcon, (p: { size?: number }) => React.JSX.Element> = {
   home: IconHome, orders: IconReceipt, customers: IconUsers, payments: IconWallet, products: IconBag,
   categories: IconTag, stock: IconStack, delivery: IconTruck, settings: IconSettings, billing: IconCard, chart: IconChart, site: IconGlobe,
   property: (p: { size?: number }) => (

@@ -17,7 +17,8 @@ export const metadata: Metadata = { title: "Réservation — Y-COM", robots: { i
 const dateOnly = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
 
 /** Réservation : statut, voyageurs et pièces, encaissements (reçus numérotés), historique. */
-export default async function BookingPage({ params }: { params: { id: string } }) {
+export default async function BookingPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireTravelPage("reservations.view");
   const b = await withTenant(membership.tenantId, (tx) => getTravelBooking(tx, membership.tenantId, params.id));
   if (!b) notFound();

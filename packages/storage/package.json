@@ -13,7 +13,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.686.0",
     "@aws-sdk/s3-request-presigner": "^3.686.0",
-    "sharp": "0.33.5",
+    "sharp": "0.35.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -22,6 +22,6 @@
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.1",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.12"
   }
 }

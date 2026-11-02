@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Suivi de mon véhicule", robots: { i
 export const dynamic = "force-dynamic";
 
 /** Suivi d'une importation par son jeton (lien remis par la concession au client). */
-export default async function ImportTrackingPage({ params }: { params: { token: string } }) {
+export default async function ImportTrackingPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveAuto(`/arrivage/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

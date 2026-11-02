@@ -18,6 +18,8 @@ export async function previewFingerprint(code: string) {
 }
 
 /** Chemins toujours accessibles : la page du code, sa vérification, le contrôle TLS de Caddy, les appels internes, les ressources. */
+const STATIC_IMAGE = /^\/[\w\-/]+\.(?:jpe?g|png|webp|avif|gif|svg|ico)$/i;
+
 export function isPreviewExempt(pathname: string) {
   return (
     pathname === "/acces-previsualisation" ||
@@ -29,7 +31,12 @@ export function isPreviewExempt(pathname: string) {
     pathname === "/robots.txt" ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/fonts/") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    // Illustrations statiques du dossier public (marketing, démonstrations) : depuis
+    // Next 15, l'optimiseur d'images les relit par une requête interne qui traverse ce
+    // middleware SANS le cookie du visiteur — bloquées, elles cassaient toutes les
+    // images. Jamais une route d'API (fichiers des entreprises : jetons signés).
+    (!pathname.startsWith("/api/") && STATIC_IMAGE.test(pathname))
   );
 }
 

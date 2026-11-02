@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 
 const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-export default async function RoomTypePage({ params }: { params: { id: string } }) {
+export default async function RoomTypePage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireHotelPage("listings.edit");
   const t = await withTenant(membership.tenantId, (tx) => getRoomType(tx, membership.tenantId, params.id).catch(() => null));
   if (!t?.roomType) notFound();

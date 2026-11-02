@@ -10,7 +10,8 @@ const bodySchema = z.object({
 });
 
 /** Renommage / texte alternatif / légende / dossier — voir « INTERFACE ». */
-export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Requête invalide." }, { status: 400 });

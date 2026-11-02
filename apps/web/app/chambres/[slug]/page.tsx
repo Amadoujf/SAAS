@@ -9,7 +9,8 @@ import { StayPlanner } from "@/components/hotel/stay-planner";
 import { PublicSiteSuspended } from "@/components/public-site-suspended";
 import { PublicSiteBillingSuspended } from "@/components/public-site-billing-suspended";
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const r = await resolveHotel(`/chambres/${params.slug}`);
   if (r.status !== "ok") return {};
   const t = await withTenant(r.hotel.tenantId, (tx) => getPublishedRoomTypeBySlug(tx, r.hotel.tenantId, params.slug));
@@ -18,7 +19,11 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export const dynamic = "force-dynamic";
 
 /** Fiche d'un type de chambre PUBLIÉ : photos, équipements, calendrier, réservation. */
-export default async function RoomPage({ params, searchParams }: { params: { slug: string }; searchParams: { arrivee?: string; depart?: string; adultes?: string; enfants?: string } }) {
+export default async function RoomPage(
+  props: { params: Promise<{ slug: string }>; searchParams: Promise<{ arrivee?: string; depart?: string; adultes?: string; enfants?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const r = await resolveHotel(`/chambres/${params.slug}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/yc/button";
 import { IconSparkles } from "@/components/yc/icons";
@@ -341,7 +342,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
             <div id="panneau-settings" role="tabpanel" hidden={panel !== "settings"} className="min-h-0 flex-1 overflow-y-auto bg-white px-4 py-4 xl:rounded-2xl xl:ring-1 xl:ring-yc-ink/[0.07]">
               <p className="mb-4 text-[13px] leading-relaxed text-yc-ink-soft">
                 Réglages manuels : ils s&apos;appliquent immédiatement au site en ligne.{" "}
-                <a href="/editeur" className="font-semibold text-yc-electric hover:underline">Éditeur section par section →</a>
+                <Link href="/editeur" className="font-semibold text-yc-electric hover:underline">Éditeur section par section →</Link>
               </p>
               {advanced}
             </div>
@@ -434,7 +435,7 @@ export function SiteStudio({ initial, canPublish, siteUrl, advanced }: { initial
         <div className="border-t border-yc-ink/[0.06] p-4 sm:p-5">
           <p className="mb-4 flex flex-wrap items-center gap-2 text-[13px] text-yc-ink-soft">
             Ces réglages s&apos;appliquent immédiatement au site en ligne.
-            <a href="/editeur" className="font-semibold text-yc-electric hover:underline">Ouvrir l&apos;éditeur section par section →</a>
+            <Link href="/editeur" className="font-semibold text-yc-electric hover:underline">Ouvrir l&apos;éditeur section par section →</Link>
           </p>
           {advanced}
         </div>

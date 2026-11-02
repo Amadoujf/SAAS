@@ -21,7 +21,8 @@ const FILES = [
 ];
 
 /** Courses : file du jour, affectation, suivi des échecs et retours ; saisie au bureau. */
-export default async function JobsPage({ searchParams }: { searchParams: { file?: string; q?: string } }) {
+export default async function JobsPage(props: { searchParams: Promise<{ file?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireCourierPage("delivery.view");
   const tenantId = membership.tenantId;
   const file = FILES.find((f) => f.key === (searchParams.file ?? "")) ?? FILES[0]!;

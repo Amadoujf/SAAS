@@ -16,7 +16,8 @@ const bodySchema = z.object({
  * reçu hors ligne, utiliser `/extend` à la place, qui applique la vraie formule de
  * renouvellement.
  */
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const admin = await requireSuperAdmin();
   if (!admin) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

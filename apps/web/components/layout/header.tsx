@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MegaMenuNav, type NavItem } from "@/components/layout/mega-menu-nav";
@@ -94,14 +95,14 @@ export function Header({
         }
       >
         <div className="mx-auto flex w-full max-w-[var(--content-max-width)] items-center justify-between px-6 lg:px-12">
-          <a
+          <Link
             href="/"
             className={`font-[family-name:var(--font-heading)] text-[length:var(--text-heading-sm)] tracking-[0.04em] transition-colors ${
               isDark ? "text-white" : "text-[var(--color-text-primary)]"
             }`}
           >
             {shopName}
-          </a>
+          </Link>
 
           <MegaMenuNav items={navItems} locale={locale} isDark={isDark} />
 

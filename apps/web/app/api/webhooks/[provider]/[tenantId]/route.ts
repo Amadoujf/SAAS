@@ -21,7 +21,11 @@ const KNOWN_PROVIDERS = ["paydunya", "paytech", "cod", "wave_direct", "orange_mo
  * contenu ne doit JAMAIS être considéré comme fiable avant vérification
  * cryptographique côté `processPaymentWebhook`).
  */
-export async function POST(request: NextRequest, { params }: { params: { provider: string; tenantId: string } }) {
+export async function POST(
+  request: NextRequest,
+  props: { params: Promise<{ provider: string; tenantId: string }> }
+) {
+  const params = await props.params;
   if (!KNOWN_PROVIDERS.includes(params.provider)) {
     return NextResponse.json({ error: "Prestataire inconnu." }, { status: 404 });
   }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -85,9 +86,9 @@ export function B2BProductDetail({
         aria-label="Fil d'Ariane"
         className="mb-6 text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]"
       >
-        <a href="/" className="hover:text-[var(--color-primary)]">
+        <Link href="/" className="hover:text-[var(--color-primary)]">
           Accueil
-        </a>{" "}
+        </Link>{" "}
         / <span className="text-[var(--color-text-primary)]">{product.name}</span>
       </nav>
 

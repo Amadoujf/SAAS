@@ -14,7 +14,8 @@ export const dynamic = "force-dynamic";
  * Rapprochement des espèces : ce que chaque livreur détient, ce qui a été versé au bureau
  * (écarts motivés), ce qui est dû à chaque expéditeur (encaissements − tarifs à sa charge).
  */
-export default async function CashPage({ searchParams }: { searchParams: { recu?: string } }) {
+export default async function CashPage(props: { searchParams: Promise<{ recu?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireCourierPage("payments.view");
   const tenantId = membership.tenantId;
   const data = await withTenant(tenantId, async (tx) => ({ rec: await courierReconciliation(tx, tenantId), tz: (await tx.tenant.findUnique({ where: { id: tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar" }));

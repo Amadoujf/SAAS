@@ -25,7 +25,11 @@ const Pill = ({ tone, children }: { tone: string; children: React.ReactNode }) =
  * déduit des encaissements réels), reçus, présences et notes PUBLIÉES. Jamais ceux d'une
  * autre famille ; rien n'y est payable en ligne.
  */
-export default async function FamilyPage({ params, searchParams }: { params: { token: string }; searchParams: Record<string, string | string[] | undefined> }) {
+export default async function FamilyPage(
+  props: { params: Promise<{ token: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const r = await resolveEducation(`/famille/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

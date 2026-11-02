@@ -21,7 +21,10 @@ const FILES = [
 const uuid = (v?: string) => (v && /^[0-9a-f-]{36}$/.test(v) ? v : null);
 
 /** Inscriptions : demandes en ligne à confirmer, dossiers en cours, retards de paiement, inscription au bureau. */
-export default async function EnrollmentsPage({ searchParams }: { searchParams: { file?: string; q?: string; formation?: string } }) {
+export default async function EnrollmentsPage(
+  props: { searchParams: Promise<{ file?: string; q?: string; formation?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const membership = await requireEducationPage("reservations.view");
   const tenantId = membership.tenantId;
   const file = FILES.some((f) => f.key === searchParams.file) ? searchParams.file! : "";

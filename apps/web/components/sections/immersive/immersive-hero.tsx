@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type React from "react";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import type { z } from "zod";
@@ -139,7 +140,7 @@ function Headline({ params, dark, center = false }: { params: ImmersiveHeroParam
 export function ImmersiveHeroSection({ variant, params }: { variant: string; params: ImmersiveHeroParams }) {
   const ref = useRef<HTMLElement>(null);
   const amp = useMotionAmplitude(params.intensity);
-  const inView = useInView(ref);
+  const inView = useInView(ref as React.RefObject<Element>);
   const visible = usePageVisible();
   const low = useLowPower();
   const fine = useFinePointer();

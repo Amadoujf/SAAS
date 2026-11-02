@@ -13,7 +13,8 @@ import { PropertyEditor, type PropertyDraft } from "@/components/dashboard-real-
 
 export const metadata: Metadata = { title: "Bien — Y-COM", robots: { index: false, follow: false } };
 
-export default async function PropertyPage({ params }: { params: { id: string } }) {
+export default async function PropertyPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireRealEstatePage("listings.view");
   const data = await withTenant(membership.tenantId, async (tx) => {
     const listing = await tx.listing.findFirst({ where: { id: params.id, tenantId: membership.tenantId, type: "property", deletedAt: null }, include: { property: true } });

@@ -126,7 +126,8 @@ const Dots = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
 );
 
-export default async function DashboardHome({ searchParams }: { searchParams: { periode?: string } }) {
+export default async function DashboardHome(props: { searchParams: Promise<{ periode?: string }> }) {
+  const searchParams = await props.searchParams;
   const session = await auth();
   const membership = await getCurrentTenantMembership();
   const firstName = session?.user?.name?.split(" ")[0] ?? "";

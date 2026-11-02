@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { withTenant, getDish } from "@yamacommerce/database";
@@ -8,7 +9,8 @@ import { DishEditor } from "@/components/dashboard-restaurant/dish-editor";
 export const metadata: Metadata = { title: "Plat — Y-COM", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
-export default async function DishPage({ params }: { params: { id: string } }) {
+export default async function DishPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireRestaurantPage("products.edit");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const { dish, sections } = await withTenant(membership.tenantId, async (tx) => ({
@@ -18,7 +20,7 @@ export default async function DishPage({ params }: { params: { id: string } }) {
   if (!dish) notFound();
   return (
     <>
-      <PageHeader eyebrow={<a href="/dashboard/carte" className="hover:underline">La carte</a>} title={dish.name} description={`Rubrique ${dish.section.name}`} />
+      <PageHeader eyebrow={<Link href="/dashboard/carte" className="hover:underline">La carte</Link>} title={dish.name} description={`Rubrique ${dish.section.name}`} />
       <DishEditor
         dishId={dish.id}
         sections={sections}

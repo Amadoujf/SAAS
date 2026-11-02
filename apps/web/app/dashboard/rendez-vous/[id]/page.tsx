@@ -17,7 +17,8 @@ export const dynamic = "force-dynamic";
 const CHANNELS: Record<string, string> = { web: "pris en ligne", phone: "pris au téléphone", dashboard: "pris au comptoir", whatsapp: "pris sur WhatsApp" };
 
 /** Fiche d'un rendez-vous : statut, déplacement, prix final, encaissement, historique. */
-export default async function AppointmentPage({ params }: { params: { id: string } }) {
+export default async function AppointmentPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireSalonPage("reservations.view");
   const data = await withTenant(membership.tenantId, async (tx) => ({
     tz: (await tx.tenant.findUnique({ where: { id: membership.tenantId }, select: { timezone: true } }))?.timezone || "Africa/Dakar",

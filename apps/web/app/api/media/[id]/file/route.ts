@@ -33,7 +33,8 @@ import { storageProvider } from "@/lib/media/storage-config";
  */
 const PUBLIC_VARIANT_KEYS = new Set(["thumbnail", "small", "medium", "large"]);
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const asset = await withSuperAdminAccess((tx) => tx.mediaAsset.findUnique({ where: { id: params.id } }));
   if (!asset || (asset.status !== "READY" && asset.status !== "TRASHED")) {
     return NextResponse.json({ error: "Média introuvable." }, { status: 404 });

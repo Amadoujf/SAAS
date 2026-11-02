@@ -7,7 +7,8 @@ import { updateCartItemQuantityAction, removeCartItemAction } from "@/lib/storef
 
 const updateSchema = z.object({ quantity: z.number().int().min(0).max(999) });
 
-export async function PATCH(request: NextRequest, { params }: { params: { itemId: string } }) {
+export async function PATCH(request: NextRequest, props: { params: Promise<{ itemId: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const host = request.headers.get("host") ?? "";
   const active = await resolveActiveTenant(host);
@@ -26,7 +27,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { itemId
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { itemId: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ itemId: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const host = request.headers.get("host") ?? "";
   const active = await resolveActiveTenant(host);

@@ -17,11 +17,12 @@ import { PublicSiteBillingSuspended } from "@/components/public-site-billing-sus
  * dynamique (priorité Next.js aux segments statiques) — ces mots restent donc des
  * slugs de page réservés, indisponibles pour une page personnalisée d'un tenant.
  */
-export async function generateMetadata({
-  params,
-}: {
-  params: { slug: string };
-}): Promise<Metadata> {
+export async function generateMetadata(
+  props: {
+    params: Promise<{ slug: string }>;
+  }
+): Promise<Metadata> {
+  const params = await props.params;
   const headerList = await headers();
   const host = headerList.get("host") ?? "";
   const resolution = await resolvePublicSite(host);
@@ -36,7 +37,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function TenantPage({ params }: { params: { slug: string } }) {
+export default async function TenantPage(props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const headerList = await headers();
   const host = headerList.get("host") ?? "";
   const resolution = await resolvePublicSite(host);
