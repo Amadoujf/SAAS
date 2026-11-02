@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { withTenant, getOrder, listNotificationsForOrder, paymentSummary, ORDER_NOTIFICATION_EVENTS } from "@yamacommerce/database";
@@ -14,7 +15,8 @@ export const dynamic = "force-dynamic";
 const NOTIF_STATUS: Record<string, string> = { queued: "En file d'attente", sent: "Envoyée", failed: "Échec d'envoi", not_sent_no_provider: "Non envoyée : aucun fournisseur configuré" };
 const CHANNELS: Record<string, string> = { web: "Site", qr: "QR code de table", dashboard: "Salle", phone: "Téléphone", whatsapp: "WhatsApp" };
 
-export default async function RestaurantOrderPage({ params }: { params: { id: string } }) {
+export default async function RestaurantOrderPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireRestaurantPage("orders.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const data = await withTenant(membership.tenantId, async (tx) => ({
@@ -30,7 +32,7 @@ export default async function RestaurantOrderPage({ params }: { params: { id: st
   return (
     <>
       <PageHeader
-        eyebrow={<a href="/dashboard/ventes" className="hover:underline">Commandes</a>}
+        eyebrow={<Link href="/dashboard/ventes" className="hover:underline">Commandes</Link>}
         title={<span className="flex flex-wrap items-center gap-3">Commande n° {o.number.split("-")[1]}<Pill tone={st.tone}>{st.label}</Pill></span>}
         description={`${o.table ? `Table ${o.table.label}` : MODE_LABELS[o.mode]?.label} · ${CHANNELS[o.channel] ?? o.channel} · ${timeIn(o.createdAt, data.tz)}${o.requestedFor ? ` · pour ${timeIn(o.requestedFor, data.tz)}` : ""}`}
       />

@@ -8,7 +8,8 @@ import { realDnsCheckDeps } from "@/lib/domains/real-deps";
 
 const bodySchema = z.object({ tenantId: z.string().min(1) });
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
 
   const parsed = bodySchema.safeParse(await request.json());

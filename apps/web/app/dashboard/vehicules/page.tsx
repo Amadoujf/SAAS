@@ -23,7 +23,8 @@ const TABS = [
 ];
 
 /** Stock de la concession : état réel (arrivage, disponible, réservé, vendu) et publication. */
-export default async function StockPage({ searchParams }: { searchParams: { etat?: string; q?: string } }) {
+export default async function StockPage(props: { searchParams: Promise<{ etat?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireAutoPage("listings.view");
   const etat = TABS.some((t) => t.key === searchParams.etat) ? searchParams.etat! : "";
   const [vehicles, counts] = await withTenant(membership.tenantId, async (tx) => [

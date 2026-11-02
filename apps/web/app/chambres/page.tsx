@@ -21,7 +21,10 @@ const int = (v: string | undefined, def: number, min: number, max: number) => {
 };
 
 /** Chambres : sans dates, prix de base ; avec dates, disponibilité réelle et prix total. */
-export default async function RoomsPage({ searchParams }: { searchParams: { arrivee?: string; depart?: string; adultes?: string; enfants?: string } }) {
+export default async function RoomsPage(
+  props: { searchParams: Promise<{ arrivee?: string; depart?: string; adultes?: string; enfants?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const r = await resolveHotel("/chambres");
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

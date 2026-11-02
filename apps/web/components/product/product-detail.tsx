@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ProductGallery } from "@/components/product/product-gallery";
@@ -101,9 +102,9 @@ export function ProductDetail({ product, locale }: { product: ProductDetailData;
         aria-label="Fil d'Ariane"
         className="mb-8 text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]"
       >
-        <a href="/" className="hover:text-[var(--color-primary)]">
+        <Link href="/" className="hover:text-[var(--color-primary)]">
           {locale === "en" ? "Home" : "Accueil"}
-        </a>{" "}
+        </Link>{" "}
         / <span className="text-[var(--color-text-primary)]">{product.name}</span>
       </nav>
 

@@ -13,7 +13,8 @@ export const metadata: Metadata = { title: "Mes courses", robots: { index: false
 export const dynamic = "force-dynamic";
 
 /** Espace livreur par lien personnel : ses courses seulement, les espèces qu'il détient. */
-export default async function DriverPage({ params }: { params: { token: string } }) {
+export default async function DriverPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveCourier(`/livreur/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

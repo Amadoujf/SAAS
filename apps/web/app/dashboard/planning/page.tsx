@@ -27,7 +27,8 @@ const HK_DOT: Record<string, string> = { clean: "bg-[#3FA176]", dirty: "bg-[#E59
  * matin de départ (couleur = à confirmer, confirmé, client arrivé, terminé), chaque
  * chambre affiche son état de ménage. Une barre ouvre la fiche du séjour.
  */
-export default async function PlanningPage({ searchParams }: { searchParams: { du?: string } }) {
+export default async function PlanningPage(props: { searchParams: Promise<{ du?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireHotelPage("reservations.view");
   const canBook = hasPermission(membership.permissions, "reservations.update_status");
   const data = await withTenant(membership.tenantId, async (tx) => {

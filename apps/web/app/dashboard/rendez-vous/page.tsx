@@ -21,7 +21,8 @@ const QUEUES = [
 ] as const;
 
 /** Rendez-vous : files de travail (à venir, aujourd'hui, à confirmer, à encaisser) et historique. */
-export default async function AppointmentsPage({ searchParams }: { searchParams: { file?: string; q?: string } }) {
+export default async function AppointmentsPage(props: { searchParams: Promise<{ file?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireSalonPage("reservations.view");
   const queue = QUEUES.find((q) => q.key === (searchParams.file ?? ""))?.key ?? "";
   const search = searchParams.q?.trim().slice(0, 60) || undefined;

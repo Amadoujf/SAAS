@@ -14,7 +14,8 @@ import { DeparturesManager } from "@/components/dashboard-travel/departures-mana
 
 export const metadata: Metadata = { title: "Voyage — Y-COM", robots: { index: false, follow: false } };
 
-export default async function TripDashboardPage({ params }: { params: { id: string } }) {
+export default async function TripDashboardPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await requireTravelPage("listings.view");
   const data = await withTenant(membership.tenantId, async (tx) => {
     const trip = await getTravelPackage(tx, membership.tenantId, params.id).catch(() => null);

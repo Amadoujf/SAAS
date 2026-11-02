@@ -15,7 +15,11 @@ export const dynamic = "force-dynamic";
 const STEP_LABEL: Record<string, string> = { pending: "Enregistrée", assigned: "Livreur désigné", picked_up: "Colis pris", in_transit: "En route", delivered: "Livré" };
 
 /** Suivi par lien : l'expéditeur voit l'avancement et l'historique ; le destinataire, son code de remise. */
-export default async function TrackingPage({ params, searchParams }: { params: { token: string }; searchParams: Record<string, string | string[] | undefined> }) {
+export default async function TrackingPage(
+  props: { params: Promise<{ token: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const r = await resolveCourier(`/colis/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

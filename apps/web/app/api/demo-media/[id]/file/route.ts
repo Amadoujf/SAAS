@@ -11,10 +11,8 @@ import { DEMO_TENANT_ID, demoLocalStorageProvider, demoMediaRepositoryInstance }
  * N'expose JAMAIS `storageKey` (clé de stockage interne) au client — seul
  * l'identifiant `MediaAsset.id`, déjà opaque, apparaît dans l'URL.
  */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } },
-) {
+export async function GET(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const asset = await demoMediaRepositoryInstance().get(DEMO_TENANT_ID, params.id);
   if (!asset || (asset.status !== "READY" && asset.status !== "TRASHED")) {
     return NextResponse.json({ error: "Média introuvable." }, { status: 404 });

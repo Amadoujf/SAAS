@@ -20,7 +20,8 @@ const addressSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
-export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });
   const addresses = await listCustomerAddressesAction(membership.tenantId, params.id);
@@ -28,7 +29,8 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
   return NextResponse.json({ addresses });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

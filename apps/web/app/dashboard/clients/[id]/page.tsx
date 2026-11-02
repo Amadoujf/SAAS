@@ -6,7 +6,8 @@ import { CustomerDetailPanel } from "@/components/dashboard/customer-detail-pane
 
 export const metadata: Metadata = { title: "Fiche client — Dashboard", robots: { index: false, follow: false } };
 
-export default async function CustomerDetailPage({ params }: { params: { id: string } }) {
+export default async function CustomerDetailPage(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const membership = await getCurrentTenantMembership();
   if (!membership) redirect("/dashboard");
 

@@ -4,7 +4,8 @@ import { resolveActiveTenant } from "@/lib/rendering/resolve-public-site";
 
 /** Aperçu rapide d'un produit PUBLIÉ (boutique résolue par le Host) : images,
  *  variantes et stock réel — le prix payé reste toujours recalculé par le serveur. */
-export async function GET(request: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(request: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const active = await resolveActiveTenant(request.headers.get("host") ?? "");
   if (active.status !== "ok") return NextResponse.json({ error: "Boutique introuvable." }, { status: 404 });
   const product = await withTenant(active.tenantId, (tx) => getProductBySlugForTenant(tx, active.tenantId, params.slug, "PUBLISHED"));

@@ -19,7 +19,8 @@ const STATUS: Record<string, { title: string; text: string }> = {
 };
 
 /** Suivi de SA demande de visite par le visiteur (lien secret reçu après l'envoi). */
-export default async function VisitStatusPage({ params }: { params: { token: string } }) {
+export default async function VisitStatusPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveEstate(`/visite/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

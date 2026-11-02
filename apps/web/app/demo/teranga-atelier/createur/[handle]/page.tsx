@@ -28,7 +28,8 @@ export function generateStaticParams() {
   return getAllDesignerHandles().map((handle) => ({ handle }));
 }
 
-export function generateMetadata({ params }: { params: { handle: string } }): Metadata {
+export async function generateMetadata(props: { params: Promise<{ handle: string }> }): Promise<Metadata> {
+  const params = await props.params;
   const designer = getDesignerByHandle(params.handle);
   if (!designer) return {};
   return {
@@ -37,7 +38,8 @@ export function generateMetadata({ params }: { params: { handle: string } }): Me
   };
 }
 
-export default function DesignerPage({ params }: { params: { handle: string } }) {
+export default async function DesignerPage(props: { params: Promise<{ handle: string }> }) {
+  const params = await props.params;
   const designer = getDesignerByHandle(params.handle);
   if (!designer) notFound();
 

@@ -16,7 +16,8 @@ type Params = { transaction?: string; type?: string; commune?: string; chambres?
 
 /** Recherche de biens : filtres partageables dans l'adresse (transaction, type,
  *  commune, chambres, budget). Seuls les biens publiés apparaissent. */
-export default async function PropertiesSearchPage({ searchParams }: { searchParams: Params }) {
+export default async function PropertiesSearchPage(props: { searchParams: Promise<Params> }) {
+  const searchParams = await props.searchParams;
   const r = await resolveEstate("/biens");
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

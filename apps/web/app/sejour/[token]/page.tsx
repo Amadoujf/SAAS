@@ -13,7 +13,8 @@ export const metadata: Metadata = { title: "Mon séjour", robots: { index: false
 export const dynamic = "force-dynamic";
 
 /** Suivi d'un séjour par son jeton : le client ne voit que LE SIEN. */
-export default async function StayPage({ params }: { params: { token: string } }) {
+export default async function StayPage(props: { params: Promise<{ token: string }> }) {
+  const params = await props.params;
   const r = await resolveHotel(`/sejour/${params.token}`);
   if (r.status === "suspended") return <PublicSiteSuspended tenantName={r.tenantName} />;
   if (r.status === "billing_suspended") return <PublicSiteBillingSuspended tenantName={r.tenantName} />;

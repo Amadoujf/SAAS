@@ -6,7 +6,8 @@ import { setProductStatusAction } from "@/lib/catalog/product-pipeline";
 
 const bodySchema = z.object({ status: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]) });
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   if (!isSameOriginRequest(request)) return NextResponse.json({ error: "Origine refusée." }, { status: 403 });
   const membership = await getCurrentTenantMembership();
   if (!membership) return NextResponse.json({ error: "Non autorisé." }, { status: 403 });

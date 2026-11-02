@@ -13,7 +13,8 @@ export const metadata: Metadata = { title: "Essais — Y-COM", robots: { index: 
 export const dynamic = "force-dynamic";
 
 /** Agenda des essais : à venir groupés par jour, puis les derniers passés à solder. */
-export default async function DrivesPage({ searchParams }: { searchParams: { vue?: string } }) {
+export default async function DrivesPage(props: { searchParams: Promise<{ vue?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireAutoPage("reservations.view");
   const tenantId = membership.tenantId;
   const past = searchParams.vue === "passes";

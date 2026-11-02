@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { Reveal } from "@/lib/motion/reveal";
 import { MaskReveal } from "@/lib/motion/mask-reveal";
@@ -36,9 +37,9 @@ export function DesignerProfileHeader({
         aria-label="Fil d'Ariane"
         className="mb-8 text-[length:var(--text-body-xs)] text-[var(--color-text-muted)]"
       >
-        <a href="/" className="hover:text-[var(--color-primary)]">
+        <Link href="/" className="hover:text-[var(--color-primary)]">
           {locale === "en" ? "Home" : "Accueil"}
-        </a>{" "}
+        </Link>{" "}
         / <span className="text-[var(--color-text-primary)]">{designer.name}</span>
       </nav>
 

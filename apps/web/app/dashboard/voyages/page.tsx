@@ -23,7 +23,8 @@ const FILTERS = [
 ] as const;
 
 /** Voyages de l'agence : statut de publication, prochains départs et remplissage, quota de fiches. */
-export default async function TripsDashboardPage({ searchParams }: { searchParams: { statut?: string; q?: string } }) {
+export default async function TripsDashboardPage(props: { searchParams: Promise<{ statut?: string; q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireTravelPage("listings.view");
   const status = FILTERS.some((f) => f.key && f.key === searchParams.statut) ? (searchParams.statut as "published") : undefined;
   const search = searchParams.q?.trim().slice(0, 80) || undefined;

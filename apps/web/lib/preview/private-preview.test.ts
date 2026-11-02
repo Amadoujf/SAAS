@@ -18,6 +18,14 @@ describe("prévisualisation privée", () => {
     expect(isPreviewExempt("/api/storefront/courier/request")).toBe(false);
     expect(isPreviewExempt("/api/internal/domains/sweep")).toBe(true);
     expect(isPreviewExempt("/api/internalx")).toBe(false);
+    // Illustrations statiques (relues par l'optimiseur d'images de Next 15) : oui ;
+    // fichiers servis par l'API, pages, chemins piégés : non.
+    expect(isPreviewExempt("/marketing/hero-templates.jpg")).toBe(true);
+    expect(isPreviewExempt("/demo/mode/sac-kora.webp")).toBe(true);
+    expect(isPreviewExempt("/api/media/local-serve.jpg")).toBe(false);
+    expect(isPreviewExempt("/dashboard")).toBe(false);
+    expect(isPreviewExempt("/produit/robe.jpg/../dashboard")).toBe(false);
+    expect(isPreviewExempt("/catalogue?x=.png")).toBe(false);
   });
   it("empreinte stable, jamais le code en clair", async () => {
     const a = await previewFingerprint("secret-code");

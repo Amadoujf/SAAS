@@ -17,7 +17,10 @@ function safeNext(value: string | undefined) {
   return value && value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
 }
 
-export default function ConnexionPage({ searchParams }: { searchParams: { error?: string; suite?: string; cree?: string } }) {
+export default async function ConnexionPage(
+  props: { searchParams: Promise<{ error?: string; suite?: string; cree?: string }> }
+) {
+  const searchParams = await props.searchParams;
   const next = safeNext(searchParams.suite);
   async function authenticate(formData: FormData) {
     "use server";

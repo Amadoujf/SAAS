@@ -10,7 +10,8 @@ export const metadata: Metadata = { title: "Élèves — Y-COM", robots: { index
 export const dynamic = "force-dynamic";
 
 /** Élèves et leurs responsables : classes en cours, contact, dossiers d'inscription. */
-export default async function StudentsPage({ searchParams }: { searchParams: { q?: string } }) {
+export default async function StudentsPage(props: { searchParams: Promise<{ q?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireEducationPage("customers.view");
   const tenantId = membership.tenantId;
   const [students, open] = await withTenant(tenantId, async (tx) => [

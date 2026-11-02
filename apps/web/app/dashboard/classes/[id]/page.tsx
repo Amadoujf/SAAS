@@ -18,7 +18,11 @@ export const dynamic = "force-dynamic";
  * évaluations et notes. Un enseignant n'ouvre que SES classes (portée vérifiée par le
  * registre : une autre classe est « introuvable »).
  */
-export default async function ClassPage({ params, searchParams }: { params: { id: string }; searchParams: { date?: string } }) {
+export default async function ClassPage(
+  props: { params: Promise<{ id: string }>; searchParams: Promise<{ date?: string }> }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
   const membership = await requireEducationPage("academics.view");
   if (!/^[0-9a-f-]{36}$/.test(params.id)) notFound();
   const tenantId = membership.tenantId;

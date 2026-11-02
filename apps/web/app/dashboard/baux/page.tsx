@@ -30,7 +30,8 @@ function Kpi({ label, value, tone = "neutral", foot }: { label: string; value: s
 
 /** Baux en cours, échéancier des loyers et encaissements. Un loyer n'est « payé » que
  *  lorsqu'un encaissement réel a été enregistré (montant, moyen, date). */
-export default async function LeasesPage({ searchParams }: { searchParams: { filtre?: string } }) {
+export default async function LeasesPage(props: { searchParams: Promise<{ filtre?: string }> }) {
+  const searchParams = await props.searchParams;
   const membership = await requireRealEstatePage("leases.view");
   const tenantId = membership.tenantId;
   const now = new Date();

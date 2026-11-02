@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { planPerks } from "@/lib/billing/plan-catalog";
 
@@ -257,7 +258,7 @@ export function BillingPanel() {
                     ))}
                   </ul>
                   {plan.isQuoteOnly ? (
-                    <a href="/#devis" className="mt-2 rounded-xl border border-yc-ink/15 px-4 py-2 text-center text-sm font-medium text-yc-ink hover:bg-yc-ivory-100">Demander un devis</a>
+                    <Link href="/#devis" className="mt-2 rounded-xl border border-yc-ink/15 px-4 py-2 text-center text-sm font-medium text-yc-ink hover:bg-yc-ivory-100">Demander un devis</Link>
                   ) : (
                   <button
                     type="button"
